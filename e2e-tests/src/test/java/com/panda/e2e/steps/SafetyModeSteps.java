@@ -7,7 +7,6 @@ import com.panda.e2e.client.PandaUsbClient;
 import com.panda.e2e.context.TestContext;
 import io.cucumber.java.After;
 import io.cucumber.java.Before;
-import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
 
@@ -56,13 +55,6 @@ public class SafetyModeSteps {
         if (ctx.getClient() != null) {
             ctx.getClient().close();
         }
-    }
-
-    // ---- Given ----
-
-    @Given("the panda is connected")
-    public void pandaIsConnected() {
-        // Client already initialized in @Before
     }
 
     // ---- When: safety mode ----

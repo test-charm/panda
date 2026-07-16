@@ -1,9 +1,6 @@
 # language: en
 Feature: Safety Mode Switching
 
-  Background:
-    Given the panda is connected
-
   Scenario: Set SILENT mode and verify health reflects it
     When I set safety mode to "SILENT"
     Then the safety_mode in health should be 0
