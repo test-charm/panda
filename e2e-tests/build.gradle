@@ -43,6 +43,13 @@ dependencies {
 
 tasks.register('buildNativeLib', Exec) {
     workingDir file('src/test/c')
+    environment COVERAGE: '0'
+    commandLine 'bash', 'build.sh'
+}
+
+tasks.register('buildNativeLibCoverage', Exec) {
+    workingDir file('src/test/c')
+    environment COVERAGE: '1'
     commandLine 'bash', 'build.sh'
 }
 
@@ -57,6 +64,30 @@ tasks.register('cucumber', JavaExec) {
             project.hasProperty('file') ? project.file : 'src/test/resources/features']
     systemProperty 'java.library.path',
             file('src/test/c').absolutePath
+}
+
+tasks.register('cucumberCoverage', JavaExec) {
+    dependsOn assemble, testClasses, buildNativeLibCoverage
+    mainClass = "io.cucumber.core.cli.Main"
+    classpath = configurations.cucumberRuntime + sourceSets.main.output + sourceSets.test.output
+    jvmArgs "-Dfile.encoding=UTF-8", "-Dsun.jnu.encoding=utf-8"
+    args = ['--plugin', 'pretty',
+            '--plugin', 'html:build/reports/cucumber/cucumber-html.html',
+            '--glue', 'com.panda.e2e',
+            project.hasProperty('file') ? project.file : 'src/test/resources/features']
+    systemProperty 'java.library.path',
+            file('src/test/c').absolutePath
+    environment 'LLVM_PROFILE_FILE',
+            file('build/coverage/default.profraw').absolutePath
+    doFirst {
+        mkdir file('build/coverage')
+    }
+    doLast {
+        exec {
+            workingDir file('build/coverage')
+            commandLine 'bash', file('scripts/coverage-report.sh').absolutePath
+        }
+    }
 }
 
 test {

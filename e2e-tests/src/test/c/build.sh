@@ -29,10 +29,16 @@ CFLAGS="-std=gnu11 -fPIC -shared -O0 -g \
   -Wno-incompatible-library-redeclaration \
   -Wno-pointer-to-int-cast"
 
+# Coverage mode: instrument C code with Clang source-based coverage
+if [ "${COVERAGE:-}" = "1" ]; then
+    CFLAGS="$CFLAGS -fprofile-instr-generate -fcoverage-mapping"
+    echo "[build] Coverage instrumentation enabled"
+fi
+
 OUTPUT="$SCRIPT_DIR/libpanda.dylib"
 
-# Skip rebuild if output is newer than all sources
-if [ -f "$OUTPUT" ] && [ "$OUTPUT" -nt "$SCRIPT_DIR/libpanda.c" ] && [ "$OUTPUT" -nt "$PROJECT_ROOT/board/main.c" ]; then
+# Skip rebuild if output is newer than all sources (only in non-coverage mode)
+if [ "${COVERAGE:-}" != "1" ] && [ -f "$OUTPUT" ] && [ "$OUTPUT" -nt "$SCRIPT_DIR/libpanda.c" ] && [ "$OUTPUT" -nt "$PROJECT_ROOT/board/main.c" ]; then
     echo "[build] libpanda.dylib is up to date"
     ls -la "$OUTPUT"
     exit 0
