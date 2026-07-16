@@ -11,8 +11,7 @@
         │
         ▼
   src/test/c/build.sh
-  ├── awk 提取 set_safety_mode() + is_car_safety_mode()
-  └── clang 编译 → libpanda_safety.dylib
+  └── clang 编译 → libpanda.dylib
         │
         ▼ JNA
   NativePandaClient.java
@@ -28,8 +27,8 @@ e2e-tests/
 ├── build.gradle                        # Gradle 构建：cucumber + jfactory + JNA
 ├── src/test/
 │   ├── c/                              # C 源码 + 宿主编译
-│   │   ├── build.sh                    # 提取+编译脚本
-│   │   ├── panda_safety.c              # JNA wrapper，提供硬件 stub
+│   │   ├── build.sh                    # 编译脚本（编译完整 board/main.c）
+│   │   ├── libpanda.c                  # JNA wrapper，提供硬件 stub
 │   │   └── board/                      # 硬件头文件 stub（覆盖真实头文件）
 │   │       ├── drivers/                # led.h, pwm.h, usb.h, fdcan.h ...
 │   │       ├── sys/power_saving.h
@@ -72,22 +71,6 @@ SafetyModeSteps.createClient()
 
 ## C 代码编译机制
 
-### 提取
-
-`build.sh` 用 awk 从 `board/main.c` 中提取两个函数：
-
-```bash
-awk '/^\/\/ this is the only way to leave silent mode$/{ p=1; brace=0 }
-     p { print; if (/^}/) brace++; if (brace == 2) exit }' board/main.c
-```
-
-提取范围：`set_safety_mode()`（行 41-89）+ `is_car_safety_mode()`（行 91-96）。
-
-提取后自动注入必要的 `#include`：
-- `board/drivers/fdcan.h` — CANIF_FROM_CAN_NUM 宏
-- `opendbc/safety/can.h` — CANPacket_t 类型
-- `opendbc/safety/safety.h` — set_safety_hooks() 声明
-
 ### 编译
 
 ```bash
@@ -96,7 +79,8 @@ cc -std=gnu11 -fPIC -shared -O0 -g \
   -I . \                  # 项目根目录
   -I board/ \             # 真实固件头文件
   -I .venv/.../opendbc \  # opendbc 头文件
-  -o libpanda_safety.dylib
+  -D main=panda_main \    # 重命名 main() 避免符号冲突
+  -o libpanda.dylib
 ```
 
 ### 硬件依赖 stub
@@ -114,7 +98,7 @@ cc -std=gnu11 -fPIC -shared -O0 -g \
 | `board/early_init.h` | 早期初始化 | 依赖 VTOR、时钟 |
 | `board/main_comms.h` | 通信协议 | 依赖 USB/SPI 端点 |
 
-`panda_safety.c` 中的显式 stub：
+`libpanda.c` 中的显式 stub：
 - `current_board` — board 结构体实例
 - `can_silent`, `safety_tx_blocked` 等全局变量
 - `set_intercept_relay()`, `can_clear_send()`, `can_init_all()` 等硬件函数
@@ -125,7 +109,7 @@ cc -std=gnu11 -fPIC -shared -O0 -g \
 
 ```java
 public interface SafetyLib extends Library {
-    SafetyLib INSTANCE = Native.load(".../libpanda_safety.dylib", SafetyLib.class);
+    SafetyLib INSTANCE = Native.load(".../libpanda.dylib", SafetyLib.class);
     void jna_set_safety_mode(short mode, short param);
     byte  jna_get_can_silent();
 }

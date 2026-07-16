@@ -1,4 +1,3 @@
-// Stub: overrides board/drivers/spi.h for host compilation
-#pragma once
+// Stub: overrides board/drivers/spi.h
 #include <stdint.h>
-void spi_init(void) {}
+void spi_init(void);

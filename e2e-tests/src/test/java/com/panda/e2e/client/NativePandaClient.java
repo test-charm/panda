@@ -18,7 +18,7 @@ public class NativePandaClient implements PandaClient {
     static {
         // Resolve dylib relative to project or via classpath
         String cwd = System.getProperty("user.dir");
-        LIB_PATH = cwd + "/src/test/c/libpanda_safety.dylib";
+        LIB_PATH = cwd + "/src/test/c/libpanda.dylib";
     }
 
     public interface SafetyLib extends Library {

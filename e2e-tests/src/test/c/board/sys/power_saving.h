@@ -1,6 +1,5 @@
-// Stub: overrides board/sys/power_saving.h for host compilation
-#pragma once
+// Stub: overrides board/sys/power_saving.h
 #include <stdbool.h>
-void set_power_save_state(bool en) { (void)en; }
-void enable_can_transceivers(bool en) { (void)en; }
-void enter_stop_mode(void) {}
+void set_power_save_state(bool en);
+void enable_can_transceivers(bool en);
+void enter_stop_mode(void);

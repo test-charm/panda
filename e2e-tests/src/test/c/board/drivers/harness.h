@@ -1,5 +1,4 @@
-// Stub: overrides board/drivers/harness.h for host compilation
-#pragma once
+// Stub: overrides board/drivers/harness.h
 #include <stdint.h>
 #include <stdbool.h>
 
@@ -9,10 +8,22 @@
 
 typedef uint32_t GPIO_TypeDef;
 
+struct harness_t {
+    uint8_t status;
+    bool sbu_adc_lock;
+    bool relay_driven;
+    bool ignition_triggered;
+};
+
 struct harness_configuration {
     int _unused;
 };
-
 typedef struct harness_configuration harness_configuration;
 
+extern struct harness_t harness;
+
 void set_intercept_relay(bool intercept, bool ignition_relay);
+void harness_init(void);
+void harness_tick(void);
+bool harness_check_ignition(void);
+uint8_t harness_detect_orientation(void);

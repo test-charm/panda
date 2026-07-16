@@ -1,3 +1,2 @@
-// Stub: overrides board/early_init.h for host compilation
-#pragma once
-void early_initialization(void) {}
+// Stub: overrides board/early_init.h
+void early_initialization(void);

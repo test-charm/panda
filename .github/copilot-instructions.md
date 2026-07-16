@@ -132,9 +132,9 @@ Python 打包/解包函数：`python/__init__.py` 中的 `pack_can_buffer()`、`
 ### 架构
 
 ```
-board/main.c (awk 提取) → _safety_mode_extracted.c
-  └── + 硬件 stub 头文件 + panda_safety.c
-       └── clang → libpanda_safety.dylib
+board/main.c（完整源码）
+  └── + 硬件 stub 头文件 + libpanda.c
+       └── clang → libpanda.dylib
             └── JNA → NativePandaClient.java → Cucumber BDD
 ```
 
