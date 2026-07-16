@@ -31,6 +31,13 @@ CFLAGS="-std=gnu11 -fPIC -shared -O0 -g \
 
 OUTPUT="$SCRIPT_DIR/libpanda.dylib"
 
+# Skip rebuild if output is newer than all sources
+if [ -f "$OUTPUT" ] && [ "$OUTPUT" -nt "$SCRIPT_DIR/libpanda.c" ] && [ "$OUTPUT" -nt "$PROJECT_ROOT/board/main.c" ]; then
+    echo "[build] libpanda.dylib is up to date"
+    ls -la "$OUTPUT"
+    exit 0
+fi
+
 echo "[build] Compiling full board/main.c → libpanda.dylib ..."
 $CC $CFLAGS -o "$OUTPUT" "$SCRIPT_DIR/libpanda.c"
 

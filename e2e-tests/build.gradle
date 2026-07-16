@@ -41,8 +41,13 @@ dependencies {
     testImplementation 'org.assertj:assertj-core:3.25.3'
 }
 
+tasks.register('buildNativeLib', Exec) {
+    workingDir file('src/test/c')
+    commandLine 'bash', 'build.sh'
+}
+
 tasks.register('cucumber', JavaExec) {
-    dependsOn assemble, testClasses
+    dependsOn assemble, testClasses, buildNativeLib
     mainClass = "io.cucumber.core.cli.Main"
     classpath = configurations.cucumberRuntime + sourceSets.main.output + sourceSets.test.output
     jvmArgs "-Dfile.encoding=UTF-8", "-Dsun.jnu.encoding=utf-8"
