@@ -4,7 +4,6 @@ import com.panda.e2e.client.NativePandaClient;
 import com.panda.e2e.client.PandaClient;
 import com.panda.e2e.client.PandaClient.CanMessage;
 import com.panda.e2e.client.PandaUsbClient;
-import com.panda.e2e.client.StubPandaClient;
 import com.panda.e2e.context.TestContext;
 import io.cucumber.java.After;
 import io.cucumber.java.Before;
@@ -36,11 +35,7 @@ public class SafetyModeSteps {
             return real;
         } catch (RuntimeException e) {
             if (real != null) real.close();
-            try {
-                return new NativePandaClient(); // real C code, no hardware
-            } catch (UnsatisfiedLinkError err) {
-                return new StubPandaClient(); // fallback: pure Java stub
-            }
+            return new NativePandaClient(); // real C code, no hardware
         }
     }
 
