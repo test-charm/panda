@@ -1,0 +1,61 @@
+plugins {
+    id 'java'
+}
+
+repositories {
+    maven {
+        url "https://mirrors.huaweicloud.com/repository/maven"
+    }
+    mavenCentral()
+}
+
+configurations {
+    cucumberRuntime {
+        extendsFrom testImplementation
+    }
+}
+
+sourceCompatibility = '17'
+targetCompatibility = '17'
+
+ext {
+    set('jfactoryDal', '1.0.0-alpha.21')
+}
+
+dependencies {
+    // Cucumber BDD
+    testImplementation platform('io.cucumber:cucumber-bom:7.18.0')
+    testImplementation 'io.cucumber:cucumber-java'
+    testImplementation 'io.cucumber:cucumber-junit-platform-engine'
+    testImplementation 'org.junit.platform:junit-platform-suite'
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+
+    // jfactory (test data preparation)
+    testImplementation "org.test-charm:jfactory:${jfactoryDal}"
+    testImplementation "org.test-charm:jfactory-cucumber:${jfactoryDal}"
+
+    // USB hardware communication (JNA to system libusb)
+    testImplementation 'net.java.dev.jna:jna:5.14.0'
+
+    // Assertions
+    testImplementation 'org.assertj:assertj-core:3.25.3'
+}
+
+tasks.register('cucumber', JavaExec) {
+    dependsOn assemble, testClasses
+    mainClass = "io.cucumber.core.cli.Main"
+    classpath = configurations.cucumberRuntime + sourceSets.main.output + sourceSets.test.output
+    jvmArgs "-Dfile.encoding=UTF-8", "-Dsun.jnu.encoding=utf-8"
+    args = ['--plugin', 'pretty',
+            '--plugin', 'html:build/reports/cucumber/cucumber-html.html',
+            '--glue', 'com.panda.e2e',
+            project.hasProperty('file') ? project.file : 'src/test/resources/features']
+    systemProperty 'java.library.path',
+            file('src/test/c').absolutePath
+}
+
+test {
+    useJUnitPlatform()
+    systemProperty "cucumber.junit-platform.naming-strategy", "long"
+    enabled = false       // e2e tests run via ./gradlew cucumber
+}

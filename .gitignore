@@ -5,6 +5,8 @@
 .*.swo
 *.o
 *.so
+*.dylib
+*.dSYM
 *.os
 *.d
 *.dump
