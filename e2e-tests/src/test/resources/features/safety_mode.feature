@@ -1,5 +1,8 @@
 # language: en
-Feature: Safety Mode Switching
+Feature: Safety Mode Switching (via USB control handler)
+  Tests go through the FULL firmware path:
+  comms_control_handler() → case 0xdc → set_safety_mode() → set_safety_hooks()
+  and health reads via case 0xd2 → get_health_pkt()
 
   Scenario: Set SILENT mode and verify health reflects it
     When I set safety mode to "SILENT"

@@ -9,51 +9,52 @@ import java.util.List;
 
 /**
  * Panda client backed by REAL firmware code from board/main.c compiled as .dylib.
- * Calls set_safety_mode() via JNA. Used for mutation testing without hardware.
+ * Goes through the FULL firmware path: comms_control_handler() → set_safety_mode().
+ * Used for mutation testing without hardware.
  */
 public class NativePandaClient implements PandaClient {
 
-    private static final String LIB_PATH;
-
-    static {
-        // Resolve dylib relative to project or via classpath
-        String cwd = System.getProperty("user.dir");
-        LIB_PATH = cwd + "/src/test/c/libpanda.dylib";
-    }
-
     public interface SafetyLib extends Library {
-        SafetyLib INSTANCE = Native.load(LIB_PATH, SafetyLib.class);
+        SafetyLib INSTANCE = Native.load(
+                System.getProperty("user.dir") + "/src/test/c/libpanda.dylib", SafetyLib.class);
+
+        void jna_control_write(byte request, short param1, short param2);
+        int  jna_control_read(byte request, short param1, short param2);
+        byte jna_get_response_byte(int offset);
+
+        // Legacy direct calls (still used for can_silent)
         void jna_set_safety_mode(short mode, short param);
         byte jna_get_can_silent();
     }
 
     private final SafetyLib lib = SafetyLib.INSTANCE;
-    private int lastSetMode;
     private final List<CanMessage> rxBuffer = new ArrayList<>();
 
-    @Override
-    public void connect() {}
+    @Override public void connect() {}
 
     @Override
     public void setSafetyMode(int mode, int param) {
-        lib.jna_set_safety_mode((short) mode, (short) param);
-        lastSetMode = (lib.jna_get_can_silent() != 0) ? 0 : mode;
+        // Full path: comms_control_handler → case 0xdc → set_safety_mode()
+        lib.jna_control_write((byte) 0xdc, (short) mode, (short) param);
     }
 
     @Override
     public void setSafetyModeRaw(int mode, int param) {
-        lib.jna_set_safety_mode((short) mode, (short) param);
-        lastSetMode = (lib.jna_get_can_silent() != 0) ? 0 : mode;
+        lib.jna_control_write((byte) 0xdc, (short) mode, (short) param);
     }
 
-    @Override
-    public void setCanLoopback(boolean enable) {}
+    @Override public void setCanLoopback(boolean enable) {
+        lib.jna_control_write((byte) 0xe5, (short) (enable ? 1 : 0), (short) 0);
+    }
+
+    @Override public void canClear(int bus) { rxBuffer.clear(); }
 
     @Override
-    public void canClear(int bus) { rxBuffer.clear(); }
-
-    @Override
-    public int getHealthSafetyMode() { return lastSetMode; }
+    public int getHealthSafetyMode() {
+        // Full path: comms_control_handler → case 0xd2 → get_health_pkt()
+        lib.jna_control_read((byte) 0xd2, (short) 0, (short) 0);
+        return Byte.toUnsignedInt(lib.jna_get_response_byte(36));
+    }
 
     @Override
     public void canSend(int address, byte[] data, int bus) {
@@ -70,6 +71,5 @@ public class NativePandaClient implements PandaClient {
         return result;
     }
 
-    @Override
-    public void close() { rxBuffer.clear(); }
+    @Override public void close() { rxBuffer.clear(); }
 }

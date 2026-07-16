@@ -13,6 +13,8 @@ struct harness_t {
     bool sbu_adc_lock;
     bool relay_driven;
     bool ignition_triggered;
+    uint16_t sbu1_voltage_mV;
+    uint16_t sbu2_voltage_mV;
 };
 
 struct harness_configuration {
