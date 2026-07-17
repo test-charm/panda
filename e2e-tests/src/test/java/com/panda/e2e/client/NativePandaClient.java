@@ -71,5 +71,10 @@ public class NativePandaClient implements PandaClient {
         return result;
     }
 
+    @Override
+    public void controlWrite(byte request, short param1, short param2) {
+        lib.jna_control_write(request, param1, param2);
+    }
+
     @Override public void close() { rxBuffer.clear(); }
 }

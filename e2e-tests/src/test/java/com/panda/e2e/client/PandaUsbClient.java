@@ -201,6 +201,11 @@ public class PandaUsbClient implements PandaClient {
         return raw.length == 0 ? List.of() : unpackCanBuffer(raw);
     }
 
+    @Override
+    public void controlWrite(byte request, short param1, short param2) {
+        controlWrite(REQUEST_OUT, request, param1, param2, new byte[0], 1000);
+    }
+
     public record CanMessage(int address, int bus, byte[] data) {}
 
     /** Send an arbitrary safety mode value (for testing invalid mode fallback). */

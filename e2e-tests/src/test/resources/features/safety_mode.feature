@@ -1,27 +1,44 @@
 # language: en
 Feature: Safety Mode Switching (via USB control handler)
-  Tests go through the FULL firmware path:
-  comms_control_handler() → case 0xdc → set_safety_mode() → set_safety_hooks()
-  and health reads via case 0xd2 → get_health_pkt()
 
   Scenario: Set SILENT mode and verify health reflects it
-    When I set safety mode to "SILENT"
+    When control write:
+      """
+      {
+          request: -36y
+          param1: 0     # SILENT
+          param2: 0
+      }
+      """
     Then the safety_mode in health should be 0
 
   Scenario: Set NOOUTPUT mode and verify health reflects it
-    When I set safety mode to "NOOUTPUT"
+    When control write "SetSafetyMode":
+      """
+      param1: 19     # NOOUTPUT
+      """
     Then the safety_mode in health should be 19
 
   Scenario: Set ELM327 mode with default param and verify health
-    When I set safety mode to "ELM327"
+    When control write "SetSafetyMode":
+      """
+      param1: 3     # ELM327
+      """
     Then the safety_mode in health should be 3
 
   Scenario: Set ALLOUTPUT mode and verify health reflects it
-    When I set safety mode to "ALLOUTPUT"
+    When control write "SetSafetyMode":
+      """
+      param1: 17     # ALLOUTPUT
+      """
     Then the safety_mode in health should be 17
 
   Scenario: Set ELM327 mode with param=1 and verify health
-    When I set safety mode to "ELM327" with param 1
+    When control write "SetSafetyMode":
+      """
+      param1: 3     # ELM327
+      param2: 1
+      """
     Then the safety_mode in health should be 3
 
   Scenario: SILENT mode blocks CAN transmission

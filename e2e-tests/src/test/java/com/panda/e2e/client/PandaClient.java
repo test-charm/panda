@@ -20,6 +20,8 @@ public interface PandaClient extends AutoCloseable {
     void canSend(int address, byte[] data, int bus);
     List<CanMessage> canRecvParsed(int timeoutMs);
 
+    void controlWrite(byte request, short param1, short param2);
+
     @Override
     void close();
 }

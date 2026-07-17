@@ -9,6 +9,8 @@ import io.cucumber.java.After;
 import io.cucumber.java.Before;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.testcharm.jfactory.JFactory;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -138,5 +140,25 @@ public class SafetyModeSteps {
             case "HONDA" -> 32;
             default -> throw new IllegalArgumentException("Unknown safety mode: " + modeName);
         };
+    }
+
+    @Autowired
+    private JFactory jFactory;
+
+    @When("control write:")
+    public void controlWriteWithExpression(String expression) {
+        var request = jFactory.useDAL().create(UsbControlRequest.class, expression);
+        ctx.getClient().controlWrite(request.request, request.param1, request.param2);
+    }
+
+    @When("control write {string}:")
+    public void controlWriteWithSpec(String spec, String expression) {
+        UsbControlRequest request = jFactory.useDAL().create(spec, expression);
+        ctx.getClient().controlWrite(request.request, request.param1, request.param2);
+    }
+
+    public static class UsbControlRequest {
+        public byte request;
+        public short param1, param2;
     }
 }
