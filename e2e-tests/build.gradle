@@ -19,20 +19,27 @@ sourceCompatibility = '17'
 targetCompatibility = '17'
 
 ext {
-    set('jfactoryDal', '1.0.0-alpha.21')
+    set('cucumberVersion', '7.30.0')
+    set('springBootVersion', '3.3.2')
+    set('testCharmVersion', '1.0.0-alpha.21')
 }
 
 dependencies {
+    testAnnotationProcessor('org.projectlombok:lombok:1.18.32')
+    testImplementation('org.projectlombok:lombok:1.18.32')
+
+    testImplementation("org.springframework.boot:spring-boot-starter-test:${springBootVersion}")
+
     // Cucumber BDD
-    testImplementation platform('io.cucumber:cucumber-bom:7.18.0')
+    testImplementation platform('io.cucumber:cucumber-bom:7.30.0')
     testImplementation 'io.cucumber:cucumber-java'
-    testImplementation 'io.cucumber:cucumber-junit-platform-engine'
-    testImplementation 'org.junit.platform:junit-platform-suite'
-    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testImplementation 'io.cucumber:cucumber-spring'
 
     // jfactory (test data preparation)
-    testImplementation "org.test-charm:jfactory:${jfactoryDal}"
-    testImplementation "org.test-charm:jfactory-cucumber:${jfactoryDal}"
+    testImplementation "org.test-charm:jfactory:${testCharmVersion}"
+    testImplementation "org.test-charm:jfactory-cucumber:${testCharmVersion}"
+    testImplementation("org.test-charm:DAL-java:${testCharmVersion}")
+    testImplementation("org.test-charm:DAL-extension-basic:${testCharmVersion}")
 
     // USB hardware communication (JNA to system libusb)
     testImplementation 'net.java.dev.jna:jna:5.14.0'
