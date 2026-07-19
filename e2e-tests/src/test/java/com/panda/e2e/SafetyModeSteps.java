@@ -1,5 +1,6 @@
 package com.panda.e2e;
 
+import io.cucumber.java.Before;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,6 +17,12 @@ public class SafetyModeSteps {
 
     @Autowired
     private JFactory jFactory;
+
+    @Before
+    public void setUp() {
+        client.clearCanQueues();
+        client.clearRelayCalls();
+    }
 
     @When("control write:")
     public void controlWriteWithExpression(String expression) {

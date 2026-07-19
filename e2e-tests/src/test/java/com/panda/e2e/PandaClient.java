@@ -18,6 +18,9 @@ public class PandaClient {
     public record CanMessage(int address, int bus, byte[] data, boolean rejected) {
     }
 
+    public record RelayCall(boolean a, boolean b) {
+    }
+
     public interface PandaLib extends Library {
         PandaLib INSTANCE = Native.load(
                 System.getProperty("user.dir") + "/src/test/c/libpanda.dylib", PandaLib.class);
@@ -33,6 +36,14 @@ public class PandaClient {
         boolean jna_can_pop_tx(int queueIdx, int[] outAddr, byte[] outData, byte[] outLen);
 
         void jna_can_clear_all();
+
+        int jna_get_relay_call_count();
+
+        int jna_get_relay_a();
+
+        int jna_get_relay_b();
+
+        void jna_clear_relay_calls();
     }
 
     private final PandaLib lib = PandaLib.INSTANCE;
@@ -73,8 +84,19 @@ public class PandaClient {
         return AdaptiveList.staticList(canMessages);
     }
 
-    public void clearAllCanQueues() {
+    public void clearCanQueues() {
         lib.jna_can_clear_all();
+    }
+
+    public RelayCall relayCall() {
+        int count = lib.jna_get_relay_call_count();
+        return (count == 0) ? null : new RelayCall(
+                lib.jna_get_relay_a() != 0,
+                lib.jna_get_relay_b() != 0);
+    }
+
+    public void clearRelayCalls() {
+        lib.jna_clear_relay_calls();
     }
 
     public void controlWrite(byte request, short param1, short param2) {
@@ -85,4 +107,8 @@ public class PandaClient {
         return lib.jna_can_send(address, bus, data, (byte) data.length);
     }
 
+    public void clearAll() {
+        clearCanQueues();
+        clearRelayCalls();
+    }
 }

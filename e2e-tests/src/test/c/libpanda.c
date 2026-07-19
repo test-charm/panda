@@ -99,7 +99,14 @@ struct board board_stub = {
 const struct board *current_board = &board_stub;
 
 // ---- Function stubs ----
-void set_intercept_relay(bool a, bool b) { (void)a; (void)b; }
+// Recording stub: captures last set_intercept_relay call for test verification
+static bool relay_a, relay_b;
+static int relay_call_count;
+void set_intercept_relay(bool a, bool b) {
+    relay_a = a;
+    relay_b = b;
+    relay_call_count++;
+}
 void can_clear_send(uint32_t x, uint8_t y) { (void)x; (void)y; }
 void harness_init(void) {}
 void harness_tick(void) {}
@@ -265,6 +272,22 @@ void jna_can_clear_all(void) {
         can_queues[i]->w_ptr = 0U;
         can_queues[i]->r_ptr = 0U;
     }
+}
+
+// Query last set_intercept_relay call parameters
+int jna_get_relay_call_count(void) {
+    return relay_call_count;
+}
+int jna_get_relay_a(void) {
+    return relay_a ? 1 : 0;
+}
+int jna_get_relay_b(void) {
+    return relay_b ? 1 : 0;
+}
+void jna_clear_relay_calls(void) {
+    relay_call_count = 0;
+    relay_a = false;
+    relay_b = false;
 }
 
 #ifdef __cplusplus

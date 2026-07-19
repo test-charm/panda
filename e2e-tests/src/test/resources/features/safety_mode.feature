@@ -22,6 +22,10 @@ Feature: Safety Mode Switching
       """
       : {
         safetyTxBlocked: 1
+        relayCall= {
+          a: false
+          b: false
+        }
         rxQueue= {
           address: 256
           bus: 0y
@@ -49,6 +53,10 @@ Feature: Safety Mode Switching
       """
       : {
         safetyTxBlocked: 1
+        relayCall= {
+          a: false
+          b: false
+        }
         rxQueue= {
           rejected: true
           data.string: blocked
@@ -74,6 +82,10 @@ Feature: Safety Mode Switching
       """
       : {
         safetyTxBlocked: 0
+        relayCall= {
+          a: true
+          b: false
+        }
         rxQueue: []
         txQueue[0]= {
           rejected: false
@@ -101,6 +113,10 @@ Feature: Safety Mode Switching
       """
       : {
         safetyTxBlocked: 0
+        relayCall= {
+          a: false
+          b: false
+        }
         rxQueue: []
         txQueue[0]= {
           address: 2015
@@ -129,6 +145,10 @@ Feature: Safety Mode Switching
       """
       : {
         safetyTxBlocked: 0
+        relayCall= {
+          a: false
+          b: false
+        }
         rxQueue: []
         txQueue[0]= {
           address: 2015
@@ -155,6 +175,10 @@ Feature: Safety Mode Switching
       """
       : {
         safetyTxBlocked: 1
+        relayCall= {
+          a: true
+          b: false
+        }
         rxQueue= {
           rejected: true
           data.string: blocked
@@ -180,6 +204,10 @@ Feature: Safety Mode Switching
       """
       : {
         safetyTxBlocked: 1
+        relayCall= {
+          a: false
+          b: false
+        }
         rxQueue= {
           rejected: true
           data.string: blocked

@@ -18,7 +18,7 @@ public class ApplicationSteps {
 
     @Before
     public void setUp() {
-        client.clearAllCanQueues();
+        client.clearAll();
         jFactory.clear();
     }
 
