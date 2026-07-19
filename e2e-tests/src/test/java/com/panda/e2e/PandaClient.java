@@ -63,6 +63,8 @@ public class PandaClient {
         int jna_get_can_mode_call_count();
         int jna_get_can_mode();
         void jna_clear_can_mode_calls();
+
+        int jna_get_can_silent();
     }
 
     private final PandaLib lib = PandaLib.INSTANCE;
@@ -136,6 +138,10 @@ public class PandaClient {
 
     public void clearCanModeCalls() {
         lib.jna_clear_can_mode_calls();
+    }
+
+    public boolean canSilent() {
+        return lib.jna_get_can_silent() != 0;
     }
 
     public void controlWrite(byte request, short param1, short param2) {

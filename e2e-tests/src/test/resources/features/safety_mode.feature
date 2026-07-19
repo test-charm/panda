@@ -22,6 +22,7 @@ Feature: Safety Mode Switching
       """
       : {
         safetyTxBlocked: 1
+        canSilent= true
         relayCall= {
           a: false
           b: false
@@ -57,6 +58,7 @@ Feature: Safety Mode Switching
       """
       : {
         safetyTxBlocked: 1
+        canSilent= false
         relayCall= {
           a: false
           b: false
@@ -90,6 +92,7 @@ Feature: Safety Mode Switching
       """
       : {
         safetyTxBlocked: 0
+        canSilent= false
         relayCall= {
           a: true
           b: false
@@ -125,6 +128,7 @@ Feature: Safety Mode Switching
       """
       : {
         safetyTxBlocked: 0
+        canSilent= false
         relayCall= {
           a: false
           b: false
@@ -164,6 +168,7 @@ Feature: Safety Mode Switching
       """
       : {
         safetyTxBlocked: 0
+        canSilent= false
         relayCall= {
           a: false
           b: false
@@ -201,6 +206,7 @@ Feature: Safety Mode Switching
       """
       : {
         safetyTxBlocked: 1
+        canSilent= false
         relayCall= {
           a: true
           b: false
@@ -234,6 +240,7 @@ Feature: Safety Mode Switching
       """
       : {
         safetyTxBlocked: 1
+        canSilent= true
         relayCall= {
           a: false
           b: false
