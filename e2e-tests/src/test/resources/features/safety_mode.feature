@@ -257,3 +257,29 @@ Feature: Safety Mode Switching
       }
       """
 
+  Scenario: Switching safety mode clears existing CAN TX queue
+    Given control write:
+      """
+      SetSafetyMode: {
+        param1: 17
+      }
+      """
+    When can send with result 0:
+      """
+      PowerTrainBusBlockedRequest: {
+        data: allowed
+      }
+      """
+    When control write:
+      """
+      SetSafetyMode: {
+        param1: 17
+      }
+      """
+    Then control data should be:
+      """
+      : {
+        rxQueue: []
+        txQueue[0]: []
+      }
+      """
