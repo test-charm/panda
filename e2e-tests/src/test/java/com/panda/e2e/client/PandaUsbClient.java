@@ -189,7 +189,7 @@ public class PandaUsbClient implements PandaClient {
             if (((dat[pos + 1] >> 1) & 0x1) != 0) bus += 128;  // returned
             if ((dat[pos + 1] & 0x1) != 0) bus += 192;          // rejected
             byte[] msgData = Arrays.copyOfRange(dat, pos + 6, pos + 6 + dataLen);
-            msgs.add(new PandaClient.CanMessage(address, bus, msgData));
+            msgs.add(new PandaClient.CanMessage(address, bus, msgData, false));
             pos += 6 + dataLen;
         }
         return msgs;

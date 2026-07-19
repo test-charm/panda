@@ -9,7 +9,7 @@ import java.util.List;
  */
 public interface PandaClient extends AutoCloseable {
 
-    record CanMessage(int address, int bus, byte[] data) {}
+    record CanMessage(int address, int bus, byte[] data, boolean rejected) {}
 
     void connect();
     void setSafetyMode(int mode, int param);

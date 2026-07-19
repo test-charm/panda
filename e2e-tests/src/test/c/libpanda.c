@@ -207,6 +207,78 @@ uint8_t jna_get_response_byte(int offset) {
 
 bool jna_get_can_silent(void) { return can_silent; }
 
+// ---- JNA API: CAN pipeline testing (real can_send → safety_tx_hook → can_push) ----
+
+// Send CAN through real firmware pipeline.
+// Returns: 0 = allowed (queued to can_tx*_q), 1 = blocked (queued to can_rx_q with rejected=1)
+int jna_can_send(uint32_t addr, uint8_t bus, const uint8_t *data, uint8_t len) {
+    CANPacket_t pkt = {0};
+    pkt.addr = addr;
+    pkt.bus = bus;
+    pkt.extended = (addr > 0x7FFU) ? 1U : 0U;
+    pkt.data_len_code = len;
+    if ((len > 0U) && (len <= 64U)) {
+        (void)memcpy(pkt.data, data, len);
+    }
+    // can_set_checksum not needed: safety hooks use struct fields, not raw bytes
+
+    uint32_t blocked_before = safety_tx_blocked;
+    can_send(&pkt, bus, false);
+
+    return (safety_tx_blocked > blocked_before) ? 1 : 0;
+}
+
+uint32_t jna_get_safety_tx_blocked(void) {
+    return safety_tx_blocked;
+}
+
+// Pop from can_rx_q (blocked/rejected messages end up here).
+// Returns true if a message was popped.
+bool jna_can_pop_rx(uint32_t *out_addr, uint8_t *out_bus, uint8_t *out_rejected,
+                     uint8_t *out_data, uint8_t *out_len) {
+    CANPacket_t pkt;
+    if (can_pop(&can_rx_q, &pkt)) {
+        *out_addr = pkt.addr;
+        *out_bus = pkt.bus;
+        *out_rejected = pkt.rejected;
+        *out_len = pkt.data_len_code;
+        if (pkt.data_len_code > 0U) {
+            (void)memcpy(out_data, pkt.data, pkt.data_len_code);
+        }
+        return true;
+    }
+    return false;
+}
+
+// Pop from can_tx{1,2,3}_q (allowed messages end up here).
+// queue_idx: 0=tx1_q (bus 0), 1=tx2_q (bus 1), 2=tx3_q (bus 2)
+bool jna_can_pop_tx(int queue_idx, uint32_t *out_addr, uint8_t *out_data, uint8_t *out_len) {
+    if ((queue_idx < 0) || (queue_idx >= PANDA_CAN_CNT)) {
+        return false;
+    }
+
+    CANPacket_t pkt;
+    if (can_pop(can_queues[queue_idx], &pkt)) {
+        *out_addr = pkt.addr;
+        *out_len = pkt.data_len_code;
+        if (pkt.data_len_code > 0U) {
+            (void)memcpy(out_data, pkt.data, pkt.data_len_code);
+        }
+        return true;
+    }
+    return false;
+}
+
+// Clear all CAN queues (reset read/write pointers)
+void jna_can_clear_all(void) {
+    can_rx_q.w_ptr = 0U;
+    can_rx_q.r_ptr = 0U;
+    for (int i = 0; i < PANDA_CAN_CNT; i++) {
+        can_queues[i]->w_ptr = 0U;
+        can_queues[i]->r_ptr = 0U;
+    }
+}
+
 #ifdef __cplusplus
 }
 #endif
