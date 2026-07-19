@@ -3,6 +3,9 @@ package com.panda.e2e;
 import com.sun.jna.Library;
 import com.sun.jna.Native;
 import org.springframework.stereotype.Component;
+import org.testcharm.dal.runtime.AdaptiveList;
+
+import java.util.ArrayList;
 
 /**
  * Panda client backed by REAL firmware code from board/main.c compiled as .dylib.
@@ -39,34 +42,36 @@ public class PandaClient {
         return lib.jna_get_safety_tx_blocked();
     }
 
-    public CanMessage popRxQueue() {
+    public AdaptiveList<CanMessage> rxQueue() {
         int[] outAddr = new int[1];
         byte[] outBus = new byte[1];
         byte[] outRejected = new byte[1];
         byte[] outData = new byte[64];
         byte[] outLen = new byte[1];
 
+        var canMessages = new ArrayList<CanMessage>();
         if (lib.jna_can_pop_rx(outAddr, outBus, outRejected, outData, outLen)) {
             int len = Byte.toUnsignedInt(outLen[0]);
             byte[] data = new byte[len];
             System.arraycopy(outData, 0, data, 0, len);
-            return new CanMessage(outAddr[0], Byte.toUnsignedInt(outBus[0]), data, outRejected[0] != 0);
+            canMessages.add(new CanMessage(outAddr[0], Byte.toUnsignedInt(outBus[0]), data, outRejected[0] != 0));
         }
-        return null;
+        return AdaptiveList.staticList(canMessages);
     }
 
-    public CanMessage popTxQueue(int bus) {
+    public AdaptiveList<CanMessage> txQueue(int bus) {
         int[] outAddr = new int[1];
         byte[] outData = new byte[64];
         byte[] outLen = new byte[1];
 
+        var canMessages = new ArrayList<CanMessage>();
         if (lib.jna_can_pop_tx(bus, outAddr, outData, outLen)) {
             int len = Byte.toUnsignedInt(outLen[0]);
             byte[] data = new byte[len];
             System.arraycopy(outData, 0, data, 0, len);
-            return new CanMessage(outAddr[0], bus, data, false);
+            canMessages.add(new CanMessage(outAddr[0], bus, data, false));
         }
-        return null;
+        return AdaptiveList.staticList(canMessages);
     }
 
     public void clearAllCanQueues() {

@@ -22,13 +22,13 @@ Feature: Safety Mode Switching (via USB control handler)
       """
       : {
         safetyTxBlocked: 1
-        popRxQueue= {      # 这个好像有个test-charm的bug，就是写了=但是字段不完整的情况下，验证依然通过
+        rxQueue= {      # 这个好像有个test-charm的bug，就是写了=但是字段不完整的情况下，验证依然通过
           address: 256
           bus: 0y
           rejected: true
           data.string: blocked
         }
-        popTxQueue[0]: null
+        txQueue[0]: []
       }
       """
 
@@ -49,8 +49,8 @@ Feature: Safety Mode Switching (via USB control handler)
       """
       : {
         safetyTxBlocked: 0
-        popRxQueue: null
-        popTxQueue[0]= {
+        rxQueue: []
+        txQueue[0]= {
           address: 256
           bus: 0y
           rejected: false
@@ -77,8 +77,8 @@ Feature: Safety Mode Switching (via USB control handler)
       """
       : {
         safetyTxBlocked: 0
-        popRxQueue: null
-        popTxQueue[0]= {
+        rxQueue: []
+        txQueue[0]= {
           address: 2015
           bus: 0y
           rejected: false
