@@ -1,6 +1,6 @@
 package com.panda.e2e.spec;
 
-import com.panda.e2e.steps.SafetyModeSteps;
+import com.panda.e2e.SafetyModeSteps;
 import org.testcharm.jfactory.Spec;
 
 public class UsbControlRequests {

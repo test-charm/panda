@@ -1,0 +1,59 @@
+package com.panda.e2e;
+
+import io.cucumber.java.Before;
+import io.cucumber.java.en.Then;
+import io.cucumber.java.en.When;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.testcharm.jfactory.JFactory;
+
+import java.nio.charset.StandardCharsets;
+
+import static org.testcharm.dal.Assertions.expect;
+
+public class SafetyModeSteps {
+
+    @Autowired
+    private PandaClient client;
+
+    @Before
+    public void setUp() {
+        client.clearAllCanQueues();
+    }
+
+    @Autowired
+    private JFactory jFactory;
+
+    @When("control write:")
+    public void controlWriteWithExpression(String expression) {
+        var request = jFactory.useDAL().create(UsbControlRequest.class, expression);
+        client.controlWrite(request.request, request.param1, request.param2);
+    }
+
+    @When("control write {string}:")
+    public void controlWriteWithSpec(String spec, String expression) {
+        UsbControlRequest request = jFactory.useDAL().create(spec, expression);
+        client.controlWrite(request.request, request.param1, request.param2);
+    }
+
+    @When("can send with result {int}:")
+    public void canSend(int result, String expression) {
+        var request = jFactory.useDAL().create(CanSendRequest.class, expression);
+        expect(client.canSend(request.address, request.data.getBytes(StandardCharsets.UTF_8), request.bus)).should("= " + result);
+    }
+
+    @Then("control data should be:")
+    public void controlDataShould(String expression) {
+        expect(client).should(expression);
+    }
+
+    public static class UsbControlRequest {
+        public byte request;
+        public short param1, param2;
+    }
+
+    public static class CanSendRequest {
+        public int address;
+        public String data;
+        public byte bus;
+    }
+}

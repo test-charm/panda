@@ -195,18 +195,6 @@ void jna_control_write(uint8_t request, uint16_t param1, uint16_t param2) {
     jna_resp_len = comms_control_handler(&req, jna_resp);
 }
 
-int jna_control_read(uint8_t request, uint16_t param1, uint16_t param2) {
-    ControlPacket_t req = { .request = request, .param1 = param1, .param2 = param2, .length = 0 };
-    jna_resp_len = comms_control_handler(&req, jna_resp);
-    return jna_resp_len;
-}
-
-uint8_t jna_get_response_byte(int offset) {
-    return (offset >= 0 && offset < jna_resp_len) ? jna_resp[offset] : 0;
-}
-
-bool jna_get_can_silent(void) { return can_silent; }
-
 // ---- JNA API: CAN pipeline testing (real can_send → safety_tx_hook → can_push) ----
 
 // Send CAN through real firmware pipeline.
