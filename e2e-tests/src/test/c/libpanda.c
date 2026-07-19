@@ -107,7 +107,15 @@ void set_intercept_relay(bool a, bool b) {
     relay_b = b;
     relay_call_count++;
 }
-void can_clear_send(uint32_t x, uint8_t y) { (void)x; (void)y; }
+// Recording stub: captures last can_clear_send call for test verification
+static uint32_t can_clear_send_arg_x;
+static uint8_t can_clear_send_arg_y;
+static int can_clear_send_count;
+void can_clear_send(uint32_t x, uint8_t y) {
+    can_clear_send_arg_x = x;
+    can_clear_send_arg_y = y;
+    can_clear_send_count++;
+}
 void harness_init(void) {}
 void harness_tick(void) {}
 bool harness_check_ignition(void) { return false; }
@@ -288,6 +296,22 @@ void jna_clear_relay_calls(void) {
     relay_call_count = 0;
     relay_a = false;
     relay_b = false;
+}
+
+// Query last can_clear_send call
+int jna_get_can_clear_send_count(void) {
+    return can_clear_send_count;
+}
+int jna_get_can_clear_send_x(void) {
+    return (int)can_clear_send_arg_x;
+}
+int jna_get_can_clear_send_y(void) {
+    return (int)can_clear_send_arg_y;
+}
+void jna_clear_can_clear_send_calls(void) {
+    can_clear_send_count = 0;
+    can_clear_send_arg_x = 0U;
+    can_clear_send_arg_y = 0U;
 }
 
 #ifdef __cplusplus

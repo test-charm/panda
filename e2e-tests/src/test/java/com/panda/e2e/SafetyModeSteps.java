@@ -20,8 +20,7 @@ public class SafetyModeSteps {
 
     @Before
     public void setUp() {
-        client.clearCanQueues();
-        client.clearRelayCalls();
+        client.clearAll();
     }
 
     @When("control write:")
@@ -41,12 +40,6 @@ public class SafetyModeSteps {
     @Then("control data should be:")
     public void controlDataShould(String expression) {
         expect(client).should(expression);
-    }
-
-    @When("can send {string} with result {int}:")
-    public void canSendWithResult(String spec, int result, String expression) {
-        CanSendRequest request = jFactory.useDAL().create(spec, expression);
-        expect(client.canSend(request.address, request.data.getBytes(StandardCharsets.UTF_8), request.bus)).should("= " + result);
     }
 
     public static class UsbControlRequest {

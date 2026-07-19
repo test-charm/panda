@@ -26,6 +26,7 @@ Feature: Safety Mode Switching
           a: false
           b: false
         }
+        canClearSendCall: null
         rxQueue= {
           address: 256
           bus: 0y
@@ -57,6 +58,7 @@ Feature: Safety Mode Switching
           a: false
           b: false
         }
+        canClearSendCall: null
         rxQueue= {
           rejected: true
           data.string: blocked
@@ -86,6 +88,7 @@ Feature: Safety Mode Switching
           a: true
           b: false
         }
+        canClearSendCall: null
         rxQueue: []
         txQueue[0]= {
           rejected: false
@@ -116,6 +119,10 @@ Feature: Safety Mode Switching
         relayCall= {
           a: false
           b: false
+        }
+        canClearSendCall= {
+          x: 1
+          y: 1
         }
         rxQueue: []
         txQueue[0]= {
@@ -149,6 +156,10 @@ Feature: Safety Mode Switching
           a: false
           b: false
         }
+        canClearSendCall= {
+          x: 1
+          y: 1
+        }
         rxQueue: []
         txQueue[0]= {
           address: 2015
@@ -179,6 +190,7 @@ Feature: Safety Mode Switching
           a: true
           b: false
         }
+        canClearSendCall: null
         rxQueue= {
           rejected: true
           data.string: blocked
@@ -208,6 +220,7 @@ Feature: Safety Mode Switching
           a: false
           b: false
         }
+        canClearSendCall: null
         rxQueue= {
           rejected: true
           data.string: blocked
