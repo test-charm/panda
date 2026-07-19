@@ -24,6 +24,10 @@ public class PandaClient {
     public record CanClearSendCall(int x, int y) {
     }
 
+    // Simple wrapper needed for DAL-java to distinguish "not called" (null) from "called with value"
+    public record CanModeCall(int value) {
+    }
+
     public interface PandaLib extends Library {
         PandaLib INSTANCE = Native.load(
                 System.getProperty("user.dir") + "/src/test/c/libpanda.dylib", PandaLib.class);
@@ -55,6 +59,10 @@ public class PandaClient {
         int jna_get_can_clear_send_y();
 
         void jna_clear_can_clear_send_calls();
+
+        int jna_get_can_mode_call_count();
+        int jna_get_can_mode();
+        void jna_clear_can_mode_calls();
     }
 
     private final PandaLib lib = PandaLib.INSTANCE;
@@ -121,6 +129,15 @@ public class PandaClient {
         lib.jna_clear_can_clear_send_calls();
     }
 
+    public CanModeCall canModeCall() {
+        int count = lib.jna_get_can_mode_call_count();
+        return (count == 0) ? null : new CanModeCall(lib.jna_get_can_mode());
+    }
+
+    public void clearCanModeCalls() {
+        lib.jna_clear_can_mode_calls();
+    }
+
     public void controlWrite(byte request, short param1, short param2) {
         lib.jna_control_write(request, param1, param2);
     }
@@ -133,5 +150,6 @@ public class PandaClient {
         clearCanQueues();
         clearRelayCalls();
         clearCanClearSendCalls();
+        clearCanModeCalls();
     }
 }

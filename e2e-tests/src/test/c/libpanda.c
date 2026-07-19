@@ -74,7 +74,12 @@ uart_ring *get_ring_by_number(int a) {
 
 #include "boards/board_declarations.h"
 GPIO_TypeDef dummy_gpio;
-void board_set_can_mode_stub(uint8_t mode) { (void)mode; }
+static uint8_t can_mode_last;
+static int can_mode_call_count;
+void board_set_can_mode_stub(uint8_t mode) {
+    can_mode_last = mode;
+    can_mode_call_count++;
+}
 uint32_t board_read_voltage_mV_stub(void) { return 12000; }
 uint32_t board_read_current_mA_stub(void) { return 0; }
 void board_set_ir_power_stub(uint8_t p) { (void)p; }
@@ -312,6 +317,18 @@ void jna_clear_can_clear_send_calls(void) {
     can_clear_send_count = 0;
     can_clear_send_arg_x = 0U;
     can_clear_send_arg_y = 0U;
+}
+
+// Query last set_can_mode call
+int jna_get_can_mode_call_count(void) {
+    return can_mode_call_count;
+}
+int jna_get_can_mode(void) {
+    return (int)can_mode_last;
+}
+void jna_clear_can_mode_calls(void) {
+    can_mode_call_count = 0;
+    can_mode_last = 0U;
 }
 
 #ifdef __cplusplus

@@ -27,6 +27,9 @@ Feature: Safety Mode Switching
           b: false
         }
         canClearSendCall: null
+        canModeCall= {
+          value: 0
+        }
         rxQueue= {
           address: 256
           bus: 0y
@@ -59,6 +62,9 @@ Feature: Safety Mode Switching
           b: false
         }
         canClearSendCall: null
+        canModeCall= {
+          value: 0
+        }
         rxQueue= {
           rejected: true
           data.string: blocked
@@ -89,6 +95,9 @@ Feature: Safety Mode Switching
           b: false
         }
         canClearSendCall: null
+        canModeCall= {
+          value: 0
+        }
         rxQueue: []
         txQueue[0]= {
           rejected: false
@@ -123,6 +132,9 @@ Feature: Safety Mode Switching
         canClearSendCall= {
           x: 1
           y: 1
+        }
+        canModeCall= {
+          value: 1
         }
         rxQueue: []
         txQueue[0]= {
@@ -160,6 +172,9 @@ Feature: Safety Mode Switching
           x: 1
           y: 1
         }
+        canModeCall= {
+          value: 0
+        }
         rxQueue: []
         txQueue[0]= {
           address: 2015
@@ -191,6 +206,9 @@ Feature: Safety Mode Switching
           b: false
         }
         canClearSendCall: null
+        canModeCall= {
+          value: 0
+        }
         rxQueue= {
           rejected: true
           data.string: blocked
@@ -221,6 +239,9 @@ Feature: Safety Mode Switching
           b: false
         }
         canClearSendCall: null
+        canModeCall= {
+          value: 0
+        }
         rxQueue= {
           rejected: true
           data.string: blocked
