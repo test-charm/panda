@@ -216,6 +216,11 @@ public class PandaUsbClient implements PandaClient {
         return 0;
     }
 
+    @Override
+    public int canSendNew(int address, byte[] data, byte bus) {
+        return 0;
+    }
+
     public record CanMessage(int address, int bus, byte[] data) {}
 
     /** Send an arbitrary safety mode value (for testing invalid mode fallback). */

@@ -23,6 +23,7 @@ public interface PandaClient extends AutoCloseable {
     void controlWrite(byte request, short param1, short param2);
     void controlRead(byte request, short param1, short param2);
     byte getResponseByte(int offset);
+    int canSendNew(int address, byte[] data, byte bus);
 
     @Override
     void close();

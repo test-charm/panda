@@ -244,8 +244,25 @@ public class SafetyModeSteps {
         expect(ctx.getClient()).should(verifyExp);
     }
 
+    @When("can send with result {int}:")
+    public void canSend(int result, String expression) {
+        var request = jFactory.useDAL().create(CanSendRequest.class, expression);
+        expect(ctx.getClient().canSendNew(request.address, request.data.getBytes(StandardCharsets.UTF_8), request.bus)).should("= " + result);
+    }
+
+    @Then("control data should be:")
+    public void controlDataShould(String expression) {
+        expect(ctx.getClient()).should(expression);
+    }
+
     public static class UsbControlRequest {
         public byte request;
         public short param1, param2;
+    }
+
+    public static class CanSendRequest {
+        public int address;
+        public String data;
+        public byte bus;
     }
 }

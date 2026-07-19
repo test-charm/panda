@@ -152,5 +152,10 @@ public class NativePandaClient implements PandaClient {
         return lib.jna_get_response_byte(offset);
     }
 
+    @Override
+    public int canSendNew(int address, byte[] data, byte bus) {
+        return lib.jna_can_send(address, (byte) bus, data, (byte) data.length);
+    }
+
     @Override public void close() { rxBuffer.clear(); }
 }
