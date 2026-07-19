@@ -1,6 +1,5 @@
 package com.panda.e2e;
 
-import io.cucumber.java.Before;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,23 +14,13 @@ public class SafetyModeSteps {
     @Autowired
     private PandaClient client;
 
-    @Before
-    public void setUp() {
-        client.clearAllCanQueues();
-    }
-
     @Autowired
     private JFactory jFactory;
 
     @When("control write:")
     public void controlWriteWithExpression(String expression) {
-        var request = jFactory.useDAL().create(UsbControlRequest.class, expression);
-        client.controlWrite(request.request, request.param1, request.param2);
-    }
-
-    @When("control write {string}:")
-    public void controlWriteWithSpec(String spec, String expression) {
-        UsbControlRequest request = jFactory.useDAL().create(spec, expression);
+        jFactory.useDAL().createAll(expression);
+        var request = jFactory.type(UsbControlRequest.class).query();
         client.controlWrite(request.request, request.param1, request.param2);
     }
 

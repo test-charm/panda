@@ -4,7 +4,7 @@ Feature: Safety Mode Switching
   Scenario: SILENT mode blocks CAN TX through safety pipeline
     Given control write:
       """
-      {
+      UsbControlRequest: {
         request: -36y
         param1: 0     # SAFETY_SILENT
         param2: 0
@@ -33,9 +33,11 @@ Feature: Safety Mode Switching
       """
 
   Scenario: NOOUTPUT mode blocks CAN TX through safety pipeline
-    Given control write "SetSafetyMode":
+    Given control write:
       """
-      param1: 19     # SAFETY_NOOUTPUT
+      SetSafetyMode: {
+        param1: 19     # SAFETY_NOOUTPUT
+      }
       """
     When can send "PowerTrainBus BlockedAddressRequest" with result 1:
       """
@@ -56,9 +58,11 @@ Feature: Safety Mode Switching
       """
 
   Scenario: ALLOUTPUT mode allows all CAN TX through safety pipeline
-    Given control write "SetSafetyMode":
+    Given control write:
       """
-      param1: 17     # SAFETY_ALLOUTPUT
+      SetSafetyMode: {
+        param1: 17     # SAFETY_ALLOUTPUT
+      }
       """
     When can send "PowerTrainBus BlockedAddressRequest" with result 0:
       """
@@ -79,10 +83,12 @@ Feature: Safety Mode Switching
       """
 
   Scenario: ELM327 OBD_CAN2 mode allows valid OBD-II CAN TX
-    Given control write "SetSafetyMode":
+    Given control write:
       """
-      param1: 3     # SAFETY_ELM327
-      param2: 0     # OBD_CAN2 sub-mode
+      SetSafetyMode: {
+        param1: 3     # SAFETY_ELM327
+        param2: 0     # OBD_CAN2 sub-mode
+      }
       """
     When can send "PowerTrainBusRequest" with result 0:
       """
@@ -105,10 +111,12 @@ Feature: Safety Mode Switching
       """
 
   Scenario: ELM327 NORMAL mode allows valid OBD-II CAN TX
-    Given control write "SetSafetyMode":
+    Given control write:
       """
-      param1: 3     # SAFETY_ELM327
-      param2: 1     # NORMAL sub-mode
+      SetSafetyMode: {
+        param1: 3     # SAFETY_ELM327
+        param2: 1     # NORMAL sub-mode
+      }
       """
     When can send "PowerTrainBusRequest" with result 0:
       """
@@ -131,9 +139,11 @@ Feature: Safety Mode Switching
       """
 
   Scenario: TOYOTA car-safety mode blocks non-TOYOTA CAN TX
-    Given control write "SetSafetyMode":
+    Given control write:
       """
-      param1: 2     # SAFETY_TOYOTA
+      SetSafetyMode: {
+        param1: 2     # SAFETY_TOYOTA
+      }
       """
     When can send "PowerTrainBus BlockedAddressRequest" with result 1:
       """
@@ -154,9 +164,11 @@ Feature: Safety Mode Switching
       """
 
   Scenario: Invalid safety mode falls back to SILENT
-    Given control write "SetSafetyMode":
+    Given control write:
       """
-      param1: 7     # not in safety_hook_registry → fallback to SAFETY_SILENT
+      SetSafetyMode: {
+        param1: 7     # not in safety_hook_registry → fallback to SAFETY_SILENT
+      }
       """
     When can send "PowerTrainBus BlockedAddressRequest" with result 1:
       """

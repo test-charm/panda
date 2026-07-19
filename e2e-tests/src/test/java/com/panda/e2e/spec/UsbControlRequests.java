@@ -5,6 +5,9 @@ import org.testcharm.jfactory.Spec;
 
 public class UsbControlRequests {
 
+    public static class UsbControlRequest extends Spec<SafetyModeSteps.UsbControlRequest> {
+    }
+
     public static class SetSafetyMode extends Spec<SafetyModeSteps.UsbControlRequest> {
         @Override
         public void main() {
