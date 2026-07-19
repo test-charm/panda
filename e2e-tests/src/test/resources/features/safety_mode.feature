@@ -12,7 +12,7 @@ Feature: Safety Mode Switching
       """
     When can send with result 1:
       """
-      {
+      CanSendRequest: {
         address: 256
         bus: 0y
         data: blocked
@@ -39,9 +39,9 @@ Feature: Safety Mode Switching
         param1: 19     # SAFETY_NOOUTPUT
       }
       """
-    When can send "PowerTrainBus BlockedAddressRequest" with result 1:
+    When can send with result 1:
       """
-      {
+      PowerTrainBusBlockedRequest: {
         data: blocked
       }
       """
@@ -64,9 +64,9 @@ Feature: Safety Mode Switching
         param1: 17     # SAFETY_ALLOUTPUT
       }
       """
-    When can send "PowerTrainBus BlockedAddressRequest" with result 0:
+    When can send with result 0:
       """
-      {
+      PowerTrainBusBlockedRequest: {
         data: allowed
       }
       """
@@ -90,9 +90,9 @@ Feature: Safety Mode Switching
         param2: 0     # OBD_CAN2 sub-mode
       }
       """
-    When can send "PowerTrainBusRequest" with result 0:
+    When can send with result 0:
       """
-      {
+      PowerTrainBusRequest: {
         address: 2015
         data: '12345678'
       }
@@ -118,9 +118,9 @@ Feature: Safety Mode Switching
         param2: 1     # NORMAL sub-mode
       }
       """
-    When can send "PowerTrainBusRequest" with result 0:
+    When can send with result 0:
       """
-      {
+      PowerTrainBusRequest: {
         address: 2015
         data: '12345678'
       }
@@ -145,9 +145,9 @@ Feature: Safety Mode Switching
         param1: 2     # SAFETY_TOYOTA
       }
       """
-    When can send "PowerTrainBus BlockedAddressRequest" with result 1:
+    When can send with result 1:
       """
-      {
+      PowerTrainBusBlockedRequest: {
         data: blocked
       }
       """
@@ -170,9 +170,9 @@ Feature: Safety Mode Switching
         param1: 7     # not in safety_hook_registry → fallback to SAFETY_SILENT
       }
       """
-    When can send "PowerTrainBus BlockedAddressRequest" with result 1:
+    When can send with result 1:
       """
-      {
+      PowerTrainBusBlockedRequest: {
         data: blocked
       }
       """

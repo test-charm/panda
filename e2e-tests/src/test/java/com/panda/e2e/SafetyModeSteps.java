@@ -26,7 +26,8 @@ public class SafetyModeSteps {
 
     @When("can send with result {int}:")
     public void canSend(int result, String expression) {
-        var request = jFactory.useDAL().create(CanSendRequest.class, expression);
+        jFactory.useDAL().createAll(expression);
+        var request = jFactory.type(CanSendRequest.class).query();
         expect(client.canSend(request.address, request.data.getBytes(StandardCharsets.UTF_8), request.bus)).should("= " + result);
     }
 
