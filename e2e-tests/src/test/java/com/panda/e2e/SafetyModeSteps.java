@@ -46,6 +46,12 @@ public class SafetyModeSteps {
         expect(client).should(expression);
     }
 
+    @When("can send {string} with result {int}:")
+    public void canSendWithResult(String spec, int result, String expression) {
+        CanSendRequest request = jFactory.useDAL().create(spec, expression);
+        expect(client.canSend(request.address, request.data.getBytes(StandardCharsets.UTF_8), request.bus)).should("= " + result);
+    }
+
     public static class UsbControlRequest {
         public byte request;
         public short param1, param2;

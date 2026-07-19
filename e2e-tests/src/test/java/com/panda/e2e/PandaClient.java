@@ -24,7 +24,6 @@ public class PandaClient {
 
         void jna_control_write(byte request, short param1, short param2);
 
-        // CAN pipeline testing: real can_send → safety_tx_hook → can_push
         int jna_can_send(int addr, byte bus, byte[] data, byte len);
 
         int jna_get_safety_tx_blocked();
@@ -83,7 +82,7 @@ public class PandaClient {
     }
 
     public int canSend(int address, byte[] data, byte bus) {
-        return lib.jna_can_send(address, (byte) bus, data, (byte) data.length);
+        return lib.jna_can_send(address, bus, data, (byte) data.length);
     }
 
 }

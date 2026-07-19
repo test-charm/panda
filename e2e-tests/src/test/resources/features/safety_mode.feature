@@ -37,11 +37,9 @@ Feature: Safety Mode Switching
       """
       param1: 19     # SAFETY_NOOUTPUT
       """
-    When can send with result 1:
+    When can send "PowerTrainBus BlockedAddressRequest" with result 1:
       """
       {
-        address: 256
-        bus: 0y
         data: blocked
       }
       """
@@ -50,8 +48,6 @@ Feature: Safety Mode Switching
       : {
         safetyTxBlocked: 1
         rxQueue= {
-          address: 256
-          bus: 0y
           rejected: true
           data.string: blocked
         }
@@ -64,11 +60,9 @@ Feature: Safety Mode Switching
       """
       param1: 17     # SAFETY_ALLOUTPUT
       """
-    When can send with result 0:
+    When can send "PowerTrainBus BlockedAddressRequest" with result 0:
       """
       {
-        address: 256
-        bus: 0y
         data: allowed
       }
       """
@@ -78,8 +72,6 @@ Feature: Safety Mode Switching
         safetyTxBlocked: 0
         rxQueue: []
         txQueue[0]= {
-          address: 256
-          bus: 0y
           rejected: false
           data.string: allowed
         }
@@ -92,11 +84,10 @@ Feature: Safety Mode Switching
       param1: 3     # SAFETY_ELM327
       param2: 0     # OBD_CAN2 sub-mode
       """
-    When can send with result 0:
+    When can send "PowerTrainBusRequest" with result 0:
       """
       {
         address: 2015
-        bus: 0y
         data: '12345678'
       }
       """
@@ -107,7 +98,6 @@ Feature: Safety Mode Switching
         rxQueue: []
         txQueue[0]= {
           address: 2015
-          bus: 0y
           rejected: false
           data.string: '12345678'
         }
@@ -120,11 +110,10 @@ Feature: Safety Mode Switching
       param1: 3     # SAFETY_ELM327
       param2: 1     # NORMAL sub-mode
       """
-    When can send with result 0:
+    When can send "PowerTrainBusRequest" with result 0:
       """
       {
         address: 2015
-        bus: 0y
         data: '12345678'
       }
       """
@@ -135,7 +124,6 @@ Feature: Safety Mode Switching
         rxQueue: []
         txQueue[0]= {
           address: 2015
-          bus: 0y
           rejected: false
           data.string: '12345678'
         }
@@ -147,11 +135,9 @@ Feature: Safety Mode Switching
       """
       param1: 2     # SAFETY_TOYOTA
       """
-    When can send with result 1:
+    When can send "PowerTrainBus BlockedAddressRequest" with result 1:
       """
       {
-        address: 256
-        bus: 0y
         data: blocked
       }
       """
@@ -160,8 +146,6 @@ Feature: Safety Mode Switching
       : {
         safetyTxBlocked: 1
         rxQueue= {
-          address: 256
-          bus: 0y
           rejected: true
           data.string: blocked
         }
@@ -174,11 +158,9 @@ Feature: Safety Mode Switching
       """
       param1: 7     # not in safety_hook_registry → fallback to SAFETY_SILENT
       """
-    When can send with result 1:
+    When can send "PowerTrainBus BlockedAddressRequest" with result 1:
       """
       {
-        address: 256
-        bus: 0y
         data: blocked
       }
       """
@@ -187,8 +169,6 @@ Feature: Safety Mode Switching
       : {
         safetyTxBlocked: 1
         rxQueue= {
-          address: 256
-          bus: 0y
           rejected: true
           data.string: blocked
         }
