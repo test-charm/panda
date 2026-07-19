@@ -257,7 +257,7 @@ Feature: Safety Mode Switching
       }
       """
 
-  Scenario: Switching safety mode clears existing CAN TX queue
+  Scenario: Switching safety mode clears existing CAN TX queue and re-initializes CAN hardware
     Given control write:
       """
       SetSafetyMode: {
@@ -281,5 +281,21 @@ Feature: Safety Mode Switching
       : {
         rxQueue: []
         txQueue[0]: []
+        fdcanRegs<<0,1,2>>: {
+          cccr: [ 0b0000_0000y, 0b0101_0011y ]
+          ie: [ 0b0000_1001y, 0b0000_1000y, *, 0b0001_1010y ]        # *是框架bug，实际值为 0b1000_0000y
+          nbtp: [ 0b0000_1111y, 0b0011_1110y, 0b0000_0001y, 0b0001_1110y ]
+          dbtp: [ 0b0011_0011y, 0b0000_1110y, 0b0000_0001y, 0b0000_0000y ]
+          txbc: [ *, *, 0b0000_0000y, 0b0000_0001y ]                 # 第一个*是框架bug，实际值为 0b1111_0000y
+          rxf0c: [ *, *, 0b0010_1110y, * ]                           # 最后一个*是框架bug，实际值为 0b1000_0000y
+          txesc: [ 0b0000_0111y ]
+          rxesc: [ 0b0000_0111y ]
+          gfc: [ 0b0000_0000y ]
+          ile: [ 0b0000_0011y ]
+        }
+        fdcanRegs: | txbc[1]      | rxf0c[0]     | rxf0c[1]     |
+                   | 0b0000_1100y | 0b0000_0000y | 0b0000_0000y |
+                   | 0b0001_1010y | 0b0011_1000y | 0b0000_1101y |
+                   | 0b0010_0111y | 0b0111_0000y | 0b0001_1010y |
       }
       """

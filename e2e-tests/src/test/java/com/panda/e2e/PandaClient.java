@@ -6,6 +6,7 @@ import org.springframework.stereotype.Component;
 import org.testcharm.dal.runtime.AdaptiveList;
 
 import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Panda client backed by REAL firmware code from board/main.c compiled as .dylib.
@@ -61,10 +62,35 @@ public class PandaClient {
         void jna_clear_can_clear_send_calls();
 
         int jna_get_can_mode_call_count();
+
         int jna_get_can_mode();
+
         void jna_clear_can_mode_calls();
 
         int jna_get_can_silent();
+
+        // FDCAN register inspection
+        void jna_reset_fdcan();
+
+        int jna_get_fdcan_cccr(int canNumber);
+
+        int jna_get_fdcan_ie(int canNumber);
+
+        int jna_get_fdcan_nbtp(int canNumber);
+
+        int jna_get_fdcan_dbtp(int canNumber);
+
+        int jna_get_fdcan_txbc(int canNumber);
+
+        int jna_get_fdcan_rxf0c(int canNumber);
+
+        int jna_get_fdcan_txesc(int canNumber);
+
+        int jna_get_fdcan_rxesc(int canNumber);
+
+        int jna_get_fdcan_gfc(int canNumber);
+
+        int jna_get_fdcan_ile(int canNumber);
     }
 
     private final PandaLib lib = PandaLib.INSTANCE;
@@ -157,5 +183,71 @@ public class PandaClient {
         clearRelayCalls();
         clearCanClearSendCalls();
         clearCanModeCalls();
+        lib.jna_reset_fdcan();
+    }
+
+    // ---- FDCAN register inspection ----
+
+    /**
+     * One FDCAN peripheral's register state, exposed as byte-list properties.
+     * Each list holds register bytes in little-endian order (index 0 = least significant byte).
+     * <p>
+     * CCCR:   Control — protocol config bits
+     * IE:     Interrupt Enable — which events trigger IRQ
+     * NBTP:   Nominal Bit Timing & Prescaler
+     * DBTP:   Data Bit Timing & Prescaler
+     * TXBC:   TX Buffer Configuration
+     * RXF0C:  RX FIFO 0 Configuration
+     * TXESC:  TX Element Size Configuration (64B CAN FD)
+     * RXESC:  RX Element Size Configuration (64B CAN FD)
+     * GFC:    Global Filter Configuration (0 = promiscuous mode)
+     * ILE:    Interrupt Line Enable (INT0 + INT1)
+     */
+    public record FdcanRegs(
+            List<Byte> cccr,
+            List<Byte> ie,
+            List<Byte> nbtp,
+            List<Byte> dbtp,
+            List<Byte> txbc,
+            List<Byte> rxf0c,
+            List<Byte> txesc,
+            List<Byte> rxesc,
+            List<Byte> gfc,
+            List<Byte> ile
+    ) {
+    }
+
+    private static List<Byte> bytes(int val, int count) {
+        var list = new ArrayList<Byte>();
+        for (int i = 0; i < count; i++) {
+            list.add((byte) ((val >>> (i * 8)) & 0xFF));
+        }
+        return list;
+    }
+
+    /**
+     * All 3 FDCAN peripheral register snapshots — one per CAN bus.
+     * Use in feature test as:
+     * fdcanRegs[0]= { cccr: [...], ie: [...], ... }
+     * fdcanRegs[1]= { cccr: [...], ie: [...], ... }
+     * fdcanRegs[2]= { cccr: [...], ie: [...], ... }
+     */
+    public AdaptiveList<FdcanRegs> fdcanRegs() {
+        var list = new ArrayList<FdcanRegs>();
+        for (int i = 0; i < 3; i++) {
+            list.add(new FdcanRegs(
+                    bytes(lib.jna_get_fdcan_cccr(i), 2),
+                    bytes(lib.jna_get_fdcan_ie(i), 4),
+                    bytes(lib.jna_get_fdcan_nbtp(i), 4),
+                    bytes(lib.jna_get_fdcan_dbtp(i), 4),
+                    bytes(lib.jna_get_fdcan_txbc(i), 4),
+                    bytes(lib.jna_get_fdcan_rxf0c(i), 4),
+                    bytes(lib.jna_get_fdcan_txesc(i), 1),
+                    bytes(lib.jna_get_fdcan_rxesc(i), 1),
+                    bytes(lib.jna_get_fdcan_gfc(i), 1),
+                    bytes(lib.jna_get_fdcan_ile(i), 1)
+            ));
+        }
+        return AdaptiveList.staticList(list);
     }
 }
