@@ -16,6 +16,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.testcharm.dal.Assertions.expect;
 
 public class SafetyModeSteps {
 
@@ -155,6 +156,13 @@ public class SafetyModeSteps {
     public void controlWriteWithSpec(String spec, String expression) {
         UsbControlRequest request = jFactory.useDAL().create(spec, expression);
         ctx.getClient().controlWrite(request.request, request.param1, request.param2);
+    }
+
+    @Then("control read {string} should:")
+    public void controlReadShould(String requestExp, String verifyExp) {
+        var request = jFactory.useDAL().create(UsbControlRequest.class, requestExp);
+        ctx.getClient().controlRead(request.request, request.param1, request.param2);
+        expect(ctx.getClient()).should(verifyExp);
     }
 
     public static class UsbControlRequest {

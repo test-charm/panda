@@ -206,6 +206,16 @@ public class PandaUsbClient implements PandaClient {
         controlWrite(REQUEST_OUT, request, param1, param2, new byte[0], 1000);
     }
 
+    @Override
+    public void controlRead(byte request, short param1, short param2) {
+        controlRead(REQUEST_IN, request, param1, param2, 0, 1000);
+    }
+
+    @Override
+    public byte getResponseByte(int offset) {
+        return 0;
+    }
+
     public record CanMessage(int address, int bus, byte[] data) {}
 
     /** Send an arbitrary safety mode value (for testing invalid mode fallback). */

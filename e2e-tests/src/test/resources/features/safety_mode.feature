@@ -10,7 +10,10 @@ Feature: Safety Mode Switching (via USB control handler)
           param2: 0
       }
       """
-    Then the safety_mode in health should be 0
+    Then control read "request: -36y, param1: 0, param2: 0" should:
+      """
+      getResponseByte[36]: 0
+      """
 
   Scenario: Set NOOUTPUT mode and verify health reflects it
     When control write "SetSafetyMode":
