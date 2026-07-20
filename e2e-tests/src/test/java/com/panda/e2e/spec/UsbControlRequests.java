@@ -80,4 +80,12 @@ public class UsbControlRequests {
             property("param2").defaultValue((short) 0);
         }
     }
+
+    public static class SetSiren extends UsbControlRequest {
+        @Override
+        public void main() {
+            property("request").defaultValue((byte) -10);       // 0xf6
+            property("param2").defaultValue((short) 0);
+        }
+    }
 }

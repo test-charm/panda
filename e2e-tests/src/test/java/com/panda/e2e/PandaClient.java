@@ -111,6 +111,10 @@ public class PandaClient {
         // Alternative experience inspection
         int jna_get_alternative_experience();
         void jna_reset_alternative_experience();
+
+        // Siren state inspection
+        int jna_get_siren_enabled();
+        void jna_reset_siren();
     }
 
     private final PandaLib lib = PandaLib.INSTANCE;
@@ -193,6 +197,7 @@ public class PandaClient {
         lib.jna_reset_heartbeat();
         lib.jna_reset_safety();
         lib.jna_reset_alternative_experience();
+        lib.jna_reset_siren();
     }
 
     // ---- FDCAN register inspection ----
@@ -286,6 +291,10 @@ public class PandaClient {
 
     public int getAlternativeExperience() {
         return lib.jna_get_alternative_experience();
+    }
+
+    public boolean isSirenEnabled() {
+        return lib.jna_get_siren_enabled() != 0;
     }
 
     // ---- Health packet inspection ----

@@ -442,6 +442,14 @@ void jna_reset_alternative_experience(void) {
     alternative_experience = 0U;
 }
 
+// ---- JNA API: Siren state inspection ----
+int jna_get_siren_enabled(void) {
+    return siren_enabled ? 1 : 0;
+}
+void jna_reset_siren(void) {
+    siren_enabled = false;
+}
+
 // ---- JNA API: Health packet inspection ----
 static struct health_t jna_health;
 
