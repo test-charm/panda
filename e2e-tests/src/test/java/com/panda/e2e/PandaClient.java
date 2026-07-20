@@ -126,6 +126,12 @@ public class PandaClient {
         int jna_get_ir_power_value();
         int jna_get_ir_power_call_count();
         void jna_reset_power_save_tracking();
+
+        // CAN comms buffer inspection (comms_can_reset)
+        int jna_get_can_read_buffer_ptr();
+        int jna_get_can_read_buffer_tail();
+        int jna_get_can_write_buffer_ptr();
+        int jna_get_can_write_buffer_tail();
     }
 
     private final PandaLib lib = PandaLib.INSTANCE;
@@ -337,6 +343,25 @@ public class PandaClient {
                 lib.jna_get_can_transceivers_call_count(),
                 lib.jna_get_ir_power_value(),
                 lib.jna_get_ir_power_call_count()
+        );
+    }
+
+    // ---- CAN comms buffer state ----
+
+    public record CanCommsBuffers(
+            int readBufferPtr,
+            int readBufferTail,
+            int writeBufferPtr,
+            int writeBufferTail
+    ) {
+    }
+
+    public CanCommsBuffers getCanCommsBuffers() {
+        return new CanCommsBuffers(
+                lib.jna_get_can_read_buffer_ptr(),
+                lib.jna_get_can_read_buffer_tail(),
+                lib.jna_get_can_write_buffer_ptr(),
+                lib.jna_get_can_write_buffer_tail()
         );
     }
 

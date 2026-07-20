@@ -517,6 +517,20 @@ void jna_reset_power_save_tracking(void) {
     ir_power_call_count = 0;
 }
 
+// ---- JNA API: CAN comms buffer inspection (comms_can_reset) ----
+uint32_t jna_get_can_read_buffer_ptr(void) {
+    return can_read_buffer.ptr;
+}
+uint32_t jna_get_can_read_buffer_tail(void) {
+    return can_read_buffer.tail_size;
+}
+uint32_t jna_get_can_write_buffer_ptr(void) {
+    return can_write_buffer.ptr;
+}
+uint32_t jna_get_can_write_buffer_tail(void) {
+    return can_write_buffer.tail_size;
+}
+
 // ---- JNA API: Health packet inspection ----
 static struct health_t jna_health;
 

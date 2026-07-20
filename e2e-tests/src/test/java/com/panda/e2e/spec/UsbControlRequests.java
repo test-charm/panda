@@ -88,4 +88,13 @@ public class UsbControlRequests {
             property("param2").defaultValue((short) 0);
         }
     }
+
+    public static class ResetCanComms extends UsbControlRequest {
+        @Override
+        public void main() {
+            property("request").defaultValue((byte) -64);       // 0xc0
+            property("param1").defaultValue((short) 0);
+            property("param2").defaultValue((short) 0);
+        }
+    }
 }
