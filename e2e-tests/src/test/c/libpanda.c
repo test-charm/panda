@@ -134,11 +134,14 @@ void board_set_can_mode_stub(uint8_t mode) {
 uint32_t board_read_voltage_mV_stub(void) { return 12000; }
 uint32_t board_read_current_mA_stub(void) { return 0; }
 
-// Tracking stub for set_ir_power — records last call
-static uint8_t last_ir_power;
+// Tracking stub for set_ir_power — records all calls
+#define MAX_IR_POWER_CALLS 16
+static uint8_t ir_power_values[MAX_IR_POWER_CALLS];
 static int ir_power_call_count;
 void board_set_ir_power_stub(uint8_t p) {
-    last_ir_power = p;
+    if (ir_power_call_count < MAX_IR_POWER_CALLS) {
+        ir_power_values[ir_power_call_count] = p;
+    }
     ir_power_call_count++;
 }
 void board_set_fan_enabled_stub(bool en) { (void)en; }
@@ -500,8 +503,11 @@ int jna_get_irq_disabled_bus(int bus) {
 int jna_get_can_transceivers_enabled(void) { return last_can_transceivers_enabled ? 1 : 0; }
 int jna_get_can_transceivers_call_count(void) { return can_transceivers_call_count; }
 // set_ir_power tracking
-int jna_get_ir_power_value(void) { return (int)last_ir_power; }
 int jna_get_ir_power_call_count(void) { return ir_power_call_count; }
+int jna_get_ir_power_value_at(int index) {
+    if ((index < 0) || (index >= ir_power_call_count) || (index >= MAX_IR_POWER_CALLS)) return -1;
+    return (int)ir_power_values[index];
+}
 
 void jna_reset_power_save_tracking(void) {
     power_save_enabled = false;
@@ -513,7 +519,6 @@ void jna_reset_power_save_tracking(void) {
     last_irq_disabled_bus[2] = -1;
     last_can_transceivers_enabled = false;
     can_transceivers_call_count = 0;
-    last_ir_power = 0;
     ir_power_call_count = 0;
 }
 
@@ -544,6 +549,11 @@ void jna_get_packet_versions(uint32_t *out_health_version, uint32_t *out_can_ver
         (void)memcpy(out_health_version, jna_resp, 4U);
         (void)memcpy(out_can_version_hash, jna_resp + 4U, 4U);
     }
+}
+
+// ---- JNA API: Hardware type ----
+uint8_t jna_get_hw_type(void) {
+    return hw_type;
 }
 
 // ---- JNA API: Health packet inspection ----

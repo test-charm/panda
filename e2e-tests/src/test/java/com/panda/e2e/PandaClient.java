@@ -123,8 +123,8 @@ public class PandaClient {
         int jna_get_irq_disabled_bus(int bus);
         int jna_get_can_transceivers_enabled();
         int jna_get_can_transceivers_call_count();
-        int jna_get_ir_power_value();
         int jna_get_ir_power_call_count();
+        int jna_get_ir_power_value_at(int index);
         void jna_reset_power_save_tracking();
 
         // CAN comms buffer inspection (comms_can_reset)
@@ -138,6 +138,9 @@ public class PandaClient {
 
         // Packet versions (response from 0xdd)
         void jna_get_packet_versions(int[] outHealthVersion, int[] outCanVersionHash);
+
+        // Hardware type
+        int jna_get_hw_type();
     }
 
     private final PandaLib lib = PandaLib.INSTANCE;
@@ -347,7 +350,7 @@ public class PandaClient {
                 lib.jna_get_irq_disabled_bus(2) != 0,
                 lib.jna_get_can_transceivers_enabled() != 0,
                 lib.jna_get_can_transceivers_call_count(),
-                lib.jna_get_ir_power_value(),
+                lib.jna_get_ir_power_value_at(0),
                 lib.jna_get_ir_power_call_count()
         );
     }
@@ -383,6 +386,19 @@ public class PandaClient {
         int[] outCan = new int[1];
         lib.jna_get_packet_versions(outHealth, outCan);
         return new PacketVersions(outHealth[0], outCan[0]);
+    }
+
+    public int getHwType() {
+        return lib.jna_get_hw_type();
+    }
+
+    public AdaptiveList<Integer> getIrPower() {
+        int count = lib.jna_get_ir_power_call_count();
+        var list = new ArrayList<Integer>();
+        for (int i = 0; i < count; i++) {
+            list.add(lib.jna_get_ir_power_value_at(i));
+        }
+        return AdaptiveList.staticList(list);
     }
 
     // ---- Health packet inspection ----

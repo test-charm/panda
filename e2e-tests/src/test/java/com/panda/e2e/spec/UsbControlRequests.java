@@ -93,7 +93,6 @@ public class UsbControlRequests {
         @Override
         public void main() {
             property("request").defaultValue((byte) -64);       // 0xc0
-            property("param1").defaultValue((short) 0);
             property("param2").defaultValue((short) 0);
         }
     }
@@ -110,7 +109,6 @@ public class UsbControlRequests {
         @Override
         public void main() {
             property("request").defaultValue((byte) -42);       // 0xd6
-            property("param1").defaultValue((short) 0);
             property("param2").defaultValue((short) 0);
         }
     }
@@ -119,7 +117,22 @@ public class UsbControlRequests {
         @Override
         public void main() {
             property("request").defaultValue((byte) -35);       // 0xdd
-            property("param1").defaultValue((short) 0);
+            property("param2").defaultValue((short) 0);
+        }
+    }
+
+    public static class SetIrPower extends UsbControlRequest {
+        @Override
+        public void main() {
+            property("request").defaultValue((byte) -80);       // 0xb0
+            property("param2").defaultValue((short) 0);
+        }
+    }
+
+    public static class GetHwType extends UsbControlRequest {
+        @Override
+        public void main() {
+            property("request").defaultValue((byte) -63);       // 0xc1
             property("param2").defaultValue((short) 0);
         }
     }
