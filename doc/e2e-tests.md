@@ -14,10 +14,10 @@
   └── clang 编译 → libpanda.dylib
         │
         ▼ JNA
-  NativePandaClient.java
+  PandaClient.java
         │
         ▼
-  ./gradlew cucumber  →  7 scenarios, 40 steps
+  ./gradlew cucumber  →  18 scenarios, 87 steps
 ```
 
 ## 目录结构
@@ -35,39 +35,67 @@ e2e-tests/
 │   │       ├── obj/gitversion.h
 │   │       └── ...
 │   ├── java/com/panda/e2e/
-│   │   ├── RunCucumberTest.java        # JUnit 平台入口（备选）
-│   │   ├── client/
-│   │   │   ├── PandaClient.java        # 统一接口
-│   │   │   ├── PandaUsbClient.java     # 真实硬件：JNA → libusb
-│   │   │   ├── NativePandaClient.java  # 无硬件：JNA → 编译后的 C 代码
-│   │   │   └── StubPandaClient.java    # 纯 Java 回退桩
-│   │   ├── context/TestContext.java    # Cucumber 共享状态
-│   │   └── steps/SafetyModeSteps.java  # BDD 步骤定义
+│   │   ├── PandaClient.java              # JNA 接口 + 状态读取
+│   │   ├── SafetyModeSteps.java          # BDD 步骤定义
+│   │   ├── ApplicationSteps.java         # Spring Boot 配置
+│   │   ├── CucumberConfiguration.java    # Spring 上下文
+│   │   ├── Factories.java                # JFactory 注册
+│   │   └── spec/
+│   │       ├── UsbControlRequests.java   # 控制请求 Spec（Heartbeat, SetSafetyMode, CanLoopback, DisableHeartbeat）
+│   │       └── CanSendRequests.java      # CAN 发送 Spec
 │   └── resources/
-│       ├── features/safety_mode.feature # Gherkin 场景
-│       └── test-design/safety-mode.md   # 测试设计文档
+│       ├── features/
+│       │   ├── safety_mode.feature       # 安全模式切换 (7 场景)
+│       │   ├── can_loopback.feature      # CAN 回环模式 (4 场景)
+│       │   └── heartbeat.feature         # 心跳机制 (6 场景)
+│       └── test-design/
+│           ├── safety-mode.md
+│           ├── can_loopback.md
+│           └── heartbeat.md
 ```
 
-## 三层客户端架构
+## 架构
 
-测试根据运行环境自动选择客户端实现：
+所有测试通过 JNA 直接调用编译后的 C 固件代码，无需三层回退：
 
 ```
-SafetyModeSteps.createClient()
+Cucumber BDD (Gherkin)
         │
-   ┌────┴──── 尝试 PandaUsbClient (libusb)
-   │         └─ 成功 → 真实 USB 硬件测试
-   │
-   └──── 失败 → 尝试 NativePandaClient (JNA)
-             └─ 成功 → 真实 C 代码测试（无硬件）
-             └─ 失败 → StubPandaClient (纯 Java)
+        ▼
+  SafetyModeSteps.java
+        │  JFactory 准备请求数据
+        │  DAL-java expect(...).should(...) 验证结果
+        │
+        ▼
+  PandaClient.java ──JNA──→ libpanda.dylib
+        │                        │
+        │ controlWrite()          │ comms_control_handler()
+        │ canSend()              │ can_send()
+        │ getHeartbeat*()        │ heartbeat_counter, heartbeat_lost ...
+        │ getSafetyTxBlocked()   │ safety_tx_blocked
+        │ rxQueue() / txQueue()  │ can_rx_q / can_tx*_q
+        │ relayCall()            │ set_intercept_relay stub
+        │ canModeCall()          │ set_can_mode stub
+        │ fdcanRegs()            │ fake FDCAN registers
+        ▼                        ▼
+  编译后的 board/main.c (真实生产代码) + 硬件 stub
 ```
 
-| 客户端 | 被测代码 | 需要硬件 | 变异测试 |
-|--------|---------|---------|---------|
-| `PandaUsbClient` | 真实固件（STM32） | ✅ | ✅（需刷写） |
-| `NativePandaClient` | 真实 C 代码（宿主编译） | ❌ | ✅ |
-| `StubPandaClient` | Java 复现 | ❌ | ❌ |
+| 被测对象 | 覆盖方式 |
+|---------|---------|
+| `comms_control_handler()` | `jna_control_write()` → 完整固件路径 |
+| `can_send()` → safety hooks | `jna_can_send()` → 安全校验流水线 |
+| heartbeat 状态 | `jna_get_heartbeat_*()` → 心跳全局变量 |
+| FDCAN 寄存器 | `jna_get_fdcan_*()` → 虚拟外设状态 |
+| relay / can mode | stub 记录最后调用参数 |
+
+## 被测功能覆盖
+
+| 功能 | Feature 文件 | 场景数 | USB 请求 |
+|------|-------------|--------|----------|
+| 安全模式切换 | `safety_mode.feature` | 7 | 0xdc |
+| CAN 回环模式 | `can_loopback.feature` | 4 | 0xe5 |
+| 心跳机制 | `heartbeat.feature` | 6 | 0xf3, 0xf8 |
 
 ## C 代码编译机制
 
@@ -105,25 +133,47 @@ cc -std=gnu11 -fPIC -shared -O0 -g \
 
 ## JNA 接口
 
-`NativePandaClient.SafetyLib` 通过 JNA 绑定到 `.dylib` 中的 C 函数：
+`PandaClient.PandaLib` 通过 JNA 绑定到 `.dylib` 中的 C 函数：
 
 ```java
-public interface SafetyLib extends Library {
-    SafetyLib INSTANCE = Native.load(".../libpanda.dylib", SafetyLib.class);
-    void jna_set_safety_mode(short mode, short param);
-    byte  jna_get_can_silent();
-}
-```
+public interface PandaLib extends Library {
+    PandaLib INSTANCE = Native.load(".../libpanda.dylib", PandaLib.class);
 
-C 侧导出的 JNA 函数：
+    // 控制请求（走完整 comms_control_handler 路径）
+    void jna_control_write(byte request, short param1, short param2);
 
-```c
-void jna_set_safety_mode(uint16_t mode, uint16_t param) {
-    set_safety_mode(mode, param);  // 调用 board/main.c 的真实代码
-}
+    // CAN 发送（走完整 can_send → safety hooks 路径）
+    int  jna_can_send(int addr, byte bus, byte[] data, byte len);
 
-bool jna_get_can_silent(void) {
-    return can_silent;             // 读取 C 全局变量
+    // CAN 队列
+    boolean jna_can_pop_rx(...);
+    boolean jna_can_pop_tx(int queueIdx, ...);
+    void jna_can_clear_all();
+
+    // 安全状态
+    int jna_get_safety_tx_blocked();
+
+    // Relay / CAN mode stub 记录
+    int jna_get_relay_call_count();
+    int jna_get_relay_a();
+    int jna_get_relay_b();
+    void jna_clear_relay_calls();
+    int jna_get_can_mode_call_count();
+    int jna_get_can_mode();
+    void jna_clear_can_mode_calls();
+
+    // 心跳状态
+    int jna_get_heartbeat_counter();
+    int jna_get_heartbeat_lost();
+    int jna_get_heartbeat_disabled();
+    int jna_get_heartbeat_engaged();
+    void jna_reset_heartbeat();
+
+    // FDCAN 寄存器检查
+    void jna_reset_fdcan();
+    int  jna_get_fdcan_cccr(int n);
+    int  jna_get_fdcan_ie(int n);
+    // ... 其他寄存器 ...
 }
 ```
 
@@ -136,7 +186,7 @@ cd e2e-tests
 ./gradlew cucumber
 
 # 运行单个场景（按行号）
-./gradlew cucumber -Pfile='src/test/resources/features/safety_mode.feature:27'
+./gradlew cucumber -Pfile='src/test/resources/features/heartbeat.feature:4'
 
 # 手工重建 C 库（通常 ./gradlew cucumber 自动触发）
 cd src/test/c && ./build.sh
@@ -161,5 +211,5 @@ cd .. && ./gradlew cucumber
 
 # 5. 重建 + 验证全绿
 cd src/test/c && ./build.sh && cd .. && ./gradlew cucumber
-# 7 scenarios (7 passed)
+# 18 scenarios (18 passed)
 ```

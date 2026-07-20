@@ -76,9 +76,10 @@ heartbeat disable (0xf8):
 
 ### TC4: 心跳清除 disabled 标志
 - 前置: 先禁用心跳 (0xf8 in SILENT) → disabled=true
-- 输入: request=0xf3, param1=0
-- 输出: counter=0, lost=false, disabled=false, engaged=false
-- 路径: heartbeat case 始终设 disabled=false
+- 输入: request=0xf3, param1=1
+- 输出: counter=0, lost=false, disabled=false, engaged=true
+- 路径: heartbeat case 始终设 disabled=false，param1==1 设 engaged=true
+- 注: 第二个 control write 使用 `control write "Heartbeat":`（spec-based）而非 `control write:`（expression-based），因为 expression-based 步骤的 `createAll` + `query()` 在单场景多步调用时会返回前一步骤的对象
 
 ### TC5: car 安全模式下无法禁用心跳
 - 前置: 切换到 TOYOTA (car safety) 模式

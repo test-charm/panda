@@ -94,6 +94,8 @@ Feature: Safety Mode Switching
       """
       : {
         safetyTxBlocked: 0
+        heartbeatCounter: 0
+        heartbeatLost: 0
         relayCall= {
           a: true
           b: false
@@ -131,6 +133,8 @@ Feature: Safety Mode Switching
       """
       : {
         safetyTxBlocked: 0
+        heartbeatCounter: 0
+        heartbeatLost: 0
         relayCall= {
           a: false
           b: false
@@ -167,6 +171,8 @@ Feature: Safety Mode Switching
       """
       : {
         safetyTxBlocked: 0
+        heartbeatCounter: 0
+        heartbeatLost: 0
         relayCall= {
           a: false
           b: false
@@ -201,6 +207,8 @@ Feature: Safety Mode Switching
       """
       : {
         safetyTxBlocked: 1
+        heartbeatCounter: 0
+        heartbeatLost: 0
         relayCall= {
           a: true
           b: false
@@ -276,6 +284,8 @@ Feature: Safety Mode Switching
     Then control data should be:
       """
       : {
+        heartbeatCounter: 0
+        heartbeatLost: 0
         rxQueue: []
         txQueue[0]: []
         fdcanRegs<<0,1,2>>: {
