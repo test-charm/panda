@@ -104,6 +104,9 @@ public class PandaClient {
         int jna_get_health_safety_mode();
         int jna_get_health_safety_param();
         int jna_get_health_heartbeat_lost();
+
+        // Power save state inspection
+        int jna_get_power_save_enabled();
     }
 
     private final PandaLib lib = PandaLib.INSTANCE;
@@ -270,6 +273,10 @@ public class PandaClient {
                 lib.jna_get_heartbeat_disabled(),
                 lib.jna_get_heartbeat_engaged()
         );
+    }
+
+    public boolean isPowerSaveEnabled() {
+        return lib.jna_get_power_save_enabled() != 0;
     }
 
     // ---- Health packet inspection ----

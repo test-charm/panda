@@ -168,7 +168,7 @@ void clock_init(void) {}
 void peripherals_init(void) {}
 void detect_board_type(void) {}
 void get_provision_chunk(uint8_t *out) { if (out) out[0] = 0; }
-void set_power_save_state(bool en) { (void)en; }
+void set_power_save_state(bool en) { power_save_enabled = en; }
 void enable_can_transceivers(bool en) { (void)en; }
 void enter_stop_mode(void) {}
 void sound_init(void) {}
@@ -426,6 +426,11 @@ int jna_get_heartbeat_disabled(void) {
 }
 int jna_get_heartbeat_engaged(void) {
     return heartbeat_engaged ? 1 : 0;
+}
+
+// ---- JNA API: Power save state inspection ----
+int jna_get_power_save_enabled(void) {
+    return power_save_enabled ? 1 : 0;
 }
 
 // ---- JNA API: Health packet inspection ----
