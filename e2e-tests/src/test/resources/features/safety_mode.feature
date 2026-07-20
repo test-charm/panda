@@ -22,7 +22,6 @@ Feature: Safety Mode Switching
       """
       : {
         safetyTxBlocked: 1
-        canSilent= true
         relayCall= {
           a: false
           b: false
@@ -38,6 +37,9 @@ Feature: Safety Mode Switching
           data.string: blocked
         }
         txQueue[0]: []
+        fdcanRegs[0]= {
+          cccr: [ 0b0010_0000y, 0b0101_0011y ]
+        }
       }
       """
 
@@ -58,7 +60,6 @@ Feature: Safety Mode Switching
       """
       : {
         safetyTxBlocked: 1
-        canSilent= false
         relayCall= {
           a: false
           b: false
@@ -72,6 +73,9 @@ Feature: Safety Mode Switching
           data.string: blocked
         }
         txQueue[0]: []
+        fdcanRegs[0]= {
+          cccr: [ 0b0000_0000y, 0b0101_0011y ]
+        }
       }
       """
 
@@ -92,7 +96,6 @@ Feature: Safety Mode Switching
       """
       : {
         safetyTxBlocked: 0
-        canSilent= false
         relayCall= {
           a: true
           b: false
@@ -105,6 +108,9 @@ Feature: Safety Mode Switching
         txQueue[0]= {
           rejected: false
           data.string: allowed
+        }
+        fdcanRegs[0]= {
+          cccr: [ 0b0000_0000y, 0b0101_0011y ]
         }
       }
       """
@@ -128,7 +134,6 @@ Feature: Safety Mode Switching
       """
       : {
         safetyTxBlocked: 0
-        canSilent= false
         relayCall= {
           a: false
           b: false
@@ -168,7 +173,6 @@ Feature: Safety Mode Switching
       """
       : {
         safetyTxBlocked: 0
-        canSilent= false
         relayCall= {
           a: false
           b: false
@@ -206,7 +210,6 @@ Feature: Safety Mode Switching
       """
       : {
         safetyTxBlocked: 1
-        canSilent= false
         relayCall= {
           a: true
           b: false
@@ -220,6 +223,9 @@ Feature: Safety Mode Switching
           data.string: blocked
         }
         txQueue[0]: []
+        fdcanRegs[0]= {
+          cccr: [ 0b0000_0000y, 0b0101_0011y ]
+        }
       }
       """
 
@@ -240,7 +246,6 @@ Feature: Safety Mode Switching
       """
       : {
         safetyTxBlocked: 1
-        canSilent= true
         relayCall= {
           a: false
           b: false
@@ -254,6 +259,9 @@ Feature: Safety Mode Switching
           data.string: blocked
         }
         txQueue[0]: []
+        fdcanRegs[0]= {
+          cccr: [ 0b0010_0000y, 0b0101_0011y ]
+        }
       }
       """
 

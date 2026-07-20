@@ -368,10 +368,6 @@ void jna_clear_can_mode_calls(void) {
     can_mode_last = 0U;
 }
 
-int jna_get_can_silent(void) {
-    return can_silent ? 1 : 0;
-}
-
 // ---- JNA API: FDCAN register inspection ----
 void jna_reset_fdcan(void) {
     for (int i = 0; i < 3; i++) {
