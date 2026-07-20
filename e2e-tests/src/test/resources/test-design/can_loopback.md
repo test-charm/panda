@@ -34,10 +34,15 @@ case 0xe5:
 
 | 因子 | 说明 | 验证方式 |
 |------|------|----------|
-| CCCR.TEST (bit 7) | FDCAN 测试模式使能 | fdcanRegs.cccr |
-| CCCR.MON (bit 5) | 总线监听模式（回环时也会置位） | fdcanRegs.cccr |
-| TEST.LBCK (bit 4) | 内部回环使能 | fdcanRegs 扩展字段或间接验证 |
-| TX 队列 | can_init_all() 清空 | txQueue |
+| CCCR (byte[0]) | bit7=TEST, bit5=MON | fdcanRegs[N].cccr[0] |
+| CCCR (byte[1]) | 标准配置 | fdcanRegs[N].cccr[1] |
+| IE (中断使能) | 各 bus 的 IE 寄存器 | fdcanRegs<<0,1,2>>.ie |
+| NBTP / DBTP | 标称/数据位时序 | fdcanRegs<<0,1,2>>.nbtp / .dbtp |
+| TXBC / RXF0C | FIFO/队列配置 | fdcanRegs<<0,1,2>>.txbc / .rxf0c |
+| TXESC / RXESC | 元素大小配置 | fdcanRegs<<0,1,2>>.txesc / .rxesc |
+| GFC (全局过滤) | 过滤配置 | fdcanRegs<<0,1,2>>.gfc |
+| ILE (中断线使能) | 中断线选择 | fdcanRegs<<0,1,2>>.ile |
+| TX 队列 | can_init_all() 清空 | txQueue[0] |
 | can_send 正常 | 回环使能后 CAN 发送不阻塞 | canSend 返回值 |
 
 ## 流程图
@@ -62,18 +67,19 @@ e2e 测试环境中 `process_can()` 被 stub，FDCAN 硬件不存在，因此：
 
 ## 测试用例
 
-| # | 用例名 | param1 | 前置状态 | FDCAN CCCR byte[0] | TEST.LBCK | txQueue | 说明 |
-|---|--------|--------|----------|--------------------|-----------|---------|------|
-| 1 | Enable-loopback-configures-FDCAN-registers | 1 | silent=true (默认) | 0b1010_0000 (TEST\|MON) | 1 (通过 cccr 体现) | - | 回环开启后 CCCR 置 TEST+MON |
-| 2 | Disable-loopback-clears-TEST-bit | 0 | silent=true (默认) | 0b0010_0000 (MON only) | 0 (通过 cccr 体现) | - | 回环关闭后 TEST 清除 |
-| 3 | Re-enabling-loopback-clears-TX-queues | 1 | ALLOUTPUT, msg in TX | * | * | empty | can_init_all 清空已有 TX 消息 |
-| 4 | CAN-send-works-after-loopback-enabled | 1 | ALLOUTPUT + loopback on | - | - | 消息在 TX 队列 | 回环不影响 CAN 发送路径 |
+| # | 用例名 (对应 feature 场景) | param1 | 前置状态 | 验证内容 | 说明 |
+|---|---------------------------|--------|----------|----------|------|
+| 1 | Enabling-loopback-sets-FDCAN-TEST-and-MON-bits | 1 | silent=true (默认) | cccr=0b1010_0000, ie/nbtp/dbtp/txbc/rxf0c/txesc/rxesc/gfc/ile 全部初始值 | 回环开启后 CCCR 置 TEST+MON，所有 FDCAN 寄存器被 can_init_all() 重初始化 |
+| 2 | Disabling-loopback-clears-FDCAN-TEST-bit-but-keeps-MON-from-silent-mode | 0 | silent=true (默认) | cccr[0]=0x20 (MON only) | 回环关闭后 TEST 清除，MON 由 silent 模式保持 |
+| 3 | Re-enabling-loopback-clears-existing-CAN-TX-queues | 1 | ALLOUTPUT, TX 队列有消息 | txQueue[0] 为空, rxQueue 为空, cccr=0b1010_0000 | can_init_all 清空已有 TX 消息并重初始化 FDCAN |
+| 4 | CAN-send-still-works-after-loopback-is-enabled | 1 | ALLOUTPUT + loopback on | txQueue[0] 含 address=512 的发送消息 | 回环不影响 CAN 发送路径 |
 
 **覆盖度验证：**
 - 代码路径：param1=0 (用例2) + param1>0 (用例1,3,4) ✓
 - 条件分支：`param1 > 0U` 的 true (用例1) 和 false (用例2) 均覆盖 ✓
 - 等价类：EQ1 (用例2) + EQ2 (用例1,3,4) ✓
 - 边界值：0 (用例2) + 1 (用例1,3,4) ✓
+- FDCAN 寄存器全面验证：用例1 覆盖 can_init_all() 对三总线所有寄存器的初始化 ✓
 
 ## 实现要点
 

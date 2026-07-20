@@ -51,14 +51,17 @@ can_clear:  -   -    bus1      -           -
 | `mode` | uint16 | SILENT(0), NOOUTPUT(19), ELM327(3), ALLOUTPUT(17), 车辆特定模式(e.g. TOYOTA=2), 无效模式(不在安全模型范围内) | 0, 1, 2, 3, 17, 19, 0xFFFF |
 | `param` | uint16 | 仅 ELM327 区分: param=0 (OBD_CAN2), param≠0 (NORMAL) | 0, 1 |
 
-## 3. 输出因子 (通过 health 控制请求 0xd2 观测)
+## 3. 输出因子 (通过控制数据查询观测)
 
-| 输出 | 类型 | 含义 |
-|------|------|------|
-| `safety_mode` | uint8 (offset 36) | 当前安全模式 |
-| `safety_tx_blocked` | uint32 (offset 12) | 安全 hook 阻断的发送计数 |
-| `heartbeat_lost` | uint8 (offset 41) | 心跳是否丢失 |
-| CAN 发送行为 | 间接 | SILENT 下 TX 不出现在正常总线 (出现在 bus 192) |
+| 输出 | 说明 | feature 中验证 |
+|------|------|---------------|
+| safetyTxBlocked | 安全 hook 阻断的发送计数 | 阻断模式=1, 放行模式=0 |
+| relayCall.a / relayCall.b | 继电器驱动状态 | SILENT/NOOUTPUT=false, ALLOUTPUT/TOYOTA=true |
+| canModeCall.value | CAN 静默模式 (SILENT=0, NORMAL=0, OBD_CAN2=1) | ELM327 OBD_CAN2=1 |
+| rxQueue | 接收队列（含 rejected 标记） | 阻断时含 rejected=true 的消息 |
+| txQueue[0] | 发送队列（空或含消息） | 阻断时为空，放行时含 rejected=false 的消息 |
+| fdcanRegs[N].cccr | FDCAN CCCR 寄存器（SILENT 模式下 CCCR.MON=1） | 非 SILENT=0x00, SILENT=0x20 |
+| fdcanRegs<<0,1,2>> (全部寄存器) | 模式切换后 can_init_all() 完全重初始化 | TC8 验证 ie/nbtp/dbtp/txbc/rxf0c/txesc/rxesc/gfc/ile |
 
 ## 4. 测试用例 (对应 safety_mode.feature 场景)
 
@@ -94,21 +97,27 @@ can_clear:  -   -    bus1      -           -
 
 ### TC7: 无效模式 — 回退 SILENT
 - 输入: mode=7 (不在 safety_hook_registry 中), param=0 (default from SetSafetyMode spec)
-- 输出: "Error: safety set mode failed. Falling back to SILENT", safetyTxBlocked=1
-- 路径: set_hooks returns -1 → mode=SILENT → nooutput_hooks.tx 阻断
+- 输出: safetyTxBlocked=1, rxQueue 含 rejected 消息, txQueue[0] 为空, cccr[0]=0x20 (MON)
+- 路径: set_hooks returns -1 → 回退 SAFETY_SILENT → nooutput_hooks.tx 阻断
+
+### TC8: 模式切换 — 清空 TX 队列 + 重初始化 FDCAN
+- 输入: 先切换到 ALLOUTPUT(17), 发送一条 CAN 消息, 再切换到 ALLOUTPUT(17)
+- 输出: rxQueue=[], txQueue[0]=[], fdcanRegs<<0,1,2>> 所有寄存器被 can_init_all() 重初始化
+- 路径: set_safety_mode → set_safety_hooks → can_init_all() → 所有 FDCAN 寄存器恢复默认值, TX 队列清空
 
 ## 5. 覆盖检查
 
-| 条件 | TC1 | TC2 | TC3 | TC4 | TC5 | TC6 | TC7 |
-|------|-----|-----|-----|-----|-----|-----|-----|
-| SILENT branch | ✅ | — | — | — | — | — | ✅ |
-| NOOUTPUT branch | — | ✅ | — | — | — | — | — |
-| ALLOUTPUT branch | — | — | ✅ | — | — | — | — |
-| ELM327 param=0 | — | — | — | ✅ | — | — | — |
-| ELM327 param≠0 | — | — | — | — | ✅ | — | — |
-| default (car) branch | — | — | — | — | — | ✅ | — |
-| set_hooks error fallback | — | — | — | — | — | — | ✅ |
-| 所有 mode 等价类覆盖 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| param 等价类覆盖 | ✅ | ✅ | ✅ | ✅ | ✅ | — | — |
+| 条件 | TC1 | TC2 | TC3 | TC4 | TC5 | TC6 | TC7 | TC8 |
+|------|-----|-----|-----|-----|-----|-----|-----|-----|
+| SILENT branch | ✅ | — | — | — | — | — | ✅ | — |
+| NOOUTPUT branch | — | ✅ | — | — | — | — | — | — |
+| ALLOUTPUT branch | — | — | ✅ | — | — | — | — | ✅ |
+| ELM327 param=0 | — | — | — | ✅ | — | — | — | — |
+| ELM327 param≠0 | — | — | — | — | ✅ | — | — | — |
+| default (car) branch | — | — | — | — | — | ✅ | — | — |
+| set_hooks error fallback | — | — | — | — | — | — | ✅ | — |
+| can_init_all() 重初始化 | — | — | — | — | — | — | — | ✅ |
+| 所有 mode 等价类覆盖 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| param 等价类覆盖 | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | — |
 
-✅ 所有条件分支和等价类已覆盖。
+✅ 所有条件分支、等价类和副作用（can_init_all 重初始化）已覆盖。

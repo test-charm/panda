@@ -1,6 +1,6 @@
 # Panda 项目功能与测试覆盖分析报告
 
-> 生成时间: 2026-07-16
+> 生成时间: 2026-07-16 | 最后更新: 2026-07-20 (同步 E2E 测试场景)
 
 ---
 
@@ -46,7 +46,7 @@ Panda 是 comma.ai 开发的开源汽车接口固件项目，基于 STM32H725 (A
 | 2 | **CAN 速度配置** | `fdcan.h:can_set_speed()` | `set_can_speed_kbps()`, `set_can_data_speed_kbps()` | ✅ 隐式 | 在 loopback 测试中覆盖多种速率 (10-1000 kbps) |
 | 3 | **CAN-FD 自动切换** | `fdcan.h` + 控制命令 | `set_canfd_auto()` | ❌ 无 | — |
 | 4 | **CAN-FD 非 ISO 模式** | 控制命令 0xfc | `set_canfd_non_iso()` | ❌ 无 | — |
-| 5 | **CAN 环回模式** | 控制命令 0xe5 | `set_can_loopback()` | ✅ 完整 | HITL: `3_usb.py:test_can_loopback` |
+| 5 | **CAN 环回模式** | 控制命令 0xe5 | `set_can_loopback()` | ✅ 完整 | HITL: `3_usb.py:test_can_loopback`; E2E: `can_loopback.feature` (4 场景) |
 | 6 | **USB 设备栈** | `board/drivers/usb.h`, `llusb.h` | (内部) | ✅ 隐式 | 所有 USB 连接的 HITL 测试依赖 USB |
 | 7 | **SPI 通信 (SOM)** | `board/drivers/spi.h`, `llspi.h` | (内部) | ✅ 完整 | HITL: `5_spi.py` (协议版本/错误头/校验和/不存在端点) |
 | 8 | **CAN 通信协议 (编解码)** | `board/can_comms.h` | `pack_can_buffer()`, `unpack_can_buffer()` | ✅ 完整 | USB: `test_comms.py` + `test_pandalib.py` |
@@ -55,8 +55,8 @@ Panda 是 comma.ai 开发的开源汽车接口固件项目，基于 STM32H725 (A
 
 | # | 功能 | 固件代码 | Python 接口 | 测试覆盖 | 测试类型 |
 |---|------|---------|------------|---------|---------|
-| 9 | **安全模型 (Safety)** | `opendbc/safety/safety.h`, `main.c:set_safety_mode()` | `set_safety_mode()` | ⚠️ 最小 | HITL: `6_safety.py` (仅 silent 模式) |
-| 10 | **安全模式切换** | `main.c` (SILENT/NOOUTPUT/ELM327/ALLOUTPUT) | `set_safety_mode()` | ⚠️ 最小 | 仅测试 silent |
+| 9 | **安全模型 (Safety)** | `opendbc/safety/safety.h`, `main.c:set_safety_mode()` | `set_safety_mode()` | ✅ 完整 | HITL: `6_safety.py`; E2E: `safety_mode.feature` (8 场景: SILENT/NOOUTPUT/ALLOUTPUT/ELM327/TOYOTA/非法回退/队列清理) |
+| 10 | **安全模式切换** | `main.c` (SILENT/NOOUTPUT/ELM327/ALLOUTPUT + 车辆特定) | `set_safety_mode()` | ✅ 完整 | E2E: `safety_mode.feature` 覆盖全部切换路径 + 队列清理 + FDCAN 重初始化 |
 | 11 | **OBD 多路复用** | 控制命令 0xdb | `set_obd()` | ❌ 无 | — |
 | 12 | **心跳看门狗** | `main.c:tick_handler()` | `send_heartbeat()`, `set_heartbeat_disabled()` | ✅ 完整 | HITL: `2_health.py:test_heartbeat` |
 | 13 | **健康数据包 (Health)** | `board/health.h`, `main_comms.h:get_health_pkt()` | `health()` | ✅ 部分 | HITL: `2_health.py:test_voltage` |
@@ -168,8 +168,8 @@ Panda 是 comma.ai 开发的开源汽车接口固件项目，基于 STM32H725 (A
 
 ```
 总功能数:  64
-├── ✅ 有完整测试:  24 (37.5%)
-├── ⚠️ 有部分/隐式测试: 14 (21.9%)
+├── ✅ 有完整测试:  26 (40.6%)
+├── ⚠️ 有部分/隐式测试: 12 (18.8%)
 └── ❌ 无测试:      26 (40.6%)
 ```
 
@@ -178,9 +178,10 @@ Panda 是 comma.ai 开发的开源汽车接口固件项目，基于 STM32H725 (A
 | 测试套件 | 文件数 | 测试数 | 需要硬件 |
 |----------|--------|--------|---------|
 | USB 协议单元测试 | 2 | 6 | ❌ |
+| E2E 端到端测试 (Cucumber BDD) | 2 | 12 | ❌ |
 | MISRA 静态分析 | 2 | 2 | ❌ |
 | HITL 硬件在环 | 9 | 29 | ✅ |
-| **总计** | **13** | **37** | — |
+| **总计** | **15** | **49** | — |
 
 ---
 
@@ -192,7 +193,6 @@ Panda 是 comma.ai 开发的开源汽车接口固件项目，基于 STM32H725 (A
 
 | 功能 | 风险 | 建议测试方式 |
 |------|------|-------------|
-| **安全模式切换** (NOOUTPUT/ELM327/ALLOUTPUT) | 仅测试了 SILENT | HITL: 设置各模式，验证 CAN 行为 |
 | **CAN-FD 功能** (自动切换、非 ISO) | 完全未测试 | HITL: 需要 CAN-FD 兼容设备 |
 | **OBD 多路复用** | 完全未测试 | HITL: 设置 OBD 模式，验证总线路由 |
 | **省电模式** | 完全未测试 | HITL: 启用/禁用省电，验证功耗变化 |
@@ -235,6 +235,7 @@ Panda 是 comma.ai 开发的开源汽车接口固件项目，基于 STM32H725 (A
 │  ├── tests/misra/test_misra.sh (MISRA)           │
 │  ├── pytest tests/misra/test_mutation.py         │
 │  ├── pytest tests/usbprotocol/ (USB 协议)        │
+│  ├── cd e2e-tests && ./gradlew cucumber (E2E)    │
 │  └── pytest tests/hitl/ (需要硬件)               │
 │      ├── conftest.py: panda + jungle fixtures    │
 │      │   - 每次测试前 reset panda                │
@@ -255,17 +256,47 @@ Panda 是 comma.ai 开发的开源汽车接口固件项目，基于 STM32H725 (A
 | Cuatro | `8_misc.py:test_stop_mode` |
 | Internal Panda | `7_internal.py` (风扇测试) |
 
+
 ---
 
-## 六、推荐的新增端到端测试
+## 六、E2E 端到端测试场景 (Cucumber BDD)
+
+无需硬件，将 `board/main.c` 编译为宿主共享库，通过 JNA 直接调用真实 C 代码。
+
+### can_loopback.feature (4 场景)
+
+```
+启用环回 → FDCAN TEST + MON 位
+禁用环回 → 清除 TEST 位，保留 silent 的 MON 位
+重新启用环回 → 清空 CAN TX 队列
+环回模式下 CAN 发送 → 消息仍可正常发送
+```
+
+### safety_mode.feature (8 场景)
+
+```
+SILENT    → 阻断 CAN TX，relay 关闭
+NOOUTPUT  → 阻断 CAN TX，relay 关闭
+ALLOUTPUT → 放行所有 CAN TX，relay 开启
+ELM327 OBD_CAN2 → 放行合法 OBD-II TX，总线 1
+ELM327 NORMAL   → 放行合法 OBD-II TX，总线 0
+TOYOTA    → 阻断非 TOYOTA CAN TX
+非法安全模式 → 回退到 SILENT
+切换安全模式 → 清空 TX 队列 + 重新初始化 FDCAN 寄存器
+```
+
+详见 `doc/e2e-tests.md`。
+
+---
+
+## 七、推荐的新增端到端测试
 
 按优先级排序：
 
-1. **`tests/hitl/10_safety_modes.py`** — 安全模式全覆盖 (NOOUTPUT/ELM327/ALLOUTPUT + 车辆特定模式)
-2. **`tests/hitl/11_power.py`** — 省电模式启用/禁用 + 心跳丢失自动省电
-3. **`tests/hitl/12_can_health.py`** — CAN 健康统计 (错误计数器、bus-off 检测)
-4. **`tests/hitl/13_uart.py`** — UART 读写、波特率变更、校验位
-5. **`tests/hitl/14_canfd.py`** — CAN-FD 自动切换 + 非 ISO 模式
-6. **`tests/hitl/15_io.py`** — IR/蜂鸣器/LED/时钟源 硬件 I/O
-7. **`tests/hitl/16_identity.py`** — Dongle ID/Secret/UID 完整验证
-8. **`tests/usbprotocol/test_safety.py`** — 安全模型单元测试 (利用 libpanda.so)
+1. **`tests/hitl/11_power.py`** — 省电模式启用/禁用 + 心跳丢失自动省电
+2. **`tests/hitl/12_can_health.py`** — CAN 健康统计 (错误计数器、bus-off 检测)
+3. **`tests/hitl/13_uart.py`** — UART 读写、波特率变更、校验位
+4. **`tests/hitl/14_canfd.py`** — CAN-FD 自动切换 + 非 ISO 模式
+5. **`tests/hitl/15_io.py`** — IR/蜂鸣器/LED/时钟源 硬件 I/O
+6. **`tests/hitl/16_identity.py`** — Dongle ID/Secret/UID 完整验证
+7. **`tests/usbprotocol/test_safety.py`** — 安全模型单元测试 (利用 libpanda.so)
