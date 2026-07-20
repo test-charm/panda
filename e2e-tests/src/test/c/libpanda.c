@@ -394,6 +394,13 @@ void jna_reset_fdcan(void) {
     // Reset globals that persist across scenarios and affect can_init()
     can_loopback = false;
     can_silent = true;
+    // Restore default bus_config (can_speed, can_data_speed) modified by 0xde set-can-bitrate
+    bus_config[0].can_speed = 5000U;
+    bus_config[0].can_data_speed = 20000U;
+    bus_config[1].can_speed = 5000U;
+    bus_config[1].can_data_speed = 20000U;
+    bus_config[2].can_speed = 5000U;
+    bus_config[2].can_data_speed = 20000U;
 }
 
 // Reset heartbeat state between scenarios
