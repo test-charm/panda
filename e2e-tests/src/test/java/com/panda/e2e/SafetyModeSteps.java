@@ -42,6 +42,12 @@ public class SafetyModeSteps {
         expect(client).should(expression);
     }
 
+    @When("control write {string}:")
+    public void controlWriteWithSpec(String spec, String expression) {
+        UsbControlRequest request = jFactory.useDAL().create(spec, expression);
+        client.controlWrite(request.request, request.param1, request.param2);
+    }
+
     public static class UsbControlRequest {
         public byte request;
         public short param1, param2;

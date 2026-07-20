@@ -351,6 +351,9 @@ void jna_reset_fdcan(void) {
     for (size_t i = 0; i < FAKE_FDCAN_SRAM_SIZE; i++) {
         fake_fdcan_sram[i] = 0;
     }
+    // Reset globals that persist across scenarios and affect can_init()
+    can_loopback = false;
+    can_silent = true;
 }
 uint32_t jna_get_fdcan_cccr(int can_number) {
     if ((can_number < 0) || (can_number >= 3)) return 0;
