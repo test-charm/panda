@@ -135,6 +135,9 @@ public class PandaClient {
 
         // Version
         String jna_get_gitversion();
+
+        // Packet versions (response from 0xdd)
+        void jna_get_packet_versions(int[] outHealthVersion, int[] outCanVersionHash);
     }
 
     private final PandaLib lib = PandaLib.INSTANCE;
@@ -370,6 +373,16 @@ public class PandaClient {
 
     public String getGitversion() {
         return lib.jna_get_gitversion();
+    }
+
+    public record PacketVersions(int healthVersion, int canVersionHash) {
+    }
+
+    public PacketVersions getPacketVersions() {
+        int[] outHealth = new int[1];
+        int[] outCan = new int[1];
+        lib.jna_get_packet_versions(outHealth, outCan);
+        return new PacketVersions(outHealth[0], outCan[0]);
     }
 
     // ---- Health packet inspection ----

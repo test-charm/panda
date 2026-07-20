@@ -536,6 +536,16 @@ const char *jna_get_gitversion(void) {
     return gitversion;
 }
 
+// ---- JNA API: Packet versions (read from response after 0xdd) ----
+// Returns the two uint32 values from the last control response buffer.
+// Call after controlWrite(0xdd, 0, 0).
+void jna_get_packet_versions(uint32_t *out_health_version, uint32_t *out_can_version_hash) {
+    if ((jna_resp_len >= 8U) && (out_health_version != ((void *)0)) && (out_can_version_hash != ((void *)0))) {
+        (void)memcpy(out_health_version, jna_resp, 4U);
+        (void)memcpy(out_can_version_hash, jna_resp + 4U, 4U);
+    }
+}
+
 // ---- JNA API: Health packet inspection ----
 static struct health_t jna_health;
 
