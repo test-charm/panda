@@ -2,7 +2,7 @@
 Feature: Health Packet Retrieval
 
   Scenario: SILENT mode health packet shows default values
-    Given control write:
+    When control write:
       """
       UsbControlRequest: {
         request: -46y
@@ -27,15 +27,15 @@ Feature: Health Packet Retrieval
       """
 
   Scenario: Health packet reflects safety mode change to TOYOTA
-    Given control write:
+    Given exists data:
       """
       SetSafetyMode: {
         param1: 2
       }
       """
-    When control write "GetHealth":
+    When control write:
       """
-      {
+      GetHealth: {
         param1: 0
       }
       """
@@ -51,21 +51,18 @@ Feature: Health Packet Retrieval
       """
 
   Scenario: Health packet reflects blocked CAN TX count
-    Given control write:
+    Given exists data:
       """
       GetHealth: {
         param1: 0
       }
-      """
-    When can send with result 1:
-      """
       PowerTrainBusBlockedRequest: {
         data: blocked
       }
       """
-    When control write "GetHealth":
+    When control write:
       """
-      {
+      GetHealth: {
         param1: 0
       }
       """

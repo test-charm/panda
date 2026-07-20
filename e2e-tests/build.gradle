@@ -68,6 +68,7 @@ tasks.register('cucumber', JavaExec) {
     args = ['--plugin', 'pretty',
             '--plugin', 'html:build/reports/cucumber/cucumber-html.html',
             '--glue', 'com.panda.e2e',
+            '--glue', 'org.testcharm',
             project.hasProperty('file') ? project.file : 'src/test/resources/features']
     systemProperty 'java.library.path',
             file('src/test/c').absolutePath
@@ -81,6 +82,7 @@ tasks.register('cucumberCoverage', JavaExec) {
     args = ['--plugin', 'pretty',
             '--plugin', 'html:build/reports/cucumber/cucumber-html.html',
             '--glue', 'com.panda.e2e',
+            '--glue', 'org.testcharm',
             project.hasProperty('file') ? project.file : 'src/test/resources/features']
     systemProperty 'java.library.path',
             file('src/test/c').absolutePath

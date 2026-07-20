@@ -2,7 +2,7 @@
 Feature: CAN Loopback Mode
 
   Scenario: Enabling loopback sets FDCAN TEST and MON bits
-    Given control write:
+    When control write:
       """
       UsbControlRequest: {
         request: -27y       # 0xe5
@@ -35,7 +35,7 @@ Feature: CAN Loopback Mode
       """
 
   Scenario: Disabling loopback clears FDCAN TEST bit but keeps MON from silent mode
-    Given control write:
+    When control write:
       """
       CanLoopback: {
         param1: 0
@@ -51,21 +51,18 @@ Feature: CAN Loopback Mode
       """
 
   Scenario: Re-enabling loopback clears existing CAN TX queues
-    Given control write:
+    Given exists data:
       """
       SetSafetyMode: {
         param1: 17       # SAFETY_ALLOUTPUT
       }
-      """
-    When can send with result 0:
-      """
       PowerTrainBusBlockedRequest: {
         data: queued
       }
       """
-    When control write "CanLoopback":
+    When control write:
       """
-      {
+      CanLoopback: {
         param1: 1
       }
       """
@@ -81,15 +78,12 @@ Feature: CAN Loopback Mode
       """
 
   Scenario: CAN send still works after loopback is enabled
-    Given control write:
+    Given exists data:
       """
       SetSafetyMode: {
         param1: 17       # SAFETY_ALLOUTPUT
       }
-      """
-    Given control write "CanLoopback":
-      """
-      {
+      CanLoopback: {
         param1: 1
       }
       """

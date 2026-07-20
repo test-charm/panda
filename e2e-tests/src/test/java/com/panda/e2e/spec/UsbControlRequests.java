@@ -8,7 +8,7 @@ public class UsbControlRequests {
     public static class UsbControlRequest extends Spec<SafetyModeSteps.UsbControlRequest> {
     }
 
-    public static class SetSafetyMode extends Spec<SafetyModeSteps.UsbControlRequest> {
+    public static class SetSafetyMode extends UsbControlRequest {
         @Override
         public void main() {
             property("request").defaultValue((byte) -36);
@@ -16,7 +16,7 @@ public class UsbControlRequests {
         }
     }
 
-    public static class CanLoopback extends Spec<SafetyModeSteps.UsbControlRequest> {
+    public static class CanLoopback extends UsbControlRequest {
         @Override
         public void main() {
             property("request").defaultValue((byte) -27);
@@ -24,7 +24,7 @@ public class UsbControlRequests {
         }
     }
 
-    public static class Heartbeat extends Spec<SafetyModeSteps.UsbControlRequest> {
+    public static class Heartbeat extends UsbControlRequest {
         @Override
         public void main() {
             property("request").defaultValue((byte) -13);       // 0xf3
@@ -32,7 +32,7 @@ public class UsbControlRequests {
         }
     }
 
-    public static class DisableHeartbeat extends Spec<SafetyModeSteps.UsbControlRequest> {
+    public static class DisableHeartbeat extends UsbControlRequest {
         @Override
         public void main() {
             property("request").defaultValue((byte) -8);        // 0xf8
@@ -40,7 +40,7 @@ public class UsbControlRequests {
         }
     }
 
-    public static class GetHealth extends Spec<SafetyModeSteps.UsbControlRequest> {
+    public static class GetHealth extends UsbControlRequest {
         @Override
         public void main() {
             property("request").defaultValue((byte) -46);       // 0xd2

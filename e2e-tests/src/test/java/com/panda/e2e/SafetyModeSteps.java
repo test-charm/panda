@@ -1,10 +1,14 @@
 package com.panda.e2e;
 
-import io.cucumber.java.Before;
+import com.panda.e2e.spec.CanSendRequests;
+import com.panda.e2e.spec.UsbControlRequests;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.lang.NonNull;
 import org.testcharm.jfactory.JFactory;
+import org.testcharm.jfactory.Spec;
+import org.testcharm.util.Classes;
 
 import java.nio.charset.StandardCharsets;
 
@@ -15,16 +19,9 @@ public class SafetyModeSteps {
     @Autowired
     private PandaClient client;
 
-    @Autowired
-    private JFactory jFactory;
-
-    @Before
-    public void setUp() {
-        client.clearAll();
-    }
-
     @When("control write:")
     public void controlWriteWithExpression(String expression) {
+        var jFactory = createJFactoryWithSpec(UsbControlRequests.UsbControlRequest.class);
         jFactory.useDAL().createAll(expression);
         var request = jFactory.type(UsbControlRequest.class).query();
         client.controlWrite(request.request, request.param1, request.param2);
@@ -32,20 +29,23 @@ public class SafetyModeSteps {
 
     @When("can send with result {int}:")
     public void canSend(int result, String expression) {
+        var jFactory = createJFactoryWithSpec(CanSendRequests.CanSendRequest.class);
         jFactory.useDAL().createAll(expression);
         var request = jFactory.type(CanSendRequest.class).query();
         expect(client.canSend(request.address, request.data.getBytes(StandardCharsets.UTF_8), request.bus)).should("= " + result);
     }
 
+    @NonNull
+    private JFactory createJFactoryWithSpec(Class<? extends Spec> specSuperClass) {
+        var jFactory = new JFactory();
+        Classes.assignableTypesOf(specSuperClass, "com.panda.e2e.spec")
+                .forEach(spec -> jFactory.register((Class) spec));
+        return jFactory;
+    }
+
     @Then("control data should be:")
     public void controlDataShould(String expression) {
         expect(client).should(expression);
-    }
-
-    @When("control write {string}:")
-    public void controlWriteWithSpec(String spec, String expression) {
-        UsbControlRequest request = jFactory.useDAL().create(spec, expression);
-        client.controlWrite(request.request, request.param1, request.param2);
     }
 
     public static class UsbControlRequest {

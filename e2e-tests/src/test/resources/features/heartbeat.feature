@@ -2,7 +2,7 @@
 Feature: Heartbeat Mechanism
 
   Scenario: Heartbeat with param1=0 reports not engaged
-    Given control write:
+    When control write:
       """
       UsbControlRequest: {
         request: -13y
@@ -23,7 +23,7 @@ Feature: Heartbeat Mechanism
       """
 
   Scenario: Heartbeat with param1=1 reports engaged
-    Given control write:
+    When control write:
       """
       Heartbeat: {
         param1: 1
@@ -42,7 +42,7 @@ Feature: Heartbeat Mechanism
       """
 
   Scenario: Heartbeat with param1=2 is equivalent to param1=0 (not engaged)
-    Given control write:
+    When control write:
       """
       Heartbeat: {
         param1: 2
@@ -61,7 +61,7 @@ Feature: Heartbeat Mechanism
       """
 
   Scenario: Disabling heartbeat in non-car safety mode (SILENT)
-    Given control write:
+    When control write:
       """
       UsbControlRequest: {
         request: -8y
@@ -79,15 +79,15 @@ Feature: Heartbeat Mechanism
       """
 
   Scenario: Heartbeat clears disabled flag
-    Given control write:
+    Given exists data:
       """
       DisableHeartbeat: {
         param1: 0
       }
       """
-    When control write "Heartbeat":
+    When control write:
       """
-      {
+      Heartbeat: {
         param1: 1
       }
       """
@@ -104,15 +104,15 @@ Feature: Heartbeat Mechanism
       """
 
   Scenario: Cannot disable heartbeat in car safety mode (TOYOTA)
-    Given control write:
+    Given exists data:
       """
       SetSafetyMode: {
         param1: 2
       }
       """
-    When control write "DisableHeartbeat":
+    When control write:
       """
-      {
+      DisableHeartbeat: {
         param1: 0
       }
       """

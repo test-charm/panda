@@ -2,7 +2,7 @@
 Feature: Safety Mode Switching
 
   Scenario: SILENT mode blocks CAN TX through safety pipeline
-    Given control write:
+    Given exists data:
       """
       UsbControlRequest: {
         request: -36y
@@ -43,7 +43,7 @@ Feature: Safety Mode Switching
       """
 
   Scenario: NOOUTPUT mode blocks CAN TX through safety pipeline
-    Given control write:
+    Given exists data:
       """
       SetSafetyMode: {
         param1: 19     # SAFETY_NOOUTPUT
@@ -78,7 +78,7 @@ Feature: Safety Mode Switching
       """
 
   Scenario: ALLOUTPUT mode allows all CAN TX through safety pipeline
-    Given control write:
+    Given exists data:
       """
       SetSafetyMode: {
         param1: 17     # SAFETY_ALLOUTPUT
@@ -117,7 +117,7 @@ Feature: Safety Mode Switching
       """
 
   Scenario: ELM327 OBD_CAN2 mode allows valid OBD-II CAN TX
-    Given control write:
+    Given exists data:
       """
       SetSafetyMode: {
         param1: 3     # SAFETY_ELM327
@@ -157,7 +157,7 @@ Feature: Safety Mode Switching
       """
 
   Scenario: ELM327 NORMAL mode allows valid OBD-II CAN TX
-    Given control write:
+    Given exists data:
       """
       SetSafetyMode: {
         param1: 3     # SAFETY_ELM327
@@ -197,7 +197,7 @@ Feature: Safety Mode Switching
       """
 
   Scenario: TOYOTA car-safety mode blocks non-TOYOTA CAN TX
-    Given control write:
+    Given exists data:
       """
       SetSafetyMode: {
         param1: 2     # SAFETY_TOYOTA
@@ -236,7 +236,7 @@ Feature: Safety Mode Switching
       """
 
   Scenario: Invalid safety mode falls back to SILENT
-    Given control write:
+    Given exists data:
       """
       SetSafetyMode: {
         param1: 7     # not in safety_hook_registry → fallback to SAFETY_SILENT
@@ -271,14 +271,11 @@ Feature: Safety Mode Switching
       """
 
   Scenario: Switching safety mode clears existing CAN TX queue and re-initializes CAN hardware
-    Given control write:
+    Given exists data:
       """
       SetSafetyMode: {
         param1: 17
       }
-      """
-    When can send with result 0:
-      """
       PowerTrainBusBlockedRequest: {
         data: allowed
       }
