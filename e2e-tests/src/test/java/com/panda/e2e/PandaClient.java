@@ -107,6 +107,10 @@ public class PandaClient {
 
         // Power save state inspection
         int jna_get_power_save_enabled();
+
+        // Alternative experience inspection
+        int jna_get_alternative_experience();
+        void jna_reset_alternative_experience();
     }
 
     private final PandaLib lib = PandaLib.INSTANCE;
@@ -188,6 +192,7 @@ public class PandaClient {
         lib.jna_reset_fdcan();
         lib.jna_reset_heartbeat();
         lib.jna_reset_safety();
+        lib.jna_reset_alternative_experience();
     }
 
     // ---- FDCAN register inspection ----
@@ -277,6 +282,10 @@ public class PandaClient {
 
     public boolean isPowerSaveEnabled() {
         return lib.jna_get_power_save_enabled() != 0;
+    }
+
+    public int getAlternativeExperience() {
+        return lib.jna_get_alternative_experience();
     }
 
     // ---- Health packet inspection ----

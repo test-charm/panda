@@ -433,6 +433,15 @@ int jna_get_power_save_enabled(void) {
     return power_save_enabled ? 1 : 0;
 }
 
+// ---- JNA API: Alternative experience inspection ----
+// alternative_experience is declared in opendbc safety headers
+uint32_t jna_get_alternative_experience(void) {
+    return (uint32_t)alternative_experience;
+}
+void jna_reset_alternative_experience(void) {
+    alternative_experience = 0U;
+}
+
 // ---- JNA API: Health packet inspection ----
 static struct health_t jna_health;
 
