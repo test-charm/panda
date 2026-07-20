@@ -355,6 +355,15 @@ void jna_reset_fdcan(void) {
     can_loopback = false;
     can_silent = true;
 }
+
+// Reset heartbeat state between scenarios
+void jna_reset_heartbeat(void) {
+    heartbeat_counter = 0U;
+    heartbeat_lost = false;
+    heartbeat_disabled = false;
+    heartbeat_engaged = false;
+    heartbeat_engaged_mismatches = 0U;
+}
 uint32_t jna_get_fdcan_cccr(int can_number) {
     if ((can_number < 0) || (can_number >= 3)) return 0;
     return fake_fdcan[can_number].CCCR;
@@ -398,6 +407,20 @@ uint32_t jna_get_fdcan_ile(int can_number) {
 uint32_t jna_get_fdcan_ir(int can_number) {
     if ((can_number < 0) || (can_number >= 3)) return 0;
     return fake_fdcan[can_number].IR;
+}
+
+// ---- JNA API: Heartbeat state inspection ----
+uint32_t jna_get_heartbeat_counter(void) {
+    return heartbeat_counter;
+}
+int jna_get_heartbeat_lost(void) {
+    return heartbeat_lost ? 1 : 0;
+}
+int jna_get_heartbeat_disabled(void) {
+    return heartbeat_disabled ? 1 : 0;
+}
+int jna_get_heartbeat_engaged(void) {
+    return heartbeat_engaged ? 1 : 0;
 }
 
 #ifdef __cplusplus

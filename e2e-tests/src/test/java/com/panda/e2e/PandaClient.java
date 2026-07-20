@@ -84,6 +84,14 @@ public class PandaClient {
 
         int jna_get_fdcan_ile(int canNumber);
         int jna_get_fdcan_ir(int canNumber);
+
+        // Heartbeat state inspection
+        int jna_get_heartbeat_counter();
+        int jna_get_heartbeat_lost();
+        int jna_get_heartbeat_disabled();
+        int jna_get_heartbeat_engaged();
+
+        void jna_reset_heartbeat();
     }
 
     private final PandaLib lib = PandaLib.INSTANCE;
@@ -163,6 +171,7 @@ public class PandaClient {
         clearRelayCalls();
         clearCanModeCalls();
         lib.jna_reset_fdcan();
+        lib.jna_reset_heartbeat();
     }
 
     // ---- FDCAN register inspection ----
@@ -230,5 +239,22 @@ public class PandaClient {
             ));
         }
         return AdaptiveList.staticList(list);
+    }
+
+    // ---- Heartbeat state ----
+    public int getHeartbeatCounter() {
+        return lib.jna_get_heartbeat_counter();
+    }
+
+    public int getHeartbeatLost() {
+        return lib.jna_get_heartbeat_lost();
+    }
+
+    public int getHeartbeatDisabled() {
+        return lib.jna_get_heartbeat_disabled();
+    }
+
+    public int getHeartbeatEngaged() {
+        return lib.jna_get_heartbeat_engaged();
     }
 }
