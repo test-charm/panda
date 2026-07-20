@@ -31,3 +31,8 @@ out
 
 # mac
 .DS_Store
+
+# Generated e2e stubs
+src/test/c/fdcan_e2e.gen.c
+src/test/c/power_save_e2e.gen.c
+src/test/c/libpanda.dylib

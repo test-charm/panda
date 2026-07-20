@@ -43,7 +43,9 @@ if [ "${COVERAGE:-}" != "1" ] && [ -f "$OUTPUT" ] \
     && [ "$OUTPUT" -nt "$PROJECT_ROOT/board/main.c" ] \
     && [ "$OUTPUT" -nt "$PROJECT_ROOT/board/stm32h7/llfdcan.h" ] \
     && [ "$OUTPUT" -nt "$PROJECT_ROOT/board/drivers/fdcan.h" ] \
-    && [ "$OUTPUT" -nt "$SCRIPT_DIR/generate_fdcan_stubs.py" ]; then
+    && [ "$OUTPUT" -nt "$PROJECT_ROOT/board/sys/power_saving.h" ] \
+    && [ "$OUTPUT" -nt "$SCRIPT_DIR/generate_fdcan_stubs.py" ] \
+    && [ "$OUTPUT" -nt "$SCRIPT_DIR/generate_power_save_stubs.py" ]; then
     echo "[build] libpanda.dylib is up to date"
     ls -la "$OUTPUT"
     exit 0
@@ -52,6 +54,9 @@ fi
 # Generate e2e FDCAN stubs from real firmware source
 echo "[build] Generating fdcan_e2e.gen.c ..."
 python3 "$SCRIPT_DIR/generate_fdcan_stubs.py" > "$SCRIPT_DIR/fdcan_e2e.gen.c"
+
+echo "[build] Generating power_save_e2e.gen.c ..."
+python3 "$SCRIPT_DIR/generate_power_save_stubs.py" > "$SCRIPT_DIR/power_save_e2e.gen.c"
 
 echo "[build] Compiling full board/main.c → libpanda.dylib ..."
 $CC $CFLAGS -o "$OUTPUT" "$SCRIPT_DIR/libpanda.c"

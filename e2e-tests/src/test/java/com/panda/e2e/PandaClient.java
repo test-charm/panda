@@ -115,6 +115,17 @@ public class PandaClient {
         // Siren state inspection
         int jna_get_siren_enabled();
         void jna_reset_siren();
+
+        // Power-save hardware call tracking
+        int jna_get_irq_enable_call_count();
+        int jna_get_irq_disable_call_count();
+        int jna_get_last_irq_enabled_bus();
+        int jna_get_irq_disabled_bus(int bus);
+        int jna_get_can_transceivers_enabled();
+        int jna_get_can_transceivers_call_count();
+        int jna_get_ir_power_value();
+        int jna_get_ir_power_call_count();
+        void jna_reset_power_save_tracking();
     }
 
     private final PandaLib lib = PandaLib.INSTANCE;
@@ -198,6 +209,7 @@ public class PandaClient {
         lib.jna_reset_safety();
         lib.jna_reset_alternative_experience();
         lib.jna_reset_siren();
+        lib.jna_reset_power_save_tracking();
     }
 
     // ---- FDCAN register inspection ----
@@ -295,6 +307,37 @@ public class PandaClient {
 
     public boolean isSirenEnabled() {
         return lib.jna_get_siren_enabled() != 0;
+    }
+
+    // ---- Power-save hardware call tracking ----
+
+    public record PowerSaveTracking(
+            int irqEnableCount,
+            int irqDisableCount,
+            int lastIrqEnabledBus,
+            boolean irqDisabledBus0,
+            boolean irqDisabledBus1,
+            boolean irqDisabledBus2,
+            boolean canTransceiversEnabled,
+            int canTransceiversCallCount,
+            int irPowerValue,
+            int irPowerCallCount
+    ) {
+    }
+
+    public PowerSaveTracking getPowerSaveTracking() {
+        return new PowerSaveTracking(
+                lib.jna_get_irq_enable_call_count(),
+                lib.jna_get_irq_disable_call_count(),
+                lib.jna_get_last_irq_enabled_bus(),
+                lib.jna_get_irq_disabled_bus(0) != 0,
+                lib.jna_get_irq_disabled_bus(1) != 0,
+                lib.jna_get_irq_disabled_bus(2) != 0,
+                lib.jna_get_can_transceivers_enabled() != 0,
+                lib.jna_get_can_transceivers_call_count(),
+                lib.jna_get_ir_power_value(),
+                lib.jna_get_ir_power_call_count()
+        );
     }
 
     // ---- Health packet inspection ----

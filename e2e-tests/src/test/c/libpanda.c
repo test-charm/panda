@@ -30,7 +30,7 @@ uint8_t hw_type;
 bool power_save_enabled;
 bool siren_enabled;
 uint32_t siren_countdown;
-uint32_t stop_mode_requested;
+volatile bool stop_mode_requested;
 #define MAX_LED_FADE 1024U
 
 // ---- Globals used by main_comms.h (get_health_pkt + comms_control_handler) ----
@@ -74,8 +74,27 @@ FDCAN_GlobalTypeDef *cans[3] = {FDCAN1, FDCAN2, FDCAN3};
 // Hardware stubs needed by can_init code path
 #define NVIC_EnableIRQ(x) do {} while(0)
 #define NVIC_DisableIRQ(x) do {} while(0)
-void llcan_irq_enable(const FDCAN_GlobalTypeDef *x) { (void)x; }
-#define FDCAN1_IT0_IRQn 19
+
+// Tracking stubs for llcan_irq_enable/disable — records last CAN bus operated on
+static int last_irq_enabled_bus = -1;
+static int last_irq_disabled_bus[3] = {-1, -1, -1};  // track per-bus disable
+static int irq_enable_call_count;
+static int irq_disable_call_count;
+
+void llcan_irq_enable(const FDCAN_GlobalTypeDef *x) {
+    irq_enable_call_count++;
+    if (x == FDCAN1) last_irq_enabled_bus = 0;
+    else if (x == FDCAN2) last_irq_enabled_bus = 1;
+    else if (x == FDCAN3) last_irq_enabled_bus = 2;
+}
+void llcan_irq_disable(const FDCAN_GlobalTypeDef *x) {
+    irq_disable_call_count++;
+    int bus = -1;
+    if (x == FDCAN1) bus = 0;
+    else if (x == FDCAN2) bus = 1;
+    else if (x == FDCAN3) bus = 2;
+    if (bus >= 0) last_irq_disabled_bus[bus] = irq_disable_call_count;
+}
 #define FDCAN1_IT1_IRQn 21
 #define FDCAN2_IT0_IRQn 20
 #define FDCAN2_IT1_IRQn 22
@@ -114,7 +133,14 @@ void board_set_can_mode_stub(uint8_t mode) {
 }
 uint32_t board_read_voltage_mV_stub(void) { return 12000; }
 uint32_t board_read_current_mA_stub(void) { return 0; }
-void board_set_ir_power_stub(uint8_t p) { (void)p; }
+
+// Tracking stub for set_ir_power — records last call
+static uint8_t last_ir_power;
+static int ir_power_call_count;
+void board_set_ir_power_stub(uint8_t p) {
+    last_ir_power = p;
+    ir_power_call_count++;
+}
 void board_set_fan_enabled_stub(bool en) { (void)en; }
 void board_set_siren_stub(bool en) { siren_enabled = en; }
 void board_set_bootkick_stub(uint8_t s) { (void)s; }
@@ -168,8 +194,19 @@ void clock_init(void) {}
 void peripherals_init(void) {}
 void detect_board_type(void) {}
 void get_provision_chunk(uint8_t *out) { if (out) out[0] = 0; }
-void set_power_save_state(bool en) { power_save_enabled = en; }
-void enable_can_transceivers(bool en) { (void)en; }
+
+// Tracking stub: records last enable_can_transceivers call
+static bool last_can_transceivers_enabled;
+static int can_transceivers_call_count;
+void enable_can_transceivers(bool en) {
+    last_can_transceivers_enabled = en;
+    can_transceivers_call_count++;
+}
+
+// ---- REAL set_power_save_state (auto-generated from board/sys/power_saving.h) ----
+// Regenerate: python3 generate_power_save_stubs.py > power_save_e2e.gen.c
+#include "power_save_e2e.gen.c"
+
 void enter_stop_mode(void) {}
 void sound_init(void) {}
 void sound_tick(void) {}
@@ -448,6 +485,36 @@ int jna_get_siren_enabled(void) {
 }
 void jna_reset_siren(void) {
     siren_enabled = false;
+}
+
+// ---- JNA API: Power-save hardware call tracking ----
+// llcan_irq_enable/disable tracking
+int jna_get_irq_enable_call_count(void) { return irq_enable_call_count; }
+int jna_get_irq_disable_call_count(void) { return irq_disable_call_count; }
+int jna_get_last_irq_enabled_bus(void) { return last_irq_enabled_bus; }
+int jna_get_irq_disabled_bus(int bus) {
+    if ((bus < 0) || (bus >= 3)) return -1;
+    return last_irq_disabled_bus[bus] > 0 ? 1 : 0;
+}
+// enable_can_transceivers tracking
+int jna_get_can_transceivers_enabled(void) { return last_can_transceivers_enabled ? 1 : 0; }
+int jna_get_can_transceivers_call_count(void) { return can_transceivers_call_count; }
+// set_ir_power tracking
+int jna_get_ir_power_value(void) { return (int)last_ir_power; }
+int jna_get_ir_power_call_count(void) { return ir_power_call_count; }
+
+void jna_reset_power_save_tracking(void) {
+    power_save_enabled = false;
+    irq_enable_call_count = 0;
+    irq_disable_call_count = 0;
+    last_irq_enabled_bus = -1;
+    last_irq_disabled_bus[0] = -1;
+    last_irq_disabled_bus[1] = -1;
+    last_irq_disabled_bus[2] = -1;
+    last_can_transceivers_enabled = false;
+    can_transceivers_call_count = 0;
+    last_ir_power = 0;
+    ir_power_call_count = 0;
 }
 
 // ---- JNA API: Health packet inspection ----
