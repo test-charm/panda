@@ -22,8 +22,6 @@ public class PandaClient {
     public record RelayCall(boolean a, boolean b) {
     }
 
-    public record CanClearSendCall(int x, int y) {
-    }
 
     // Simple wrapper needed for DAL-java to distinguish "not called" (null) from "called with value"
     public record CanModeCall(int value) {
@@ -85,6 +83,7 @@ public class PandaClient {
         int jna_get_fdcan_gfc(int canNumber);
 
         int jna_get_fdcan_ile(int canNumber);
+        int jna_get_fdcan_ir(int canNumber);
     }
 
     private final PandaLib lib = PandaLib.INSTANCE;
@@ -140,16 +139,7 @@ public class PandaClient {
         lib.jna_clear_relay_calls();
     }
 
-    public CanClearSendCall canClearSendCall() {
-        int count = lib.jna_get_can_clear_send_count();
-        return (count == 0) ? null : new CanClearSendCall(
-                lib.jna_get_can_clear_send_x(),
-                lib.jna_get_can_clear_send_y());
-    }
 
-    public void clearCanClearSendCalls() {
-        lib.jna_clear_can_clear_send_calls();
-    }
 
     public CanModeCall canModeCall() {
         int count = lib.jna_get_can_mode_call_count();
@@ -171,7 +161,6 @@ public class PandaClient {
     public void clearAll() {
         clearCanQueues();
         clearRelayCalls();
-        clearCanClearSendCalls();
         clearCanModeCalls();
         lib.jna_reset_fdcan();
     }
@@ -203,7 +192,8 @@ public class PandaClient {
             List<Byte> txesc,
             List<Byte> rxesc,
             List<Byte> gfc,
-            List<Byte> ile
+            List<Byte> ile,
+            List<Byte> ir
     ) {
     }
 
@@ -235,7 +225,8 @@ public class PandaClient {
                     bytes(lib.jna_get_fdcan_txesc(i), 1),
                     bytes(lib.jna_get_fdcan_rxesc(i), 1),
                     bytes(lib.jna_get_fdcan_gfc(i), 1),
-                    bytes(lib.jna_get_fdcan_ile(i), 1)
+                    bytes(lib.jna_get_fdcan_ile(i), 1),
+                    bytes(lib.jna_get_fdcan_ir(i), 4)
             ));
         }
         return AdaptiveList.staticList(list);

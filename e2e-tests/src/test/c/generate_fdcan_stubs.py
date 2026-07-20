@@ -33,12 +33,14 @@ EXTRACT = [
     (LLFDCAN_H, "fdcan_exit_init"),
     (LLFDCAN_H, "llcan_set_speed"),
     (LLFDCAN_H, "llcan_init"),
+    (LLFDCAN_H, "llcan_clear_send"),
     (FDCAN_H, "can_set_speed"),
     (FDCAN_H, "can_init"),
+    (FDCAN_H, "can_clear_send"),
 ]
 
-# Functions that keep their original name (public API — called by can_init_all())
-KEEP_ORIGINAL_NAME = {"can_init"}
+# Functions that keep their original name (public API — called by can_init_all() etc.)
+KEEP_ORIGINAL_NAME = {"can_init", "can_clear_send"}
 
 
 def read_file(path):
@@ -92,6 +94,36 @@ def transform_lines(lines, func_name):
     result = []
     skip_while_block = False
     while_block_depth = 0
+
+    # ── Pre-pass: special-case transformations per function ──
+    if func_name == "can_clear_send":
+        # Strip rate-limit guard and can_health accesses.
+        # We want: e2e_llcan_clear_send(FDCANx); — the reset always happens in e2e.
+        new_lines = []
+        skip_guard = False
+        guard_depth = 0
+        for line in lines:
+            if "static uint32_t last_reset" in line:
+                continue
+            if "microsecond_timer_get" in line:
+                continue
+            if "if (get_ts_elapsed" in line:
+                skip_guard = True
+                guard_depth = line.count("{")
+                continue
+            if "can_health" in line or "last_reset = time" in line:
+                continue
+            if skip_guard:
+                if "llcan_clear_send" in line:
+                    # Keep the reset call even inside the guard block
+                    pass
+                else:
+                    guard_depth += line.count("{") - line.count("}")
+                    if guard_depth <= 0:
+                        skip_guard = False
+                    continue
+            new_lines.append(line)
+        lines = new_lines
 
     # ── Pass 1: while-loop removal ──
     pass1 = []
@@ -171,7 +203,8 @@ def transform_lines(lines, func_name):
                 "FDCAN_CCCR_INIT);",
                 "FDCAN_CCCR_INIT | FDCAN_CCCR_CCE);  // HW auto-clears CCE",
             )
-        for callee in ["can_set_speed", "llcan_set_speed", "llcan_init", "fdcan_request_init", "fdcan_exit_init"]:
+        for callee in ["can_set_speed", "llcan_set_speed", "llcan_init", "llcan_clear_send",
+                       "fdcan_request_init", "fdcan_exit_init"]:
             line = re.sub(
                 rf"\b{callee}\s*\(",
                 f"e2e_{callee}(",

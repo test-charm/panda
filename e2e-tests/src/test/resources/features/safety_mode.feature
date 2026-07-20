@@ -26,7 +26,6 @@ Feature: Safety Mode Switching
           a: false
           b: false
         }
-        canClearSendCall: null
         canModeCall= {
           value: 0
         }
@@ -64,7 +63,6 @@ Feature: Safety Mode Switching
           a: false
           b: false
         }
-        canClearSendCall: null
         canModeCall= {
           value: 0
         }
@@ -100,7 +98,6 @@ Feature: Safety Mode Switching
           a: true
           b: false
         }
-        canClearSendCall: null
         canModeCall= {
           value: 0
         }
@@ -138,10 +135,7 @@ Feature: Safety Mode Switching
           a: false
           b: false
         }
-        canClearSendCall= {
-          x: 1
-          y: 1
-        }
+        fdcanRegs[1].ir[3]: 0b0011_1111y
         canModeCall= {
           value: 1
         }
@@ -177,10 +171,7 @@ Feature: Safety Mode Switching
           a: false
           b: false
         }
-        canClearSendCall= {
-          x: 1
-          y: 1
-        }
+        fdcanRegs[1].ir[3]: 0b0011_1111y
         canModeCall= {
           value: 0
         }
@@ -214,7 +205,6 @@ Feature: Safety Mode Switching
           a: true
           b: false
         }
-        canClearSendCall: null
         canModeCall= {
           value: 0
         }
@@ -250,7 +240,6 @@ Feature: Safety Mode Switching
           a: false
           b: false
         }
-        canClearSendCall: null
         canModeCall= {
           value: 0
         }

@@ -144,15 +144,6 @@ void set_intercept_relay(bool a, bool b) {
     relay_b = b;
     relay_call_count++;
 }
-// Recording stub: captures last can_clear_send call for test verification
-static uint32_t can_clear_send_arg_x;
-static uint8_t can_clear_send_arg_y;
-static int can_clear_send_count;
-void can_clear_send(uint32_t x, uint8_t y) {
-    can_clear_send_arg_x = x;
-    can_clear_send_arg_y = y;
-    can_clear_send_count++;
-}
 void harness_init(void) {}
 void harness_tick(void) {}
 bool harness_check_ignition(void) { return false; }
@@ -340,22 +331,6 @@ void jna_clear_relay_calls(void) {
     relay_b = false;
 }
 
-// Query last can_clear_send call
-int jna_get_can_clear_send_count(void) {
-    return can_clear_send_count;
-}
-int jna_get_can_clear_send_x(void) {
-    return (int)can_clear_send_arg_x;
-}
-int jna_get_can_clear_send_y(void) {
-    return (int)can_clear_send_arg_y;
-}
-void jna_clear_can_clear_send_calls(void) {
-    can_clear_send_count = 0;
-    can_clear_send_arg_x = 0U;
-    can_clear_send_arg_y = 0U;
-}
-
 // Query last set_can_mode call
 int jna_get_can_mode_call_count(void) {
     return can_mode_call_count;
@@ -416,6 +391,10 @@ uint32_t jna_get_fdcan_gfc(int can_number) {
 uint32_t jna_get_fdcan_ile(int can_number) {
     if ((can_number < 0) || (can_number >= 3)) return 0;
     return fake_fdcan[can_number].ILE;
+}
+uint32_t jna_get_fdcan_ir(int can_number) {
+    if ((can_number < 0) || (can_number >= 3)) return 0;
+    return fake_fdcan[can_number].IR;
 }
 
 #ifdef __cplusplus

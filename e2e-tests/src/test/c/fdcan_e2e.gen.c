@@ -173,6 +173,15 @@ static bool e2e_llcan_init(FDCAN_GlobalTypeDef *FDCANx) {
   return ret;
 }
 
+// From /Users/joseph/Documents/opensource_workspace/panda/board/stm32h7/llfdcan.h:221
+static void e2e_llcan_clear_send(FDCAN_GlobalTypeDef *FDCANx) {
+  // from datasheet: "Transmit cancellation is not intended for Tx FIFO operation."
+  // so we need to clear pending transmission manually by resetting FDCAN core
+  FDCANx->IR |= 0x3FCFFFFFU; // clear all interrupts
+  bool ret = e2e_llcan_init(FDCANx);
+  UNUSED(ret);
+}
+
 // From /Users/joseph/Documents/opensource_workspace/panda/board/drivers/fdcan.h:5
 static bool e2e_can_set_speed(uint8_t can_number) {
   bool ret = true;
@@ -202,5 +211,12 @@ bool can_init(uint8_t can_number) {
     // in case there are queued up messages
   }
   return ret;
+}
+
+// From /Users/joseph/Documents/opensource_workspace/panda/board/drivers/fdcan.h:21
+void can_clear_send(FDCAN_GlobalTypeDef *FDCANx, uint8_t can_number) {
+
+  // Resetting CAN core is a slow blocking operation, limit frequency
+    e2e_llcan_clear_send(FDCANx);
 }
 
