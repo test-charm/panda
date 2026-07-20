@@ -132,6 +132,9 @@ public class PandaClient {
         int jna_get_can_read_buffer_tail();
         int jna_get_can_write_buffer_ptr();
         int jna_get_can_write_buffer_tail();
+
+        // Version
+        String jna_get_gitversion();
     }
 
     private final PandaLib lib = PandaLib.INSTANCE;
@@ -363,6 +366,10 @@ public class PandaClient {
                 lib.jna_get_can_write_buffer_ptr(),
                 lib.jna_get_can_write_buffer_tail()
         );
+    }
+
+    public String getGitversion() {
+        return lib.jna_get_gitversion();
     }
 
     // ---- Health packet inspection ----

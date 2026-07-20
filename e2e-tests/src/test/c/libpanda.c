@@ -531,6 +531,11 @@ uint32_t jna_get_can_write_buffer_tail(void) {
     return can_write_buffer.tail_size;
 }
 
+// ---- JNA API: Version ----
+const char *jna_get_gitversion(void) {
+    return gitversion;
+}
+
 // ---- JNA API: Health packet inspection ----
 static struct health_t jna_health;
 
