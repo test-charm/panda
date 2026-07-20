@@ -158,7 +158,7 @@ void harness_tick(void) {}
 bool harness_check_ignition(void) { return false; }
 uint8_t harness_detect_orientation(void) { return 1; }
 void fake_siren_set(bool en) { siren_enabled = en; }
-// can_init is defined after board/main.c (faithful register-level implementation)
+// can_init is defined in fdcan_e2e.gen.c (generated from real firmware source)
 void can_rx(uint8_t n) { (void)n; }
 void process_can(uint8_t n) { (void)n; }
 void update_can_health_pkt(uint8_t n, uint8_t ext) { (void)n; (void)ext; }
@@ -235,166 +235,9 @@ int put_char(uart_ring *q, char c) { (void)q; (void)c; return 0; }
 #include "board/main.c"
 
 // ---- Faithful can_init: writes to fake FDCAN_GlobalTypeDef registers ----
-// These functions mirror the real firmware's can_init() path from
-// board/drivers/fdcan.h + board/stm32h7/llfdcan.h, but write to fake
-// hardware instances instead of STM32 MMIO registers.
-// This enables register-level verification in e2e tests.
-
-static bool e2e_fdcan_request_init(FDCAN_GlobalTypeDef *FDCANx) {
-  bool ret = true;
-  FDCANx->CCCR &= ~(FDCAN_CCCR_CSR);
-  // while (CCCR & CSA == CSA) — fake register, CSA=0 → exits immediately
-  FDCANx->CCCR |= FDCAN_CCCR_INIT;
-  // while (CCCR & INIT == 0) — bit just set → exits immediately
-  return ret;
-}
-
-static bool e2e_fdcan_exit_init(FDCAN_GlobalTypeDef *FDCANx) {
-  FDCANx->CCCR &= ~(FDCAN_CCCR_INIT | FDCAN_CCCR_CCE);  // HW auto-clears CCE when INIT is cleared
-  return true;
-}
-
-static bool e2e_llcan_set_speed(FDCAN_GlobalTypeDef *FDCANx, uint32_t speed, uint32_t data_speed,
-                                 bool non_iso, bool loopback, bool silent) {
-  UNUSED(speed);
-  bool ret = e2e_fdcan_request_init(FDCANx);
-
-  if (ret) {
-    FDCANx->CCCR |= FDCAN_CCCR_CCE;
-    // Reset operation mode to Normal
-    FDCANx->CCCR &= ~(FDCAN_CCCR_TEST);
-    FDCANx->TEST &= ~(FDCAN_TEST_LBCK);
-    FDCANx->CCCR &= ~(FDCAN_CCCR_MON);
-    FDCANx->CCCR &= ~(FDCAN_CCCR_ASM);
-    FDCANx->CCCR &= ~(FDCAN_CCCR_NISO);
-
-    uint8_t prescaler = BITRATE_PRESCALER;
-    if (speed < 2500U) {
-      prescaler = BITRATE_PRESCALER * 16U;
-    }
-
-    uint32_t tq = CAN_QUANTA(speed, prescaler);
-    uint32_t sp = CAN_SP_NOMINAL;
-    uint32_t seg1 = CAN_SEG1(tq, sp);
-    uint32_t seg2 = CAN_SEG2(tq, sp);
-    uint8_t sjw = MIN(127U, seg2);
-
-    FDCANx->NBTP = (((sjw & 0x7FUL) - 1U) << FDCAN_NBTP_NSJW_Pos)
-                 | (((seg1 & 0xFFU) - 1U) << FDCAN_NBTP_NTSEG1_Pos)
-                 | (((seg2 & 0x7FU) - 1U) << FDCAN_NBTP_NTSEG2_Pos)
-                 | (((prescaler & 0x1FFUL) - 1U) << FDCAN_NBTP_NBRP_Pos);
-
-    if (data_speed == 50000U) {
-      sp = CAN_SP_DATA_5M;
-    } else {
-      sp = CAN_SP_DATA_2M;
-    }
-    tq = CAN_QUANTA(data_speed, prescaler);
-    seg1 = CAN_SEG1(tq, sp);
-    seg2 = CAN_SEG2(tq, sp);
-    sjw = MIN(15U, seg2);
-
-    FDCANx->DBTP = (((sjw & 0xFUL) - 1U) << FDCAN_DBTP_DSJW_Pos)
-                 | (((seg1 & 0x1FU) - 1U) << FDCAN_DBTP_DTSEG1_Pos)
-                 | (((seg2 & 0xFU) - 1U) << FDCAN_DBTP_DTSEG2_Pos)
-                 | (((prescaler & 0x1FUL) - 1U) << FDCAN_DBTP_DBRP_Pos);
-
-    if (non_iso) {
-      FDCANx->CCCR |= FDCAN_CCCR_NISO;
-    }
-    if (loopback) {
-      FDCANx->CCCR |= FDCAN_CCCR_TEST;
-      FDCANx->TEST |= FDCAN_TEST_LBCK;
-      FDCANx->CCCR |= FDCAN_CCCR_MON;
-    }
-    if (silent) {
-      FDCANx->CCCR |= FDCAN_CCCR_MON;
-    }
-    ret = e2e_fdcan_exit_init(FDCANx);
-  }
-  return ret;
-}
-
-static bool e2e_llcan_init(FDCAN_GlobalTypeDef *FDCANx) {
-  uint32_t can_number = (uint32_t)(FDCANx - fake_fdcan);  // CAN_NUM_FROM_CANIF equivalent
-  bool ret = e2e_fdcan_request_init(FDCANx);
-
-  if (ret) {
-    FDCANx->CCCR |= FDCAN_CCCR_CCE;
-    FDCANx->CCCR &= ~(FDCAN_CCCR_DAR);
-    FDCANx->CCCR |= FDCAN_CCCR_TXP;
-    FDCANx->CCCR |= FDCAN_CCCR_PXHD;
-    FDCANx->CCCR |= (FDCAN_CCCR_FDOE | FDCAN_CCCR_BRSE);
-
-    FDCANx->TXBC &= ~(FDCAN_TXBC_TFQM);
-    FDCANx->TXESC |= 0x7U << FDCAN_TXESC_TBDS_Pos;
-    FDCANx->RXESC |= 0x7U << FDCAN_RXESC_F0DS_Pos;
-
-    FDCANx->XIDFC &= ~(FDCAN_XIDFC_LSE);
-    FDCANx->SIDFC &= ~(FDCAN_SIDFC_LSS);
-    FDCANx->GFC &= ~(FDCAN_GFC_RRFE);
-    FDCANx->GFC &= ~(FDCAN_GFC_RRFS);
-    FDCANx->GFC &= ~(FDCAN_GFC_ANFE);
-    FDCANx->GFC &= ~(FDCAN_GFC_ANFS);
-
-    // Flush allocated RAM to fake SRAM (use byte offsets to avoid 64→32-bit truncation)
-    FDCANx->RXF0C |= (FDCAN_RX_FIFO_0_OFFSET + (can_number * FDCAN_OFFSET_W)) << FDCAN_RXF0C_F0SA_Pos;
-    FDCANx->RXF0C |= FDCAN_RX_FIFO_0_EL_CNT << FDCAN_RXF0C_F0S_Pos;
-    FDCANx->RXF0C |= FDCAN_RXF0C_F0OM;
-
-    FDCANx->TXBC |= (FDCAN_TX_FIFO_OFFSET + (can_number * FDCAN_OFFSET_W)) << FDCAN_TXBC_TBSA_Pos;
-    FDCANx->TXBC |= FDCAN_TX_FIFO_EL_CNT << FDCAN_TXBC_TFQS_Pos;
-
-    // Flush allocated RAM to fake SRAM (use byte offsets to avoid 64→32-bit truncation)
-    uint32_t start_offset = can_number * FDCAN_OFFSET;
-    uint32_t end_offset = start_offset + (FDCAN_RX_FIFO_0_EL_CNT * FDCAN_RX_FIFO_0_EL_SIZE)
-                                    + (FDCAN_TX_FIFO_EL_CNT * FDCAN_TX_FIFO_EL_SIZE);
-    for (uint32_t RAMcounter = start_offset; RAMcounter < end_offset; RAMcounter += 4U) {
-        *(uint32_t *)(fake_fdcan_sram + RAMcounter) = 0x00000000;
-    }
-
-    FDCANx->ILE = (FDCAN_ILE_EINT0 | FDCAN_ILE_EINT1);
-    FDCANx->IE &= 0x0U;
-    FDCANx->IE |= FDCAN_IE_RF0NE;
-    FDCANx->IE |= FDCAN_IE_PEDE | FDCAN_IE_PEAE | FDCAN_IE_BOE | FDCAN_IE_EPE | FDCAN_IE_RF0LE;
-    FDCANx->ILS |= FDCAN_ILS_TFEL;
-    FDCANx->IE |= FDCAN_IE_TFEE;
-
-    ret = e2e_fdcan_exit_init(FDCANx);
-    llcan_irq_enable(FDCANx);
-  }
-  return ret;
-}
-
-static bool e2e_can_set_speed(uint8_t can_number) {
-  bool ret = true;
-  FDCAN_GlobalTypeDef *FDCANx = &fake_fdcan[can_number];
-  uint8_t bus_number = BUS_NUM_FROM_CAN_NUM(can_number);
-
-  ret &= e2e_llcan_set_speed(
-    FDCANx,
-    bus_config[bus_number].can_speed,
-    bus_config[bus_number].can_data_speed,
-    bus_config[bus_number].canfd_non_iso,
-    can_loopback,
-    can_silent
-  );
-  return ret;
-}
-
-// This overrides the stub from shadow fdcan.h — called by can_init_all()
-// during set_safety_mode() path.
-bool can_init(uint8_t can_number) {
-  bool ret = false;
-
-  if (can_number != 0xffU) {
-    FDCAN_GlobalTypeDef *FDCANx = &fake_fdcan[can_number];
-    ret &= e2e_can_set_speed(can_number);
-    ret &= e2e_llcan_init(FDCANx);
-    // process_can() is stubbed to no-op because it accesses TX FIFO hardware
-  }
-  return ret;
-}
+// Auto-generated from real firmware source by generate_fdcan_stubs.py.
+// Regenerate: python3 generate_fdcan_stubs.py > fdcan_e2e.gen.c
+#include "fdcan_e2e.gen.c"
 
 // ---- JNA API: goes through comms_control_handler → set_safety_mode() ----
 static uint8_t jna_resp[0x40];
