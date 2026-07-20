@@ -150,3 +150,14 @@ board/main.c（完整源码）
 | `e2e-tests/src/test/resources/features/safety_mode.feature` | Gherkin BDD 场景 |
 
 详细机制见 `doc/e2e-tests.md`。
+
+### 端到端测试框架 Test-Charm
+
+* 用到的重要测试框架都在这个开源代码仓中 https://github.com/test-charm/test-charm-java，主要是下面几个。需要时可以参考，从而更好地理解端到端测试
+  * jfactory - 准备数据核心库
+  * jfactory-cucumber - 桥接了 cucumber 和 jfactory
+  * RESTful-cucumber - 发api请求，通过 DAL-java 来验证结果，也可以通过 jfactory 来准备请求数据
+  * DAL-java - 验证结果核心库
+  * DAL-extension-basic - 验证相关的各种扩展
+  * DAL-extension-jfactory - 将 DAL-java 的语法与 jfactory 结合，可以更加灵活的准备数据
+* 也可以通过mcp服务“test-charm”来咨询有关这些测试框架的问题
