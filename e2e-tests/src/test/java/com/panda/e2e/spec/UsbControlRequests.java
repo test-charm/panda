@@ -48,4 +48,12 @@ public class UsbControlRequests {
             property("param2").defaultValue((short) 0);
         }
     }
+
+    public static class SetCanMode extends UsbControlRequest {
+        @Override
+        public void main() {
+            property("request").defaultValue((byte) -37);       // 0xdb
+            property("param2").defaultValue((short) 0);
+        }
+    }
 }
