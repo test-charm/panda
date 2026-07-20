@@ -364,6 +364,11 @@ void jna_reset_heartbeat(void) {
     heartbeat_engaged = false;
     heartbeat_engaged_mismatches = 0U;
 }
+
+// Reset safety mode to SILENT between scenarios
+void jna_reset_safety(void) {
+    set_safety_mode(SAFETY_SILENT, 0U);
+}
 uint32_t jna_get_fdcan_cccr(int can_number) {
     if ((can_number < 0) || (can_number >= 3)) return 0;
     return fake_fdcan[can_number].CCCR;
@@ -421,6 +426,38 @@ int jna_get_heartbeat_disabled(void) {
 }
 int jna_get_heartbeat_engaged(void) {
     return heartbeat_engaged ? 1 : 0;
+}
+
+// ---- JNA API: Health packet inspection ----
+static struct health_t jna_health;
+
+void jna_read_health_pkt(void) {
+    get_health_pkt(&jna_health);
+}
+
+uint32_t jna_get_health_uptime(void) {
+    return jna_health.uptime_pkt;
+}
+uint32_t jna_get_health_voltage(void) {
+    return jna_health.voltage_pkt;
+}
+uint32_t jna_get_health_current(void) {
+    return jna_health.current_pkt;
+}
+uint32_t jna_get_health_safety_tx_blocked(void) {
+    return jna_health.safety_tx_blocked_pkt;
+}
+uint32_t jna_get_health_safety_rx_invalid(void) {
+    return jna_health.safety_rx_invalid_pkt;
+}
+uint8_t jna_get_health_safety_mode(void) {
+    return jna_health.safety_mode_pkt;
+}
+uint16_t jna_get_health_safety_param(void) {
+    return jna_health.safety_param_pkt;
+}
+uint8_t jna_get_health_heartbeat_lost(void) {
+    return jna_health.heartbeat_lost_pkt;
 }
 
 #ifdef __cplusplus

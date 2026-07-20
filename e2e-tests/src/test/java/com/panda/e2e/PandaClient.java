@@ -92,6 +92,18 @@ public class PandaClient {
         int jna_get_heartbeat_engaged();
 
         void jna_reset_heartbeat();
+        void jna_reset_safety();
+
+        // Health packet inspection
+        void jna_read_health_pkt();
+        int jna_get_health_uptime();
+        int jna_get_health_voltage();
+        int jna_get_health_current();
+        int jna_get_health_safety_tx_blocked();
+        int jna_get_health_safety_rx_invalid();
+        int jna_get_health_safety_mode();
+        int jna_get_health_safety_param();
+        int jna_get_health_heartbeat_lost();
     }
 
     private final PandaLib lib = PandaLib.INSTANCE;
@@ -172,6 +184,7 @@ public class PandaClient {
         clearCanModeCalls();
         lib.jna_reset_fdcan();
         lib.jna_reset_heartbeat();
+        lib.jna_reset_safety();
     }
 
     // ---- FDCAN register inspection ----
@@ -242,19 +255,48 @@ public class PandaClient {
     }
 
     // ---- Heartbeat state ----
-    public int getHeartbeatCounter() {
-        return lib.jna_get_heartbeat_counter();
+    public record Heartbeat(
+            int counter,
+            int lost,
+            int disabled,
+            int engaged
+    ) {
     }
 
-    public int getHeartbeatLost() {
-        return lib.jna_get_heartbeat_lost();
+    public Heartbeat getHeartbeat() {
+        return new Heartbeat(
+                lib.jna_get_heartbeat_counter(),
+                lib.jna_get_heartbeat_lost(),
+                lib.jna_get_heartbeat_disabled(),
+                lib.jna_get_heartbeat_engaged()
+        );
     }
 
-    public int getHeartbeatDisabled() {
-        return lib.jna_get_heartbeat_disabled();
+    // ---- Health packet inspection ----
+
+    public record HealthPacket(
+            int uptime,
+            int voltage,
+            int current,
+            int safetyTxBlocked,
+            int safetyRxInvalid,
+            int safetyMode,
+            int safetyParam,
+            int heartbeatLost
+    ) {
     }
 
-    public int getHeartbeatEngaged() {
-        return lib.jna_get_heartbeat_engaged();
+    public HealthPacket getHealthPacket() {
+        lib.jna_read_health_pkt();
+        return new HealthPacket(
+                lib.jna_get_health_uptime(),
+                lib.jna_get_health_voltage(),
+                lib.jna_get_health_current(),
+                lib.jna_get_health_safety_tx_blocked(),
+                lib.jna_get_health_safety_rx_invalid(),
+                lib.jna_get_health_safety_mode(),
+                lib.jna_get_health_safety_param(),
+                lib.jna_get_health_heartbeat_lost()
+        );
     }
 }

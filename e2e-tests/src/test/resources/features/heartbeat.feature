@@ -13,10 +13,12 @@ Feature: Heartbeat Mechanism
     Then control data should be:
       """
       : {
-        heartbeatCounter: 0
-        heartbeatLost: 0
-        heartbeatDisabled: 0
-        heartbeatEngaged: 0
+        heartbeat= {
+          counter: 0
+          lost: 0
+          disabled: 0
+          engaged: 0
+        }
       }
       """
 
@@ -30,10 +32,12 @@ Feature: Heartbeat Mechanism
     Then control data should be:
       """
       : {
-        heartbeatCounter: 0
-        heartbeatLost: 0
-        heartbeatDisabled: 0
-        heartbeatEngaged: 1
+        heartbeat= {
+          counter: 0
+          lost: 0
+          disabled: 0
+          engaged: 1
+        }
       }
       """
 
@@ -47,10 +51,12 @@ Feature: Heartbeat Mechanism
     Then control data should be:
       """
       : {
-        heartbeatCounter: 0
-        heartbeatLost: 0
-        heartbeatDisabled: 0
-        heartbeatEngaged: 0
+        heartbeat= {
+          counter: 0
+          lost: 0
+          disabled: 0
+          engaged: 0
+        }
       }
       """
 
@@ -66,7 +72,9 @@ Feature: Heartbeat Mechanism
     Then control data should be:
       """
       : {
-        heartbeatDisabled: 1
+        heartbeat= {
+          disabled: 1
+        }
       }
       """
 
@@ -86,10 +94,12 @@ Feature: Heartbeat Mechanism
     Then control data should be:
       """
       : {
-        heartbeatCounter: 0
-        heartbeatLost: 0
-        heartbeatDisabled: 0
-        heartbeatEngaged: 1
+        heartbeat= {
+          counter: 0
+          lost: 0
+          disabled: 0
+          engaged: 1
+        }
       }
       """
 
@@ -109,6 +119,8 @@ Feature: Heartbeat Mechanism
     Then control data should be:
       """
       : {
-        heartbeatDisabled: 0
+        heartbeat= {
+          disabled: 0
+        }
       }
       """
