@@ -164,4 +164,11 @@ public class UsbControlRequests {
             property("request").defaultValue((byte) -7);        // 0xf9
         }
     }
+
+    public static class SetClockSource extends UsbControlRequest {
+        @Override
+        public void main() {
+            property("request").defaultValue((byte) -26);       // 0xe6
+        }
+    }
 }

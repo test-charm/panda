@@ -18,6 +18,19 @@
 TIM_TypeDef tick_timer_inst;
 TIM_TypeDef *TICK_TIMER = &tick_timer_inst;
 
+// ---- Fake TIM instances for clock_source_set_timer_params ----
+// Expand TIM_TypeDef with fields needed by clock_source.h
+#undef TIM_TypeDef
+typedef struct {
+    uint32_t CR1, CR2, SMCR, DIER, SR, EGR, CCMR1, CCMR2, CCER, CNT, PSC, ARR;
+    uint32_t _pad1;
+    uint32_t CCR1, CCR2, CCR3, CCR4;
+    uint32_t _pad2[3];
+    uint32_t BDTR;
+} e2e_TIM_TypeDef;
+
+static e2e_TIM_TypeDef fake_TIM1, fake_TIM8;
+
 // ---- Globals used by set_safety_mode() ----
 // can_silent is defined by can_common.h (initialized to true), so we DON'T redefine
 uint32_t safety_tx_blocked;
@@ -222,7 +235,6 @@ void gpio_spi_init(void) {}
 void fan_init(void) {}
 void fan_set_power(uint8_t p) { (void)p; }
 void fan_tick(void) {}
-void clock_source_set_timer_params(uint16_t p, uint16_t l) { (void)p; (void)l; }
 void check_registers(void) {}
 void disable_interrupts(void) {}
 void enable_interrupts(void) {}
@@ -269,6 +281,21 @@ int put_char(uart_ring *q, char c) { (void)q; (void)c; return 0; }
 // Auto-generated from real firmware source by generate_fdcan_stubs.py.
 // Regenerate: python3 generate_fdcan_stubs.py > fdcan_e2e.gen.c
 #include "fdcan_e2e.gen.c"
+
+// Override TIM1/TIM8 with fake instances for register-level verification
+#undef TIM1
+#undef TIM8
+#define TIM1 ((e2e_TIM_TypeDef *)&fake_TIM1)
+#define TIM8 ((e2e_TIM_TypeDef *)&fake_TIM8)
+
+// e2e register_set: writes directly to fake register without critical section
+void register_set(volatile uint32_t *addr, uint32_t val, uint32_t mask) {
+    (*addr) = ((*addr) & (~mask)) | (val & mask);
+}
+
+// ---- REAL clock_source_set_timer_params (auto-generated from board/drivers/clock_source.h) ----
+// Regenerate: python3 generate_clock_source_stubs.py > clock_source_e2e.gen.c
+#include "clock_source_e2e.gen.c"
 
 // ---- JNA API: goes through comms_control_handler → set_safety_mode() ----
 static uint8_t jna_resp[0x40];
@@ -596,6 +623,19 @@ int jna_get_bus_brs_enabled(int bus) {
 int jna_get_bus_can_data_speed(int bus) {
     if ((bus < 0) || (bus >= PANDA_CAN_CNT)) return 0;
     return (int)bus_config[bus].can_data_speed;
+}
+
+// ---- JNA API: Clock source TIM registers ----
+// After clock_source_set_timer_params(param1, param2), the fake TIM
+// registers are set to computed values. Expose them for verification.
+uint32_t jna_get_TIM1_CCR1(void) { return fake_TIM1.CCR1; }
+uint32_t jna_get_TIM1_CCR2(void) { return fake_TIM1.CCR2; }
+uint32_t jna_get_TIM8_CCR3(void) { return fake_TIM8.CCR3; }
+uint32_t jna_get_TIM1_ARR(void)  { return fake_TIM1.ARR; }
+uint32_t jna_get_TIM1_CCR4(void) { return fake_TIM1.CCR4; }
+void jna_reset_TIM_regs(void) {
+    fake_TIM1 = (e2e_TIM_TypeDef){0};
+    fake_TIM8 = (e2e_TIM_TypeDef){0};
 }
 void jna_reset_bus_canfd_flags(void) {
     for (int i = 0; i < PANDA_CAN_CNT; i++) {

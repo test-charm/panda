@@ -148,6 +148,14 @@ public class PandaClient {
         int jna_get_bus_canfd_enabled(int bus);
         int jna_get_bus_brs_enabled(int bus);
         int jna_get_bus_can_data_speed(int bus);
+
+        // Clock source tracking
+        int jna_get_TIM1_CCR1();
+        int jna_get_TIM1_CCR2();
+        int jna_get_TIM8_CCR3();
+        int jna_get_TIM1_ARR();
+        int jna_get_TIM1_CCR4();
+        void jna_reset_TIM_regs();
     }
 
     private final PandaLib lib = PandaLib.INSTANCE;
@@ -232,6 +240,7 @@ public class PandaClient {
         lib.jna_reset_alternative_experience();
         lib.jna_reset_siren();
         lib.jna_reset_power_save_tracking();
+        lib.jna_reset_TIM_regs();
     }
 
     // ---- FDCAN register inspection ----
@@ -437,6 +446,19 @@ public class PandaClient {
                 lib.jna_get_bus_can_data_speed(0),
                 lib.jna_get_bus_can_data_speed(1),
                 lib.jna_get_bus_can_data_speed(2)
+        );
+    }
+
+    public record ClockSource(int ccr1, int ccr2, int ccr3, int arr, int ccr4) {
+    }
+
+    public ClockSource getClockSource() {
+        return new ClockSource(
+                lib.jna_get_TIM1_CCR1(),
+                lib.jna_get_TIM1_CCR2(),
+                lib.jna_get_TIM8_CCR3(),
+                lib.jna_get_TIM1_ARR(),
+                lib.jna_get_TIM1_CCR4()
         );
     }
 
