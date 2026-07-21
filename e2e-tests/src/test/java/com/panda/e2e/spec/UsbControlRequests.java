@@ -203,4 +203,12 @@ public class UsbControlRequests {
             property("param2").defaultValue((short) 0);
         }
     }
+
+    public static class SetFanPower extends UsbControlRequest {
+        @Override
+        public void main() {
+            property("request").defaultValue((byte) -79);       // 0xb1
+            property("param2").defaultValue((short) 0);
+        }
+    }
 }

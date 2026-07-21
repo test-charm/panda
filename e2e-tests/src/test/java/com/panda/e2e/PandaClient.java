@@ -119,6 +119,7 @@ public class PandaClient {
         int jna_get_can_transceivers_call_count();
         int jna_get_ir_power_call_count();
         int jna_get_ir_power_value_at(int index);
+        int jna_get_fan_power();
         void jna_reset_power_save_tracking();
 
         // CAN comms buffer inspection (comms_can_reset)
@@ -598,6 +599,10 @@ public class PandaClient {
             list.add(lib.jna_get_ir_power_value_at(i));
         }
         return AdaptiveList.staticList(list);
+    }
+
+    public int getFanPower() {
+        return lib.jna_get_fan_power();
     }
 
     // ---- Health packet inspection ----

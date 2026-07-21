@@ -234,7 +234,6 @@ void microsecond_timer_init(void) {}
 void interrupt_timer_init(void) {}
 void gpio_spi_init(void) {}
 void fan_init(void) {}
-void fan_set_power(uint8_t p) { (void)p; }
 void fan_tick(void) {}
 void check_registers(void) {}
 void disable_interrupts(void) {}
@@ -301,6 +300,10 @@ void register_set(volatile uint32_t *addr, uint32_t val, uint32_t mask) {
 // ---- REAL update_can_health_pkt (auto-generated from board/drivers/fdcan.h) ----
 // Regenerate: python3 generate_can_health_stubs.py > can_health_e2e.gen.c
 #include "can_health_e2e.gen.c"
+
+// ---- REAL fan_set_power (auto-generated from board/drivers/fan.h) ----
+// Regenerate: python3 generate_fan_stubs.py > fan_e2e.gen.c
+#include "fan_e2e.gen.c"
 
 // ---- JNA API: goes through comms_control_handler → set_safety_mode() ----
 static uint8_t jna_resp[0x40];
@@ -566,6 +569,9 @@ int jna_get_ir_power_value_at(int index) {
     if ((index < 0) || (index >= ir_power_call_count) || (index >= MAX_IR_POWER_CALLS)) return -1;
     return (int)ir_power_values[index];
 }
+
+// fan_power — direct read from fan_state.power (set by real fan_set_power)
+int jna_get_fan_power(void) { return (int)fan_state.power; }
 
 void jna_reset_power_save_tracking(void) {
     power_save_enabled = false;
