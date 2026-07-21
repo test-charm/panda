@@ -156,6 +156,16 @@ public class PandaClient {
         int jna_get_TIM1_ARR();
         int jna_get_TIM1_CCR4();
         void jna_reset_TIM_regs();
+
+        // Microsecond timer and fan RPM
+        int jna_get_microsecond_timer();
+        int jna_get_fan_rpm();
+
+        // Setup + response buffer
+        void jna_set_microsecond_timer(int val);
+        void jna_set_fan_rpm(int val);
+        int jna_get_resp_len();
+        int jna_get_resp_byte(int index);
     }
 
     private final PandaLib lib = PandaLib.INSTANCE;
@@ -460,6 +470,34 @@ public class PandaClient {
                 lib.jna_get_TIM1_ARR(),
                 lib.jna_get_TIM1_CCR4()
         );
+    }
+
+    public int getMicrosecondTimer() {
+        return lib.jna_get_microsecond_timer();
+    }
+
+    public int getFanRpm() {
+        return lib.jna_get_fan_rpm();
+    }
+
+    public void setMicrosecondTimer(int val) {
+        lib.jna_set_microsecond_timer(val);
+    }
+
+    public void setFanRpm(int val) {
+        lib.jna_set_fan_rpm(val);
+    }
+
+    public record RespBuffer(AdaptiveList<Byte> bytes, int len) {
+    }
+
+    public RespBuffer getRespBuffer() {
+        int len = lib.jna_get_resp_len();
+        var list = new ArrayList<Byte>();
+        for (int i = 0; i < len; i++) {
+            list.add((byte) lib.jna_get_resp_byte(i));
+        }
+        return new RespBuffer(AdaptiveList.staticList(list), len);
     }
 
     public AdaptiveList<Integer> getIrPower() {

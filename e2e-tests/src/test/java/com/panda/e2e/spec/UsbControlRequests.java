@@ -171,4 +171,20 @@ public class UsbControlRequests {
             property("request").defaultValue((byte) -26);       // 0xe6
         }
     }
+
+    public static class GetMicrosecondTimer extends UsbControlRequest {
+        @Override
+        public void main() {
+            property("request").defaultValue((byte) -88);       // 0xa8
+            property("param2").defaultValue((short) 0);
+        }
+    }
+
+    public static class GetFanRpm extends UsbControlRequest {
+        @Override
+        public void main() {
+            property("request").defaultValue((byte) -78);       // 0xb2
+            property("param2").defaultValue((short) 0);
+        }
+    }
 }

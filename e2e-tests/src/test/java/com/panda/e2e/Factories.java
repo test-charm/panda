@@ -16,6 +16,7 @@ public class Factories {
         var jFactory = new JFactory(new CompositeDataRepository(new MemoryDataRepository())
                 .registerByType(SafetyModeSteps.UsbControlRequest.class, new UsbControlRequestDataRepository(client))
                 .registerByType(SafetyModeSteps.CanSendRequest.class, new CanSendRequestDataRepository(client))
+                .registerByType(SafetyModeSteps.TimerSetup.class, new TimerSetupDataRepository(client))
         );
         Classes.subTypesOf(Spec.class, "com.panda.e2e.spec")
                 .forEach(spec -> jFactory.register((Class) spec));
@@ -50,6 +51,26 @@ public class Factories {
             super.save(object);
             var request = (SafetyModeSteps.CanSendRequest) object;
             client.canSend(request.address, request.data.getBytes(), request.bus);
+        }
+    }
+
+    public static class TimerSetupDataRepository extends MemoryDataRepository {
+        private final PandaClient client;
+
+        public TimerSetupDataRepository(PandaClient client) {
+            this.client = client;
+        }
+
+        @Override
+        public void save(Object object) {
+            super.save(object);
+            var setup = (SafetyModeSteps.TimerSetup) object;
+            if (setup.timerValue != 0) {
+                client.setMicrosecondTimer(setup.timerValue);
+            }
+            if (setup.fanRpm != 0) {
+                client.setFanRpm(setup.fanRpm);
+            }
         }
     }
 }

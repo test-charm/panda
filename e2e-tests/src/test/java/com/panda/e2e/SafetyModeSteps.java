@@ -58,4 +58,9 @@ public class SafetyModeSteps {
         public String data;
         public byte bus;
     }
+
+    public static class TimerSetup {
+        public int timerValue;
+        public int fanRpm;
+    }
 }

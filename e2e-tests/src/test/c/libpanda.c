@@ -637,6 +637,23 @@ void jna_reset_TIM_regs(void) {
     fake_TIM1 = (e2e_TIM_TypeDef){0};
     fake_TIM8 = (e2e_TIM_TypeDef){0};
 }
+
+// ---- JNA API: Microsecond timer and fan RPM ----
+uint32_t jna_get_microsecond_timer(void) {
+    return microsecond_timer_get();
+}
+uint16_t jna_get_fan_rpm(void) {
+    return fan_state.rpm;
+}
+
+// ---- JNA API: Setup + response buffer inspection ----
+void jna_set_microsecond_timer(uint32_t val) { MICROSECOND_TIMER->CNT = val; }
+void jna_set_fan_rpm(uint16_t val) { fan_state.rpm = val; }
+uint32_t jna_get_resp_len(void) { return jna_resp_len; }
+uint8_t jna_get_resp_byte(int index) {
+    if ((index < 0) || (index >= 0x40)) return 0;
+    return jna_resp[index];
+}
 void jna_reset_bus_canfd_flags(void) {
     for (int i = 0; i < PANDA_CAN_CNT; i++) {
         bus_config[i].canfd_auto = false;
