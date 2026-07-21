@@ -17,27 +17,26 @@ get version (0xd6):
         (done)
 ```
 
-代码路径为直线，无分支。`param1` 和 `param2` 未使用。返回 `gitversion` 字符串到 response buffer。
-
 ## 2. 输入因子
 
 | 因子 | 类型 | 等价类 | 取值 |
 |------|------|--------|------|
 | `request` | uint8 | 0xd6 (唯一) | 0xd6 |
+| `gitversion` (前置) | char[64] | 任意 8-char 字符串 | "abcdef01" |
 
 ## 3. 输出因子
 
 | 输出 | 类型 | 说明 |
 |------|------|------|
-| gitversion | String | 固件版本字符串 (e2e 环境: "00000000") |
+| respBuffer.len | int | resp_len = 63 |
+| respBuffer.bytes[0..7] | List\<Byte\> | 前 8 字节为 gitversion 字符 |
 
 ## 4. 测试用例
 
-### TC1: 读取固件版本
-- 前置: 初始状态
+### TC1: 预设版本 → handler 路径验证 resp buffer
+- 前置: 设 gitversion="abcdef01"
 - 输入: request=0xd6
-- 输出: gitversion="00000000"
-- 路径: memcpy → 返回 gitversion 字符串
+- 输出: resp_len=63, bytes[0..7]=97,98,99,100,101,102,48,49
 
 ## 5. 覆盖检查
 

@@ -35,4 +35,5 @@ out
 # Generated e2e stubs
 src/test/c/fdcan_e2e.gen.c
 src/test/c/power_save_e2e.gen.c
+src/test/c/clock_source_e2e.gen.c
 src/test/c/libpanda.dylib

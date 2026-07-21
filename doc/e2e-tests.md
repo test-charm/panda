@@ -17,7 +17,7 @@
   PandaClient.java
         │
         ▼
-  ./gradlew cucumber  →  18 scenarios, 87 steps
+  ./gradlew cucumber  →  74 scenarios, 250 steps
 ```
 
 ## 目录结构
@@ -44,14 +44,50 @@ e2e-tests/
 │   │       ├── UsbControlRequests.java   # 控制请求 Spec（Heartbeat, SetSafetyMode, CanLoopback, DisableHeartbeat）
 │   │       └── CanSendRequests.java      # CAN 发送 Spec
 │   └── resources/
-│       ├── features/
-│       │   ├── safety_mode.feature       # 安全模式切换 (7 场景)
-│       │   ├── can_loopback.feature      # CAN 回环模式 (4 场景)
-│       │   └── heartbeat.feature         # 心跳机制 (6 场景)
-│       └── test-design/
+│       ├── features/                    # 22 个 feature 文件，74 个场景
+│       │   ├── safety_mode.feature
+│       │   ├── can_loopback.feature
+│       │   ├── heartbeat.feature
+│       │   ├── health.feature
+│       │   ├── can_mode.feature
+│       │   ├── relay.feature
+│       │   ├── power_save.feature
+│       │   ├── alternative_experience.feature
+│       │   ├── siren.feature
+│       │   ├── can_comms_reset.feature
+│       │   ├── can_ring_clear.feature
+│       │   ├── get_version.feature
+│       │   ├── packet_versions.feature
+│       │   ├── ir_power.feature
+│       │   ├── hw_type.feature
+│       │   ├── can_bitrate.feature
+│       │   ├── can_fd_auto.feature
+│       │   ├── can_fd_non_iso.feature
+│       │   ├── can_fd_data_bitrate.feature
+│       │   ├── clock_source.feature
+│       │   └── timer_fan.feature
+│       └── test-design/                # 21 个测试设计文档
 │           ├── safety-mode.md
 │           ├── can_loopback.md
-│           └── heartbeat.md
+│           ├── heartbeat.md
+│           ├── health-packet.md
+│           ├── can_mode.md
+│           ├── relay.md
+│           ├── power-save.md
+│           ├── alternative-experience.md
+│           ├── siren.md
+│           ├── can-comms-reset.md
+│           ├── can-ring-clear.md
+│           ├── get-version.md
+│           ├── packet-versions.md
+│           ├── ir-power.md
+│           ├── hw-type.md
+│           ├── can-bitrate.md
+│           ├── can-fd-auto.md
+│           ├── can-fd-non-iso.md
+│           ├── can-fd-data-bitrate.md
+│           ├── clock-source.md
+│           └── timer-fan.md
 ```
 
 ## 架构
@@ -77,6 +113,10 @@ Cucumber BDD (Gherkin)
         │ relayCall()            │ set_intercept_relay stub
         │ canModeCall()          │ set_can_mode stub
         │ fdcanRegs()            │ fake FDCAN registers
+        │ getHealthPacket()      │ get_health_pkt()
+        │ getPowerSaveTracking() │ irq_enable/disable, ir_power, can_transceivers stubs
+        │ getRespBuffer()        │ jna_resp / jna_resp_len
+        │ setMicrosecondTimer()  │ MICROSECOND_TIMER->CNT
         ▼                        ▼
   编译后的 board/main.c (真实生产代码) + 硬件 stub
 ```
@@ -88,6 +128,9 @@ Cucumber BDD (Gherkin)
 | heartbeat 状态 | `jna_get_heartbeat_*()` → 心跳全局变量 |
 | FDCAN 寄存器 | `jna_get_fdcan_*()` → 虚拟外设状态 |
 | relay / can mode | stub 记录最后调用参数 |
+| 省电硬件调用 | `llcan_irq_enable/disable`, `enable_can_transceivers`, `set_ir_power` 追踪 |
+| response buffer | `jna_get_resp_len/byte()` → `jna_resp` 内容 |
+| TIM 寄存器 (时钟源) | fake_TIM1/fake_TIM8 实例 |
 
 ## 被测功能覆盖
 
@@ -96,6 +139,24 @@ Cucumber BDD (Gherkin)
 | 安全模式切换 | `safety_mode.feature` | 7 | 0xdc |
 | CAN 回环模式 | `can_loopback.feature` | 4 | 0xe5 |
 | 心跳机制 | `heartbeat.feature` | 6 | 0xf3, 0xf8 |
+| 健康数据包 | `health.feature` | 3 | 0xd2 |
+| OBD CAN 多路复用 | `can_mode.feature` | 3 | 0xdb |
+| 拦截继电器 | `relay.feature` | 6 | 0xc5 |
+| 省电模式 | `power_save.feature` | 6 | 0xe7 |
+| 替代体验模式 | `alternative_experience.feature` | 5 | 0xdf |
+| 警笛控制 | `siren.feature` | 3 | 0xf6 |
+| CAN 通信重置 | `can_comms_reset.feature` | 3 | 0xc0 |
+| CAN 环形缓冲区清除 | `can_ring_clear.feature` | 4 | 0xf1 |
+| 固件版本读取 | `get_version.feature` | 1 | 0xd6 |
+| 数据包版本读取 | `packet_versions.feature` | 1 | 0xdd |
+| IR 功率设置 | `ir_power.feature` | 3 | 0xb0 |
+| 硬件类型读取 | `hw_type.feature` | 1 | 0xc1 |
+| CAN 波特率设置 | `can_bitrate.feature` | 3 | 0xde |
+| CAN FD 自动切换 | `can_fd_auto.feature` | 3 | 0xe8 |
+| CAN FD Non-ISO 模式 | `can_fd_non_iso.feature` | 3 | 0xfc |
+| CAN FD 数据波特率 | `can_fd_data_bitrate.feature` | 3 | 0xf9 |
+| 自定义时钟源 | `clock_source.feature` | 3 | 0xe6 |
+| 微秒定时器 / 风扇转速 | `timer_fan.feature` | 2 | 0xa8, 0xb2 |
 
 ## C 代码编译机制
 
@@ -129,7 +190,9 @@ cc -std=gnu11 -fPIC -shared -O0 -g \
 `libpanda.c` 中的显式 stub：
 - `current_board` — board 结构体实例
 - `can_silent`, `safety_tx_blocked` 等全局变量
-- `set_intercept_relay()`, `can_clear_send()`, `can_init_all()` 等硬件函数
+- `set_intercept_relay()`, `set_power_save_state()`, `can_clear_send()`, `can_init_all()` 等硬件函数
+- 生成文件 `fdcan_e2e.gen.c`, `power_save_e2e.gen.c`, `clock_source_e2e.gen.c` — 从生产代码自动提取
+- `jna_resp` / `jna_resp_len` — 控制请求响应 buffer，供 read 型请求测试使用
 
 ## JNA 接口
 
@@ -174,6 +237,26 @@ public interface PandaLib extends Library {
     int  jna_get_fdcan_cccr(int n);
     int  jna_get_fdcan_ie(int n);
     // ... 其他寄存器 ...
+
+    // 健康数据包
+    void jna_read_health_pkt();
+    int  jna_get_health_uptime();
+    // ...
+
+    // 省电模式硬件调用追踪
+    int  jna_get_irq_enable_call_count();
+    int  jna_get_irq_disable_call_count();
+    // ...
+
+    // Response buffer 检查（用于 read 型请求）
+    int  jna_get_resp_len();
+    int  jna_get_resp_byte(int index);
+
+    // 测试前置设定
+    void jna_set_microsecond_timer(int val);
+    void jna_set_fan_rpm(int val);
+    void jna_set_hw_type(int val);
+    void jna_set_gitversion(String val);
 }
 ```
 
@@ -211,5 +294,5 @@ cd .. && ./gradlew cucumber
 
 # 5. 重建 + 验证全绿
 cd src/test/c && ./build.sh && cd .. && ./gradlew cucumber
-# 18 scenarios (18 passed)
+# 74 scenarios (74 passed)
 ```
