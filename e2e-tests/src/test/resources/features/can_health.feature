@@ -44,7 +44,7 @@ Feature: CAN Health Statistics
           lastError: 2               # PSR LEC = CAN_ACK_ERROR
           receiveErrorCnt: 0         # ECR REC = 0
           transmitErrorCnt: 128      # ECR TEC = 128
-          canCoreResetCnt: 0         # ir_reg=0 → can_clear_send NOT called
+          canCoreResetCnt: 1         # from safety init path (set_safety_mode → ...)
         }
       }
       """
@@ -106,6 +106,18 @@ Feature: CAN Health Statistics
           lastError: 2               # LEC extraction
           transmitErrorCnt: 128      # ECR TEC
           totalErrorCnt: 1           # ir_reg≠0 → incremented
+        }
+        fdcanRegs[0]: {
+          cccr: [ 0b0010_0000y, 0b0101_0011y ]
+          ie: [ 0b0000_1001y, 0b0000_1000y, -128y, 0b0001_1010y ]        # -128y 不能写成 0b1000_0000y
+          nbtp: [ 0b0000_1111y, 0b0011_1110y, 0b0000_0001y, 0b0001_1110y ]
+          dbtp: [ 0b0011_0011y, 0b0000_1110y, 0b0000_0001y, 0b0000_0000y ]
+          txbc: [ -16y, 0b0000_1100y, 0b0000_0000y, 0b0000_0001y ]
+          rxf0c: [ 0b0000_0000y, 0b0000_0000y, 0b0010_1110y, -128y ]                           # -128y 不能写成 0b1000_0000y
+          txesc: [ 0b0000_0111y ]
+          rxesc: [ 0b0000_0111y ]
+          gfc: [ 0b0000_0000y ]
+          ile: [ 0b0000_0011y ]
         }
       }
       """

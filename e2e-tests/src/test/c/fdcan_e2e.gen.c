@@ -217,6 +217,7 @@ bool can_init(uint8_t can_number) {
 void can_clear_send(FDCAN_GlobalTypeDef *FDCANx, uint8_t can_number) {
 
   // Resetting CAN core is a slow blocking operation, limit frequency
+    can_health[can_number].can_core_reset_cnt += 1U;
     e2e_llcan_clear_send(FDCANx);
 }
 

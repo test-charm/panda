@@ -51,12 +51,6 @@ public class PandaClient {
 
         void jna_clear_relay_calls();
 
-        int jna_get_can_clear_send_count();
-
-        int jna_get_can_clear_send_x();
-        int jna_get_can_clear_send_y();
-        void jna_clear_can_clear_send_calls();
-
         int jna_get_can_mode_call_count();
         int jna_get_can_mode();
         void jna_clear_can_mode_calls();
@@ -193,9 +187,7 @@ public class PandaClient {
         void jna_reset_can_health();
         void jna_call_update_can_health_pkt(int canNumber, int irReg);
 
-        // FDCAN PSR/ECR inspection
-        int jna_get_fdcan_psr(int bus);
-        int jna_get_fdcan_ecr(int bus);
+        // FDCAN PSR/ECR setters (for test setup)
         void jna_set_fdcan_psr(int bus, int val);
         void jna_set_fdcan_ecr(int bus, int val);
     }

@@ -112,11 +112,16 @@ def transform_lines(lines, func_name):
                 guard_depth = line.count("{")
                 continue
             if "can_health" in line or "last_reset = time" in line:
-                continue
+                if "can_core_reset_cnt" in line:
+                    pass  # Keep can_core_reset_cnt counter
+                else:
+                    continue
             if skip_guard:
                 if "llcan_clear_send" in line:
                     # Keep the reset call even inside the guard block
                     pass
+                elif "can_core_reset_cnt" in line:
+                    pass  # Keep the reset counter
                 else:
                     guard_depth += line.count("{") - line.count("}")
                     if guard_depth <= 0:

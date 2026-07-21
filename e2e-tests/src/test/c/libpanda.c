@@ -505,14 +505,6 @@ uint32_t jna_get_fdcan_ir(int can_number) {
     if ((can_number < 0) || (can_number >= 3)) return 0;
     return fake_fdcan[can_number].IR;
 }
-uint32_t jna_get_fdcan_psr(int can_number) {
-    if ((can_number < 0) || (can_number >= 3)) return 0;
-    return fake_fdcan[can_number].PSR;
-}
-uint32_t jna_get_fdcan_ecr(int can_number) {
-    if ((can_number < 0) || (can_number >= 3)) return 0;
-    return fake_fdcan[can_number].ECR;
-}
 void jna_set_fdcan_psr(int can_number, uint32_t val) {
     if ((can_number >= 0) && (can_number < 3)) fake_fdcan[can_number].PSR = val;
 }
