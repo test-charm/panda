@@ -138,6 +138,7 @@ uart_ring *get_ring_by_number(int a) {
 
 #include "boards/board_declarations.h"
 GPIO_TypeDef dummy_gpio;
+static bool som_gpio_value;
 static uint8_t can_mode_last;
 static int can_mode_call_count;
 void board_set_can_mode_stub(uint8_t mode) {
@@ -160,7 +161,7 @@ void board_set_ir_power_stub(uint8_t p) {
 void board_set_fan_enabled_stub(bool en) { (void)en; }
 void board_set_siren_stub(bool en) { siren_enabled = en; }
 void board_set_bootkick_stub(uint8_t s) { (void)s; }
-bool board_read_som_gpio_stub(void) { return false; }
+bool board_read_som_gpio_stub(void) { return som_gpio_value; }
 
 struct harness_configuration harness_config_stub;
 struct board board_stub = {
@@ -665,6 +666,7 @@ void jna_set_gitversion(const char *val) {
     }
     gitversion[len] = '\0';
 }
+void jna_set_som_gpio(int val) { som_gpio_value = (val != 0); }
 void jna_reset_bus_canfd_flags(void) {
     for (int i = 0; i < PANDA_CAN_CNT; i++) {
         bus_config[i].canfd_auto = false;

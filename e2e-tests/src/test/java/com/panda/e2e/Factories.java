@@ -16,7 +16,7 @@ public class Factories {
         var jFactory = new JFactory(new CompositeDataRepository(new MemoryDataRepository())
                 .registerByType(SafetyModeSteps.UsbControlRequest.class, new UsbControlRequestDataRepository(client))
                 .registerByType(SafetyModeSteps.CanSendRequest.class, new CanSendRequestDataRepository(client))
-                .registerByType(SafetyModeSteps.ControlSetup.class, new TimerSetupDataRepository(client))
+                .registerByType(SafetyModeSteps.ControlSetup.class, new ControlSetupDataRepository(client))
         );
         Classes.subTypesOf(Spec.class, "com.panda.e2e.spec")
                 .forEach(spec -> jFactory.register((Class) spec));
@@ -54,10 +54,10 @@ public class Factories {
         }
     }
 
-    public static class TimerSetupDataRepository extends MemoryDataRepository {
+    public static class ControlSetupDataRepository extends MemoryDataRepository {
         private final PandaClient client;
 
-        public TimerSetupDataRepository(PandaClient client) {
+        public ControlSetupDataRepository(PandaClient client) {
             this.client = client;
         }
 
@@ -76,6 +76,9 @@ public class Factories {
             }
             if (setup.gitversion != null) {
                 client.setGitversion(setup.gitversion);
+            }
+            if (setup.somGpio != 0) {
+                client.setSomGpio(setup.somGpio);
             }
         }
     }

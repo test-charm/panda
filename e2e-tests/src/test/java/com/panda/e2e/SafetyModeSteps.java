@@ -64,5 +64,6 @@ public class SafetyModeSteps {
         public int fanRpm;
         public int hwType;
         public String gitversion;
+        public int somGpio;
     }
 }

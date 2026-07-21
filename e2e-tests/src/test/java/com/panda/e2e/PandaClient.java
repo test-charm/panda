@@ -170,6 +170,7 @@ public class PandaClient {
         // Setup for read-request tests
         void jna_set_hw_type(int val);
         void jna_set_gitversion(String val);
+        void jna_set_som_gpio(int val);
     }
 
     private final PandaLib lib = PandaLib.INSTANCE;
@@ -498,6 +499,10 @@ public class PandaClient {
 
     public void setGitversion(String val) {
         lib.jna_set_gitversion(val);
+    }
+
+    public void setSomGpio(int val) {
+        lib.jna_set_som_gpio(val);
     }
 
     public record RespBuffer(AdaptiveList<Byte> bytes, int len) {
