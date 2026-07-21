@@ -61,6 +61,9 @@ python3 "$SCRIPT_DIR/generate_power_save_stubs.py" > "$SCRIPT_DIR/power_save_e2e
 echo "[build] Generating clock_source_e2e.gen.c ..."
 python3 "$SCRIPT_DIR/generate_clock_source_stubs.py" > "$SCRIPT_DIR/clock_source_e2e.gen.c"
 
+echo "[build] Generating can_health_e2e.gen.c ..."
+python3 "$SCRIPT_DIR/generate_can_health_stubs.py" > "$SCRIPT_DIR/can_health_e2e.gen.c"
+
 echo "[build] Compiling full board/main.c → libpanda.dylib ..."
 $CC $CFLAGS -o "$OUTPUT" "$SCRIPT_DIR/libpanda.c"
 

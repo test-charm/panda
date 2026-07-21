@@ -240,3 +240,51 @@ typedef struct {
 #define CAN_NUM_FROM_CANIF(CAN_DEV)   (((CAN_DEV) == FDCAN1) ? 0UL : (((CAN_DEV) == FDCAN2) ? 1UL : 2UL))
 #define BUS_NUM_FROM_CAN_NUM(num)     (bus_config[num].bus_lookup)
 #define CAN_NUM_FROM_BUS_NUM(num)     (bus_config[num].can_num_lookup)
+
+// ---- FDCAN PSR register bits ----
+#define FDCAN_PSR_BO_Pos       (7U)
+#define FDCAN_PSR_BO_Msk       (0x1UL << FDCAN_PSR_BO_Pos)
+#define FDCAN_PSR_BO           FDCAN_PSR_BO_Msk
+#define FDCAN_PSR_EW_Pos       (6U)
+#define FDCAN_PSR_EW_Msk       (0x1UL << FDCAN_PSR_EW_Pos)
+#define FDCAN_PSR_EW           FDCAN_PSR_EW_Msk
+#define FDCAN_PSR_EP_Pos       (5U)
+#define FDCAN_PSR_EP_Msk       (0x1UL << FDCAN_PSR_EP_Pos)
+#define FDCAN_PSR_EP           FDCAN_PSR_EP_Msk
+#define FDCAN_PSR_LEC_Pos      (0U)
+#define FDCAN_PSR_LEC_Msk      (0x7UL << FDCAN_PSR_LEC_Pos)
+#define FDCAN_PSR_LEC          FDCAN_PSR_LEC_Msk
+#define FDCAN_PSR_DLEC_Pos     (8U)
+#define FDCAN_PSR_DLEC_Msk     (0x7UL << FDCAN_PSR_DLEC_Pos)
+#define FDCAN_PSR_DLEC         FDCAN_PSR_DLEC_Msk
+
+// ---- FDCAN ECR register bits ----
+#define FDCAN_ECR_REC_Pos      (0U)
+#define FDCAN_ECR_REC_Msk      (0xFFUL << FDCAN_ECR_REC_Pos)
+#define FDCAN_ECR_REC          FDCAN_ECR_REC_Msk
+#define FDCAN_ECR_TEC_Pos      (8U)
+#define FDCAN_ECR_TEC_Msk      (0xFFUL << FDCAN_ECR_TEC_Pos)
+#define FDCAN_ECR_TEC          FDCAN_ECR_TEC_Msk
+
+// ---- FDCAN IR register bits ----
+#define FDCAN_IR_RF0L_Pos      (4U)
+#define FDCAN_IR_RF0L_Msk      (0x1UL << FDCAN_IR_RF0L_Pos)
+#define FDCAN_IR_RF0L          FDCAN_IR_RF0L_Msk
+#define FDCAN_IR_BO_Pos        (7U)
+#define FDCAN_IR_BO_Msk        (0x1UL << FDCAN_IR_BO_Pos)
+#define FDCAN_IR_BO            FDCAN_IR_BO_Msk
+#define FDCAN_IR_EP_Pos        (6U)
+#define FDCAN_IR_EP_Msk        (0x1UL << FDCAN_IR_EP_Pos)
+#define FDCAN_IR_EP            FDCAN_IR_EP_Msk
+#define FDCAN_IR_EW_Pos        (5U)
+#define FDCAN_IR_EW_Msk        (0x1UL << FDCAN_IR_EW_Pos)
+#define FDCAN_IR_EW            FDCAN_IR_EW_Msk
+#define FDCAN_IR_PEA_Pos       (9U)
+#define FDCAN_IR_PEA_Msk       (0x1UL << FDCAN_IR_PEA_Pos)
+#define FDCAN_IR_PEA           FDCAN_IR_PEA_Msk
+#define FDCAN_IR_PED_Pos       (8U)
+#define FDCAN_IR_PED_Msk       (0x1UL << FDCAN_IR_PED_Pos)
+#define FDCAN_IR_PED           FDCAN_IR_PED_Msk
+
+// ---- CAN error codes ----
+#define CAN_ACK_ERROR    2U

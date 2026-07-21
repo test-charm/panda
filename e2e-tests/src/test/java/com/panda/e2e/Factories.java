@@ -80,6 +80,15 @@ public class Factories {
             if (setup.somGpio != 0) {
                 client.setSomGpio(setup.somGpio);
             }
+            if (setup.fdcanPsr != 0) {
+                client.setFdcanPsr(0, setup.fdcanPsr);
+            }
+            if (setup.fdcanEcr != 0) {
+                client.setFdcanEcr(0, setup.fdcanEcr);
+            }
+            if (setup.fdcanPsr != 0 || setup.fdcanEcr != 0 || setup.irReg != 0) {
+                client.callUpdateCanHealthPkt(0, setup.irReg);
+            }
         }
     }
 }

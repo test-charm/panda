@@ -108,6 +108,7 @@ void llcan_irq_disable(const FDCAN_GlobalTypeDef *x) {
     else if (x == FDCAN3) bus = 2;
     if (bus >= 0) last_irq_disabled_bus[bus] = irq_disable_call_count;
 }
+#define FDCAN1_IT0_IRQn 19
 #define FDCAN1_IT1_IRQn 21
 #define FDCAN2_IT0_IRQn 20
 #define FDCAN2_IT1_IRQn 22
@@ -195,7 +196,6 @@ void fake_siren_set(bool en) { siren_enabled = en; }
 // can_init is defined in fdcan_e2e.gen.c (generated from real firmware source)
 void can_rx(uint8_t n) { (void)n; }
 void process_can(uint8_t n) { (void)n; }
-void update_can_health_pkt(uint8_t n, uint8_t ext) { (void)n; (void)ext; }
 void simple_watchdog_init(uint32_t a, uint32_t b) { (void)a; (void)b; }
 void simple_watchdog_kick(void) {}
 void led_init(void) {}
@@ -297,6 +297,10 @@ void register_set(volatile uint32_t *addr, uint32_t val, uint32_t mask) {
 // ---- REAL clock_source_set_timer_params (auto-generated from board/drivers/clock_source.h) ----
 // Regenerate: python3 generate_clock_source_stubs.py > clock_source_e2e.gen.c
 #include "clock_source_e2e.gen.c"
+
+// ---- REAL update_can_health_pkt (auto-generated from board/drivers/fdcan.h) ----
+// Regenerate: python3 generate_can_health_stubs.py > can_health_e2e.gen.c
+#include "can_health_e2e.gen.c"
 
 // ---- JNA API: goes through comms_control_handler → set_safety_mode() ----
 static uint8_t jna_resp[0x40];
@@ -501,6 +505,20 @@ uint32_t jna_get_fdcan_ir(int can_number) {
     if ((can_number < 0) || (can_number >= 3)) return 0;
     return fake_fdcan[can_number].IR;
 }
+uint32_t jna_get_fdcan_psr(int can_number) {
+    if ((can_number < 0) || (can_number >= 3)) return 0;
+    return fake_fdcan[can_number].PSR;
+}
+uint32_t jna_get_fdcan_ecr(int can_number) {
+    if ((can_number < 0) || (can_number >= 3)) return 0;
+    return fake_fdcan[can_number].ECR;
+}
+void jna_set_fdcan_psr(int can_number, uint32_t val) {
+    if ((can_number >= 0) && (can_number < 3)) fake_fdcan[can_number].PSR = val;
+}
+void jna_set_fdcan_ecr(int can_number, uint32_t val) {
+    if ((can_number >= 0) && (can_number < 3)) fake_fdcan[can_number].ECR = val;
+}
 
 // ---- JNA API: Heartbeat state inspection ----
 uint32_t jna_get_heartbeat_counter(void) {
@@ -667,6 +685,87 @@ void jna_set_gitversion(const char *val) {
     gitversion[len] = '\0';
 }
 void jna_set_som_gpio(int val) { som_gpio_value = (val != 0); }
+
+// ---- JNA API: CAN health inspection ----
+int jna_get_can_health_speed(int bus) {
+    if ((bus < 0) || (bus >= PANDA_CAN_CNT)) return -1;
+    return (int)can_health[bus].can_speed;
+}
+int jna_get_can_health_data_speed(int bus) {
+    if ((bus < 0) || (bus >= PANDA_CAN_CNT)) return -1;
+    return (int)can_health[bus].can_data_speed;
+}
+int jna_get_can_health_canfd_enabled(int bus) {
+    if ((bus < 0) || (bus >= PANDA_CAN_CNT)) return 0;
+    return can_health[bus].canfd_enabled ? 1 : 0;
+}
+int jna_get_can_health_brs_enabled(int bus) {
+    if ((bus < 0) || (bus >= PANDA_CAN_CNT)) return 0;
+    return can_health[bus].brs_enabled ? 1 : 0;
+}
+int jna_get_can_health_canfd_non_iso(int bus) {
+    if ((bus < 0) || (bus >= PANDA_CAN_CNT)) return 0;
+    return can_health[bus].canfd_non_iso ? 1 : 0;
+}
+int jna_get_can_health_last_error(int bus) {
+    if ((bus < 0) || (bus >= PANDA_CAN_CNT)) return 0;
+    return (int)can_health[bus].last_error;
+}
+int jna_get_can_health_receive_error_cnt(int bus) {
+    if ((bus < 0) || (bus >= PANDA_CAN_CNT)) return 0;
+    return (int)can_health[bus].receive_error_cnt;
+}
+int jna_get_can_health_transmit_error_cnt(int bus) {
+    if ((bus < 0) || (bus >= PANDA_CAN_CNT)) return 0;
+    return (int)can_health[bus].transmit_error_cnt;
+}
+int jna_get_can_health_can_core_reset_cnt(int bus) {
+    if ((bus < 0) || (bus >= PANDA_CAN_CNT)) return 0;
+    return (int)can_health[bus].can_core_reset_cnt;
+}
+int jna_get_can_health_bus_off_cnt(int bus) {
+    if ((bus < 0) || (bus >= PANDA_CAN_CNT)) return 0;
+    return (int)can_health[bus].bus_off_cnt;
+}
+int jna_get_can_health_error_warning(int bus) {
+    if ((bus < 0) || (bus >= PANDA_CAN_CNT)) return 0;
+    return (int)can_health[bus].error_warning;
+}
+int jna_get_can_health_error_passive(int bus) {
+    if ((bus < 0) || (bus >= PANDA_CAN_CNT)) return 0;
+    return (int)can_health[bus].error_passive;
+}
+int jna_get_can_health_last_data_error(int bus) {
+    if ((bus < 0) || (bus >= PANDA_CAN_CNT)) return 0;
+    return (int)can_health[bus].last_data_error;
+}
+int jna_get_can_health_total_error_cnt(int bus) {
+    if ((bus < 0) || (bus >= PANDA_CAN_CNT)) return 0;
+    return (int)can_health[bus].total_error_cnt;
+}
+int jna_get_can_health_total_rx_lost_cnt(int bus) {
+    if ((bus < 0) || (bus >= PANDA_CAN_CNT)) return 0;
+    return (int)can_health[bus].total_rx_lost_cnt;
+}
+int jna_get_can_health_irq0_call_rate(int bus) {
+    if ((bus < 0) || (bus >= PANDA_CAN_CNT)) return 0;
+    return (int)can_health[bus].irq0_call_rate;
+}
+int jna_get_can_health_irq1_call_rate(int bus) {
+    if ((bus < 0) || (bus >= PANDA_CAN_CNT)) return 0;
+    return (int)can_health[bus].irq1_call_rate;
+}
+// Direct call to update_can_health_pkt with custom ir_reg (bypasses handler)
+void jna_call_update_can_health_pkt(int can_number, uint32_t ir_reg) {
+    update_can_health_pkt((uint8_t)can_number, ir_reg);
+}
+void jna_reset_can_health(void) {
+    for (int i = 0; i < PANDA_CAN_CNT; i++) {
+        can_health[i] = (can_health_t){0};
+    }
+}
+
+// ---- can_clear_send tracking ----
 void jna_reset_bus_canfd_flags(void) {
     for (int i = 0; i < PANDA_CAN_CNT; i++) {
         bus_config[i].canfd_auto = false;

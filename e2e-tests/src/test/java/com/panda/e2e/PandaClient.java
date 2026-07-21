@@ -171,6 +171,33 @@ public class PandaClient {
         void jna_set_hw_type(int val);
         void jna_set_gitversion(String val);
         void jna_set_som_gpio(int val);
+
+        // CAN health inspection
+        int jna_get_can_health_speed(int bus);
+        int jna_get_can_health_data_speed(int bus);
+        int jna_get_can_health_canfd_enabled(int bus);
+        int jna_get_can_health_brs_enabled(int bus);
+        int jna_get_can_health_canfd_non_iso(int bus);
+        int jna_get_can_health_last_error(int bus);
+        int jna_get_can_health_receive_error_cnt(int bus);
+        int jna_get_can_health_transmit_error_cnt(int bus);
+        int jna_get_can_health_can_core_reset_cnt(int bus);
+        int jna_get_can_health_bus_off_cnt(int bus);
+        int jna_get_can_health_error_warning(int bus);
+        int jna_get_can_health_error_passive(int bus);
+        int jna_get_can_health_last_data_error(int bus);
+        int jna_get_can_health_total_error_cnt(int bus);
+        int jna_get_can_health_total_rx_lost_cnt(int bus);
+        int jna_get_can_health_irq0_call_rate(int bus);
+        int jna_get_can_health_irq1_call_rate(int bus);
+        void jna_reset_can_health();
+        void jna_call_update_can_health_pkt(int canNumber, int irReg);
+
+        // FDCAN PSR/ECR inspection
+        int jna_get_fdcan_psr(int bus);
+        int jna_get_fdcan_ecr(int bus);
+        void jna_set_fdcan_psr(int bus, int val);
+        void jna_set_fdcan_ecr(int bus, int val);
     }
 
     private final PandaLib lib = PandaLib.INSTANCE;
@@ -256,6 +283,7 @@ public class PandaClient {
         lib.jna_reset_siren();
         lib.jna_reset_power_save_tracking();
         lib.jna_reset_TIM_regs();
+        lib.jna_reset_can_health();
     }
 
     // ---- FDCAN register inspection ----
@@ -504,6 +532,60 @@ public class PandaClient {
     public void setSomGpio(int val) {
         lib.jna_set_som_gpio(val);
     }
+
+    // ---- CAN health inspection ----
+
+    public record CanHealth(
+            int canSpeed,
+            int canDataSpeed,
+            boolean canfdEnabled,
+            boolean brsEnabled,
+            boolean canfdNonIso,
+            int lastError,
+            int lastDataError,
+            int receiveErrorCnt,
+            int transmitErrorCnt,
+            int errorWarning,
+            int errorPassive,
+            int busOffCnt,
+            int totalErrorCnt,
+            int totalRxLostCnt,
+            int canCoreResetCnt,
+            int irq0CallRate,
+            int irq1CallRate
+    ) {
+    }
+
+    public CanHealth getCanHealth(int bus) {
+        return new CanHealth(
+                lib.jna_get_can_health_speed(bus),
+                lib.jna_get_can_health_data_speed(bus),
+                lib.jna_get_can_health_canfd_enabled(bus) != 0,
+                lib.jna_get_can_health_brs_enabled(bus) != 0,
+                lib.jna_get_can_health_canfd_non_iso(bus) != 0,
+                lib.jna_get_can_health_last_error(bus),
+                lib.jna_get_can_health_last_data_error(bus),
+                lib.jna_get_can_health_receive_error_cnt(bus),
+                lib.jna_get_can_health_transmit_error_cnt(bus),
+                lib.jna_get_can_health_error_warning(bus),
+                lib.jna_get_can_health_error_passive(bus),
+                lib.jna_get_can_health_bus_off_cnt(bus),
+                lib.jna_get_can_health_total_error_cnt(bus),
+                lib.jna_get_can_health_total_rx_lost_cnt(bus),
+                lib.jna_get_can_health_can_core_reset_cnt(bus),
+                lib.jna_get_can_health_irq0_call_rate(bus),
+                lib.jna_get_can_health_irq1_call_rate(bus)
+        );
+    }
+
+    public CanHealth getCanHealth0() { return getCanHealth(0); }
+
+    public void callUpdateCanHealthPkt(int canNumber, int irReg) {
+        lib.jna_call_update_can_health_pkt(canNumber, irReg);
+    }
+
+    public void setFdcanPsr(int bus, int val) { lib.jna_set_fdcan_psr(bus, val); }
+    public void setFdcanEcr(int bus, int val) { lib.jna_set_fdcan_ecr(bus, val); }
 
     public record RespBuffer(AdaptiveList<Byte> bytes, int len) {
     }

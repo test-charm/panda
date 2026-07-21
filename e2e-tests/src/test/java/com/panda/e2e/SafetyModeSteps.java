@@ -65,5 +65,8 @@ public class SafetyModeSteps {
         public int hwType;
         public String gitversion;
         public int somGpio;
+        public int fdcanPsr;
+        public int fdcanEcr;
+        public int irReg;
     }
 }
