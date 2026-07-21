@@ -141,6 +141,10 @@ public class PandaClient {
 
         // Hardware type
         int jna_get_hw_type();
+
+        // CAN FD bus_config inspection
+        int jna_get_bus_canfd_auto(int bus);
+        int jna_get_bus_canfd_non_iso(int bus);
     }
 
     private final PandaLib lib = PandaLib.INSTANCE;
@@ -390,6 +394,29 @@ public class PandaClient {
 
     public int getHwType() {
         return lib.jna_get_hw_type();
+    }
+
+    // ---- CAN FD bus_config ----
+
+    public record CanFdConfig(
+            boolean canfdAuto0,
+            boolean canfdAuto1,
+            boolean canfdAuto2,
+            boolean canfdNonIso0,
+            boolean canfdNonIso1,
+            boolean canfdNonIso2
+    ) {
+    }
+
+    public CanFdConfig getCanFdConfig() {
+        return new CanFdConfig(
+                lib.jna_get_bus_canfd_auto(0) != 0,
+                lib.jna_get_bus_canfd_auto(1) != 0,
+                lib.jna_get_bus_canfd_auto(2) != 0,
+                lib.jna_get_bus_canfd_non_iso(0) != 0,
+                lib.jna_get_bus_canfd_non_iso(1) != 0,
+                lib.jna_get_bus_canfd_non_iso(2) != 0
+        );
     }
 
     public AdaptiveList<Integer> getIrPower() {

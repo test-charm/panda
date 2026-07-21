@@ -401,6 +401,19 @@ void jna_reset_fdcan(void) {
     bus_config[1].can_data_speed = 20000U;
     bus_config[2].can_speed = 5000U;
     bus_config[2].can_data_speed = 20000U;
+    // Reset CAN FD flags
+    bus_config[0].canfd_auto = false;
+    bus_config[0].canfd_non_iso = false;
+    bus_config[0].canfd_enabled = false;
+    bus_config[0].brs_enabled = false;
+    bus_config[1].canfd_auto = false;
+    bus_config[1].canfd_non_iso = false;
+    bus_config[1].canfd_enabled = false;
+    bus_config[1].brs_enabled = false;
+    bus_config[2].canfd_auto = false;
+    bus_config[2].canfd_non_iso = false;
+    bus_config[2].canfd_enabled = false;
+    bus_config[2].brs_enabled = false;
 }
 
 // Reset heartbeat state between scenarios
@@ -561,6 +574,24 @@ void jna_get_packet_versions(uint32_t *out_health_version, uint32_t *out_can_ver
 // ---- JNA API: Hardware type ----
 uint8_t jna_get_hw_type(void) {
     return hw_type;
+}
+
+// ---- JNA API: CAN FD bus_config inspection ----
+int jna_get_bus_canfd_auto(int bus) {
+    if ((bus < 0) || (bus >= PANDA_CAN_CNT)) return 0;
+    return bus_config[bus].canfd_auto ? 1 : 0;
+}
+int jna_get_bus_canfd_non_iso(int bus) {
+    if ((bus < 0) || (bus >= PANDA_CAN_CNT)) return 0;
+    return bus_config[bus].canfd_non_iso ? 1 : 0;
+}
+void jna_reset_bus_canfd_flags(void) {
+    for (int i = 0; i < PANDA_CAN_CNT; i++) {
+        bus_config[i].canfd_auto = false;
+        bus_config[i].canfd_non_iso = false;
+        bus_config[i].canfd_enabled = false;
+        bus_config[i].brs_enabled = false;
+    }
 }
 
 // ---- JNA API: Health packet inspection ----

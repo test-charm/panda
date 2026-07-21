@@ -143,4 +143,18 @@ public class UsbControlRequests {
             property("request").defaultValue((byte) -34);       // 0xde
         }
     }
+
+    public static class SetCanFdAuto extends UsbControlRequest {
+        @Override
+        public void main() {
+            property("request").defaultValue((byte) -24);       // 0xe8
+        }
+    }
+
+    public static class SetCanFdNonIso extends UsbControlRequest {
+        @Override
+        public void main() {
+            property("request").defaultValue((byte) -4);        // 0xfc
+        }
+    }
 }
