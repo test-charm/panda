@@ -15,13 +15,11 @@ Feature: CAN Bitrate Configuration
       : {
         fdcanRegs[0]= {
           cccr: [ 0b0010_0000y, 0b0101_0011y ]
-          ie: *
-        }
-        fdcanRegs[0]: {
-          cccr: [ 0b0010_0000y, 0b0101_0011y ]
-          ie: [ 0b0000_1001y, 0b0000_1000y, -128y, 0b0001_1010y ]        # -128y 不能写成 0b1000_0000y
+          ie: [ 0b0000_1001y, 0b0000_1000y, -128y, 0b0001_1010y ]
+          nbtp: *
+          dbtp: *
           txbc: [ -16y, 0b0000_1100y, 0b0000_0000y, 0b0000_0001y ]
-          rxf0c: [ 0b0000_0000y, 0b0000_0000y, 0b0010_1110y, -128y ]                           # -128y 不能写成 0b1000_0000y
+          rxf0c: [ 0b0000_0000y, 0b0000_0000y, 0b0010_1110y, -128y ]
           txesc: [ 0b0000_0111y ]
           rxesc: [ 0b0000_0111y ]
           gfc: [ 0b0000_0000y ]
@@ -30,7 +28,7 @@ Feature: CAN Bitrate Configuration
       }
       """
 
-  Scenario: Invalid bus number is no-op
+  Scenario: Invalid bus number is no-op — can_init not called
     When control write:
       """
       SetCanBitrate: {
@@ -43,11 +41,14 @@ Feature: CAN Bitrate Configuration
       : {
         fdcanRegs[0]= {
           cccr: [ 0b0010_0000y, 0b0101_0011y ]
+          ie: [ 0b0000_1001y, 0b0000_1000y, -128y, 0b0001_1010y ]
+          nbtp: [ 0b0000_1111y, 0b0011_1110y, 0b0000_0001y, 0b0001_1110y ]
+          dbtp: [ 0b0011_0011y, 0b0000_1110y, 0b0000_0001y, 0b0000_0000y ]
         }
       }
       """
 
-  Scenario: Invalid speed is no-op
+  Scenario: Invalid speed is no-op — can_init not called
     When control write:
       """
       SetCanBitrate: {
@@ -60,6 +61,9 @@ Feature: CAN Bitrate Configuration
       : {
         fdcanRegs[0]= {
           cccr: [ 0b0010_0000y, 0b0101_0011y ]
+          ie: [ 0b0000_1001y, 0b0000_1000y, -128y, 0b0001_1010y ]
+          nbtp: [ 0b0000_1111y, 0b0011_1110y, 0b0000_0001y, 0b0001_1110y ]
+          dbtp: [ 0b0011_0011y, 0b0000_1110y, 0b0000_0001y, 0b0000_0000y ]
         }
       }
       """

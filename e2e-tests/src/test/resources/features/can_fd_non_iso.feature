@@ -51,7 +51,7 @@ Feature: CAN FD Non-ISO Mode
       }
       """
 
-  Scenario: Invalid bus number is no-op
+  Scenario: Invalid bus number is no-op — can_init not called
     When control write:
       """
       SetCanFdNonIso: {
@@ -69,6 +69,9 @@ Feature: CAN FD Non-ISO Mode
         }
         fdcanRegs[0]= {
           cccr: [ 0b0010_0000y, 0b0101_0011y ]
+          ie: [ 0b0000_1001y, 0b0000_1000y, -128y, 0b0001_1010y ]
+          nbtp: [ 0b0000_1111y, 0b0011_1110y, 0b0000_0001y, 0b0001_1110y ]
+          dbtp: [ 0b0011_0011y, 0b0000_1110y, 0b0000_0001y, 0b0000_0000y ]
         }
       }
       """
