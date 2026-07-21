@@ -4,7 +4,7 @@ Feature: Microsecond Timer and Fan RPM
   Scenario: Get microsecond timer returns timer value in resp buffer
     Given exists data:
       """
-      TimerSetup: {
+      ControlSetup: {
         timerValue: 0x12345678
       }
       """
@@ -29,7 +29,7 @@ Feature: Microsecond Timer and Fan RPM
   Scenario: Get fan RPM returns fan_state.rpm in resp buffer
     Given exists data:
       """
-      TimerSetup: {
+      ControlSetup: {
         fanRpm: 4660   # 0x1234
       }
       """

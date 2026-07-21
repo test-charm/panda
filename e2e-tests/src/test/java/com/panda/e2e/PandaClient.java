@@ -166,6 +166,10 @@ public class PandaClient {
         void jna_set_fan_rpm(int val);
         int jna_get_resp_len();
         int jna_get_resp_byte(int index);
+
+        // Setup for read-request tests
+        void jna_set_hw_type(int val);
+        void jna_set_gitversion(String val);
     }
 
     private final PandaLib lib = PandaLib.INSTANCE;
@@ -486,6 +490,14 @@ public class PandaClient {
 
     public void setFanRpm(int val) {
         lib.jna_set_fan_rpm(val);
+    }
+
+    public void setHwType(int val) {
+        lib.jna_set_hw_type(val);
+    }
+
+    public void setGitversion(String val) {
+        lib.jna_set_gitversion(val);
     }
 
     public record RespBuffer(AdaptiveList<Byte> bytes, int len) {

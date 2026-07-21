@@ -59,8 +59,10 @@ public class SafetyModeSteps {
         public byte bus;
     }
 
-    public static class TimerSetup {
+    public static class ControlSetup {
         public int timerValue;
         public int fanRpm;
+        public int hwType;
+        public String gitversion;
     }
 }

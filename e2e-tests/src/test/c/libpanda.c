@@ -654,6 +654,17 @@ uint8_t jna_get_resp_byte(int index) {
     if ((index < 0) || (index >= 0x40)) return 0;
     return jna_resp[index];
 }
+
+// ---- JNA API: Setup for read-request tests ----
+void jna_set_hw_type(uint8_t val) { hw_type = val; }
+void jna_set_gitversion(const char *val) {
+    size_t len = 0U;
+    while ((len < 63U) && (val[len] != '\0')) {
+        gitversion[len] = val[len];
+        len++;
+    }
+    gitversion[len] = '\0';
+}
 void jna_reset_bus_canfd_flags(void) {
     for (int i = 0; i < PANDA_CAN_CNT; i++) {
         bus_config[i].canfd_auto = false;
