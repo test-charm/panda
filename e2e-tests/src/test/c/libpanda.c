@@ -46,7 +46,7 @@ int _app_start[0xC000];
 struct { uint32_t call_rate; } interrupts[0];
 static char gitversion[64] = "00000000";
 static const uint32_t speeds[] = {0};
-static const uint32_t data_speeds[] = {0};
+static const uint32_t data_speeds[] = {20000};
 
 // ---- Macros needed by main_comms.h ----
 #define UID_BASE ((void *)0x1FFF7A10UL)
@@ -584,6 +584,18 @@ int jna_get_bus_canfd_auto(int bus) {
 int jna_get_bus_canfd_non_iso(int bus) {
     if ((bus < 0) || (bus >= PANDA_CAN_CNT)) return 0;
     return bus_config[bus].canfd_non_iso ? 1 : 0;
+}
+int jna_get_bus_canfd_enabled(int bus) {
+    if ((bus < 0) || (bus >= PANDA_CAN_CNT)) return 0;
+    return bus_config[bus].canfd_enabled ? 1 : 0;
+}
+int jna_get_bus_brs_enabled(int bus) {
+    if ((bus < 0) || (bus >= PANDA_CAN_CNT)) return 0;
+    return bus_config[bus].brs_enabled ? 1 : 0;
+}
+int jna_get_bus_can_data_speed(int bus) {
+    if ((bus < 0) || (bus >= PANDA_CAN_CNT)) return 0;
+    return (int)bus_config[bus].can_data_speed;
 }
 void jna_reset_bus_canfd_flags(void) {
     for (int i = 0; i < PANDA_CAN_CNT; i++) {

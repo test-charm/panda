@@ -157,4 +157,11 @@ public class UsbControlRequests {
             property("request").defaultValue((byte) -4);        // 0xfc
         }
     }
+
+    public static class SetCanFdDataBitrate extends UsbControlRequest {
+        @Override
+        public void main() {
+            property("request").defaultValue((byte) -7);        // 0xf9
+        }
+    }
 }

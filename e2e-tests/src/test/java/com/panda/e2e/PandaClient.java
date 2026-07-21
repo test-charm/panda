@@ -145,6 +145,9 @@ public class PandaClient {
         // CAN FD bus_config inspection
         int jna_get_bus_canfd_auto(int bus);
         int jna_get_bus_canfd_non_iso(int bus);
+        int jna_get_bus_canfd_enabled(int bus);
+        int jna_get_bus_brs_enabled(int bus);
+        int jna_get_bus_can_data_speed(int bus);
     }
 
     private final PandaLib lib = PandaLib.INSTANCE;
@@ -404,7 +407,16 @@ public class PandaClient {
             boolean canfdAuto2,
             boolean canfdNonIso0,
             boolean canfdNonIso1,
-            boolean canfdNonIso2
+            boolean canfdNonIso2,
+            boolean canfdEnabled0,
+            boolean canfdEnabled1,
+            boolean canfdEnabled2,
+            boolean brsEnabled0,
+            boolean brsEnabled1,
+            boolean brsEnabled2,
+            int canDataSpeed0,
+            int canDataSpeed1,
+            int canDataSpeed2
     ) {
     }
 
@@ -415,7 +427,16 @@ public class PandaClient {
                 lib.jna_get_bus_canfd_auto(2) != 0,
                 lib.jna_get_bus_canfd_non_iso(0) != 0,
                 lib.jna_get_bus_canfd_non_iso(1) != 0,
-                lib.jna_get_bus_canfd_non_iso(2) != 0
+                lib.jna_get_bus_canfd_non_iso(2) != 0,
+                lib.jna_get_bus_canfd_enabled(0) != 0,
+                lib.jna_get_bus_canfd_enabled(1) != 0,
+                lib.jna_get_bus_canfd_enabled(2) != 0,
+                lib.jna_get_bus_brs_enabled(0) != 0,
+                lib.jna_get_bus_brs_enabled(1) != 0,
+                lib.jna_get_bus_brs_enabled(2) != 0,
+                lib.jna_get_bus_can_data_speed(0),
+                lib.jna_get_bus_can_data_speed(1),
+                lib.jna_get_bus_can_data_speed(2)
         );
     }
 
