@@ -25,7 +25,7 @@ Feature: Deep Sleep Request
       }
       """
 
-  Scenario: Entering stop mode sets all GPIO MODER to 0xFFFFFFFF (analog mode)
+  Scenario: Entering stop mode configures all GPIO MODER bits (analog → output / input)
     Given exists data:
       """
       RequestDeepSleep: { ... }
@@ -36,11 +36,11 @@ Feature: Deep Sleep Request
       : {
         enterStopModeCallCount: 1
         stopModeRegs: {
-          gpioAModer: 0xFFFFFFFF
-          gpioBModer: 0xFFFFFFFF
-          gpioCModer: 0xFFFFFFFF
-          gpioDModer: 0xFFFFFFFF
-          gpioEModer: 0xFFFFFFFF
+          gpioAModer: 0xFFFFFFF1  # PA0→output(bootkick), PA1→input(SBU2)
+          gpioBModer: 0xFF5C73FD  # PB0→output(amp), PB5/8→input(CAN2/1), PB7/10/11→output(CAN)
+          gpioCModer: 0xFF7FFCFF  # PC4→input(SBU1), PC11→output(bootkick)
+          gpioDModer: 0xFCFDFFFF  # PD8→output(CAN3), PD12→input(CAN3 RX)
+          gpioEModer: 0xFFFFFFFF  # unchanged
           gpioFModer: 0xFFFFFFFF
           gpioGModer: 0xFFFFFFFF
         }

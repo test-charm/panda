@@ -47,10 +47,8 @@ volatile bool stop_mode_requested;
 #define MAX_LED_FADE 1024U
 
 // ---- Fake hardware register types (field offsets match real STM32H7 headers) ----
-struct e2e_GPIO_Regs {
-    volatile uint32_t MODER, OTYPER, OSPEEDR, PUPDR, IDR, ODR, BSRR, LCKR;
-    volatile uint32_t AFR[2];
-};
+// GPIO_TypeDef is now defined in fake_stm.h (full struct matching STM32H7)
+
 struct e2e_ADC_Regs  { uint8_t _pad[8]; volatile uint32_t CR; };
 struct e2e_RCC_Regs  { volatile uint32_t CR, HSICFGR, CRRCR; uint8_t _p[0xF0];
                        volatile uint32_t AHB3LPENR, AHB1LPENR, AHB2LPENR, AHB4LPENR; };
@@ -71,7 +69,7 @@ struct e2e_NVIC_Regs {
 struct e2e_SCB_Regs  { uint8_t _p[0x0C]; volatile uint32_t SCR; };
 
 // Fake register instances (file scope, before harness_config_stub)
-struct e2e_GPIO_Regs   e2e_GPIOA, e2e_GPIOB, e2e_GPIOC, e2e_GPIOD, e2e_GPIOE, e2e_GPIOF, e2e_GPIOG;
+GPIO_TypeDef e2e_GPIOA, e2e_GPIOB, e2e_GPIOC, e2e_GPIOD, e2e_GPIOE, e2e_GPIOF, e2e_GPIOG;
 struct e2e_ADC_Regs    e2e_ADC1, e2e_ADC2;
 struct e2e_RCC_Regs    e2e_RCC;
 struct e2e_SYSCFG_Regs e2e_SYSCFG;
@@ -365,10 +363,10 @@ void jna_reset_stop_mode_tracking(void) {
     stop_mode_requested = false;
     enter_stop_mode_call_count = 0;
     // Zero all fake register instances
-    e2e_GPIOA = (struct e2e_GPIO_Regs){0};   e2e_GPIOB = (struct e2e_GPIO_Regs){0};
-    e2e_GPIOC = (struct e2e_GPIO_Regs){0};   e2e_GPIOD = (struct e2e_GPIO_Regs){0};
-    e2e_GPIOE = (struct e2e_GPIO_Regs){0};   e2e_GPIOF = (struct e2e_GPIO_Regs){0};
-    e2e_GPIOG = (struct e2e_GPIO_Regs){0};
+    e2e_GPIOA = (GPIO_TypeDef){0};   e2e_GPIOB = (GPIO_TypeDef){0};
+    e2e_GPIOC = (GPIO_TypeDef){0};   e2e_GPIOD = (GPIO_TypeDef){0};
+    e2e_GPIOE = (GPIO_TypeDef){0};   e2e_GPIOF = (GPIO_TypeDef){0};
+    e2e_GPIOG = (GPIO_TypeDef){0};
     e2e_ADC1 = (struct e2e_ADC_Regs){0};     e2e_ADC2 = (struct e2e_ADC_Regs){0};
     e2e_RCC  = (struct e2e_RCC_Regs){0};     e2e_SYSCFG = (struct e2e_SYSCFG_Regs){0};
     e2e_EXTI = (struct e2e_EXTI_Regs){0};    e2e_PWR = (struct e2e_PWR_Regs){0};
@@ -389,18 +387,11 @@ ADC_TypeDef adc1_inst;
 void adc_init(ADC_TypeDef *adc) { (void)adc; }
 
 // GPIO
+// Forward declarations needed by board/drivers/gpio.h
+void register_set(volatile uint32_t *addr, uint32_t val, uint32_t mask);
+void register_set_bits(volatile uint32_t *addr, uint32_t val);
+void register_clear_bits(volatile uint32_t *addr, uint32_t mask);
 #include "board/drivers/gpio.h"
-void set_gpio_output(GPIO_TypeDef *gpio, uint8_t pin, bool val) {
-    // Cast to e2e_GPIO_Regs — the pointer is actually one of our fake instances
-    struct e2e_GPIO_Regs *regs = (struct e2e_GPIO_Regs *)gpio;
-    if (val) {
-        regs->ODR |= (1U << pin);
-    } else {
-        regs->ODR &= ~(1U << pin);
-    }
-}
-void set_gpio_mode(GPIO_TypeDef *gpio, uint8_t pin, uint8_t mode) { (void)gpio; (void)pin; (void)mode; }
-void set_gpio_pullup(GPIO_TypeDef *gpio, uint8_t pin, uint8_t pull) { (void)gpio; (void)pin; (void)pull; }
 
 #define SCB_SCR_SLEEPDEEP_Msk 0x4U
 #define SCB_SCR_SLEEPONEXIT_Msk 0x2U
@@ -496,7 +487,6 @@ void __WFI(void) {}
 void register_set(volatile uint32_t *addr, uint32_t val, uint32_t mask);
 void register_clear_bits(volatile uint32_t *addr, uint32_t mask);
 void register_set_bits(volatile uint32_t *addr, uint32_t val);
-void set_gpio_mode(GPIO_TypeDef *gpio, uint8_t pin, uint8_t mode);
 
 // ---- Production board stubs (auto-generated from board/boards/*.h) ----
 // Regenerate: python3 generate_board_stubs.py > board_stubs_e2e.gen.c

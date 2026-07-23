@@ -30,4 +30,15 @@ uint32_t microsecond_timer_get(void) {
   return MICROSECOND_TIMER->CNT;
 }
 
-typedef uint32_t GPIO_TypeDef;
+// Real GPIO_TypeDef matching STM32H7 field offsets (for board/drivers/gpio.h)
+typedef struct {
+  volatile uint32_t MODER;      // 0x00
+  volatile uint32_t OTYPER;     // 0x04
+  volatile uint32_t OSPEEDR;    // 0x08
+  volatile uint32_t PUPDR;      // 0x0C
+  volatile uint32_t IDR;        // 0x10
+  volatile uint32_t ODR;        // 0x14
+  volatile uint32_t BSRR;       // 0x18
+  volatile uint32_t LCKR;       // 0x1C
+  volatile uint32_t AFR[2];     // 0x20-0x24
+} GPIO_TypeDef;

@@ -6,7 +6,7 @@
 #define HARNESS_STATUS_NORMAL 1
 #define HARNESS_STATUS_FLIPPED 2
 
-typedef uint32_t GPIO_TypeDef;
+
 
 struct harness_t {
     uint8_t status;
