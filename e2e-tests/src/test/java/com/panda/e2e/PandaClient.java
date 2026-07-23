@@ -228,7 +228,71 @@ public class PandaClient {
 
         int jna_get_nvic_reset_count();
 
+        void jna_reset_nvic_count();
+
         int jna_get_stop_mode_requested();
+
+        // enter_stop_mode tracking
+        int jna_get_enter_stop_mode_call_count();
+
+        void jna_process_stop_mode();
+
+        void jna_reset_stop_mode_tracking();
+
+        // Fake register value accessors
+        long jna_get_reg_GPIOA_MODER();
+
+        long jna_get_reg_GPIOB_MODER();
+
+        long jna_get_reg_GPIOC_MODER();
+
+        long jna_get_reg_GPIOD_MODER();
+
+        long jna_get_reg_GPIOE_MODER();
+
+        long jna_get_reg_GPIOF_MODER();
+
+        long jna_get_reg_GPIOG_MODER();
+        long jna_get_reg_GPIOA_ODR();
+        long jna_get_reg_GPIOB_ODR();
+        long jna_get_reg_GPIOC_ODR();
+        long jna_get_reg_GPIOD_ODR();
+
+        long jna_get_reg_ADC1_CR();
+
+        long jna_get_reg_ADC2_CR();
+
+        long jna_get_reg_RCC_CR();
+
+        long jna_get_reg_RCC_AHB2LPENR();
+
+        long jna_get_reg_RCC_AHB3LPENR();
+
+        long jna_get_reg_RCC_AHB4LPENR();
+
+        long jna_get_reg_SYSCFG_EXTICR0();
+
+        long jna_get_reg_SYSCFG_EXTICR1();
+
+        long jna_get_reg_SYSCFG_EXTICR2();
+
+        long jna_get_reg_SYSCFG_EXTICR3();
+
+        long jna_get_reg_EXTI_IMR1();
+
+        long jna_get_reg_EXTI_RTSR1();
+
+        long jna_get_reg_EXTI_FTSR1();
+
+        long jna_get_reg_EXTI_PR1();
+
+        long jna_get_reg_PWR_CR1();
+
+        long jna_get_reg_PWR_CPUCR();
+
+        long jna_get_reg_SCB_SCR();
+
+        long jna_get_reg_NVIC_ICER0();
 
         // CAN health inspection
         int jna_get_can_health_speed(int bus);
@@ -356,6 +420,8 @@ public class PandaClient {
         lib.jna_reset_alternative_experience();
         lib.jna_reset_siren();
         lib.jna_reset_power_save_tracking();
+        lib.jna_reset_stop_mode_tracking();
+        lib.jna_reset_nvic_count();
         lib.jna_reset_TIM_regs();
         lib.jna_reset_can_health();
     }
@@ -629,6 +695,84 @@ public class PandaClient {
 
     public boolean isStopModeRequested() {
         return lib.jna_get_stop_mode_requested() != 0;
+    }
+
+    // ---- enter_stop_mode tracking ----
+
+    @AllArgsConstructor
+    @Getter
+    public static class StopModeRegs {
+        private final long gpioAModer;
+        private final long gpioBModer;
+        private final long gpioCModer;
+        private final long gpioDModer;
+        private final long gpioEModer;
+        private final long gpioFModer;
+        private final long gpioGModer;
+        private final long gpioAOdr;
+        private final long gpioBOdr;
+        private final long gpioCOdr;
+        private final long gpioDOdr;
+        private final long adc1Cr;
+        private final long adc2Cr;
+        private final long rccCr;
+        private final long rccAhb2lpenr;
+        private final long rccAhb3lpenr;
+        private final long rccAhb4lpenr;
+        private final long syscfgExticr0;
+        private final long syscfgExticr1;
+        private final long syscfgExticr2;
+        private final long syscfgExticr3;
+        private final long extiImr1;
+        private final long extiRtsr1;
+        private final long extiFtsr1;
+        private final long extiPr1;
+        private final long pwrCr1;
+        private final long pwrCpucr;
+        private final long scbScr;
+        private final long nvicIcer0;
+    }
+
+    public StopModeRegs getStopModeRegs() {
+        return new StopModeRegs(
+                lib.jna_get_reg_GPIOA_MODER(),
+                lib.jna_get_reg_GPIOB_MODER(),
+                lib.jna_get_reg_GPIOC_MODER(),
+                lib.jna_get_reg_GPIOD_MODER(),
+                lib.jna_get_reg_GPIOE_MODER(),
+                lib.jna_get_reg_GPIOF_MODER(),
+                lib.jna_get_reg_GPIOG_MODER(),
+                lib.jna_get_reg_GPIOA_ODR(),
+                lib.jna_get_reg_GPIOB_ODR(),
+                lib.jna_get_reg_GPIOC_ODR(),
+                lib.jna_get_reg_GPIOD_ODR(),
+                lib.jna_get_reg_ADC1_CR(),
+                lib.jna_get_reg_ADC2_CR(),
+                lib.jna_get_reg_RCC_CR(),
+                lib.jna_get_reg_RCC_AHB2LPENR(),
+                lib.jna_get_reg_RCC_AHB3LPENR(),
+                lib.jna_get_reg_RCC_AHB4LPENR(),
+                lib.jna_get_reg_SYSCFG_EXTICR0(),
+                lib.jna_get_reg_SYSCFG_EXTICR1(),
+                lib.jna_get_reg_SYSCFG_EXTICR2(),
+                lib.jna_get_reg_SYSCFG_EXTICR3(),
+                lib.jna_get_reg_EXTI_IMR1(),
+                lib.jna_get_reg_EXTI_RTSR1(),
+                lib.jna_get_reg_EXTI_FTSR1(),
+                lib.jna_get_reg_EXTI_PR1(),
+                lib.jna_get_reg_PWR_CR1(),
+                lib.jna_get_reg_PWR_CPUCR(),
+                lib.jna_get_reg_SCB_SCR(),
+                lib.jna_get_reg_NVIC_ICER0()
+        );
+    }
+
+    public int getEnterStopModeCallCount() {
+        return lib.jna_get_enter_stop_mode_call_count();
+    }
+
+    public void processStopMode() {
+        lib.jna_process_stop_mode();
     }
 
     // ---- CAN health inspection ----

@@ -43,6 +43,11 @@ public class SafetyModeSteps {
         return jFactory;
     }
 
+    @When("process stop mode:")
+    public void processStopMode() {
+        client.processStopMode();
+    }
+
     @Then("control data should be:")
     public void controlDataShould(String expression) {
         expect(client).should(expression);

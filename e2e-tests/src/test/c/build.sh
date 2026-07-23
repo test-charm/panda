@@ -45,7 +45,8 @@ if [ "${COVERAGE:-}" != "1" ] && [ -f "$OUTPUT" ] \
     && [ "$OUTPUT" -nt "$PROJECT_ROOT/board/drivers/fdcan.h" ] \
     && [ "$OUTPUT" -nt "$PROJECT_ROOT/board/sys/power_saving.h" ] \
     && [ "$OUTPUT" -nt "$SCRIPT_DIR/generate_fdcan_stubs.py" ] \
-    && [ "$OUTPUT" -nt "$SCRIPT_DIR/generate_power_save_stubs.py" ]; then
+    && [ "$OUTPUT" -nt "$SCRIPT_DIR/generate_power_save_stubs.py" ] \
+    && [ "$OUTPUT" -nt "$SCRIPT_DIR/generate_enter_stop_mode_stubs.py" ]; then
     echo "[build] libpanda.dylib is up to date"
     ls -la "$OUTPUT"
     exit 0
@@ -66,6 +67,9 @@ python3 "$SCRIPT_DIR/generate_can_health_stubs.py" > "$SCRIPT_DIR/can_health_e2e
 
 echo "[build] Generating fan_e2e.gen.c ..."
 python3 "$SCRIPT_DIR/generate_fan_stubs.py" > "$SCRIPT_DIR/fan_e2e.gen.c"
+
+echo "[build] Generating enter_stop_mode_e2e.gen.c ..."
+python3 "$SCRIPT_DIR/generate_enter_stop_mode_stubs.py" > "$SCRIPT_DIR/enter_stop_mode_e2e.gen.c"
 
 echo "[build] Compiling full board/main.c → libpanda.dylib ..."
 $CC $CFLAGS -o "$OUTPUT" "$SCRIPT_DIR/libpanda.c"

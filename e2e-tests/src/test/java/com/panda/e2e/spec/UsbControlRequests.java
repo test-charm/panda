@@ -224,6 +224,7 @@ public class UsbControlRequests {
         @Override
         public void main() {
             property("request").defaultValue((byte) -75);       // 0xb5
+            property("param1").defaultValue((short) 0);
             property("param2").defaultValue((short) 0);
         }
     }

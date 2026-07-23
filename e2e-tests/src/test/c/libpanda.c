@@ -46,6 +46,40 @@ uint32_t siren_countdown;
 volatile bool stop_mode_requested;
 #define MAX_LED_FADE 1024U
 
+// ---- Fake hardware register types (field offsets match real STM32H7 headers) ----
+struct e2e_GPIO_Regs {
+    volatile uint32_t MODER, OTYPER, OSPEEDR, PUPDR, IDR, ODR, BSRR, LCKR;
+    volatile uint32_t AFR[2];
+};
+struct e2e_ADC_Regs  { uint8_t _pad[8]; volatile uint32_t CR; };
+struct e2e_RCC_Regs  { volatile uint32_t CR, HSICFGR, CRRCR; uint8_t _p[0xF0];
+                       volatile uint32_t AHB3LPENR, AHB1LPENR, AHB2LPENR, AHB4LPENR; };
+struct e2e_SYSCFG_Regs { uint32_t _r0; volatile uint32_t PMCR; volatile uint32_t EXTICR[4]; volatile uint32_t CFGR; };
+struct e2e_EXTI_Regs {
+    volatile uint32_t RTSR1, FTSR1, SWIER1, D3PMR1, D3PCR1L, D3PCR1H; uint8_t _p1[8];
+    volatile uint32_t RTSR2, FTSR2, SWIER2, D3PMR2, D3PCR2L, D3PCR2H; uint8_t _p2[8];
+    volatile uint32_t RTSR3, FTSR3, SWIER3, D3PMR3, D3PCR3L, D3PCR3H; uint8_t _p3[40];
+    volatile uint32_t IMR1, EMR1, PR1;
+};
+struct e2e_PWR_Regs  { volatile uint32_t CR1, CSR1, CR2, CR3, CPUCR; uint32_t _r0; volatile uint32_t D3CR; };
+struct e2e_NVIC_Regs {
+    volatile uint32_t ISER[8]; uint8_t _p0[96];
+    volatile uint32_t ICER[8]; uint8_t _p1[96];
+    volatile uint32_t ISPR[8]; uint8_t _p2[96];
+    volatile uint32_t ICPR[8];
+};
+struct e2e_SCB_Regs  { uint8_t _p[0x0C]; volatile uint32_t SCR; };
+
+// Fake register instances (file scope, before harness_config_stub)
+struct e2e_GPIO_Regs   e2e_GPIOA, e2e_GPIOB, e2e_GPIOC, e2e_GPIOD, e2e_GPIOE, e2e_GPIOF, e2e_GPIOG;
+struct e2e_ADC_Regs    e2e_ADC1, e2e_ADC2;
+struct e2e_RCC_Regs    e2e_RCC;
+struct e2e_SYSCFG_Regs e2e_SYSCFG;
+struct e2e_EXTI_Regs   e2e_EXTI;
+struct e2e_PWR_Regs    e2e_PWR;
+struct e2e_NVIC_Regs   e2e_NVIC;
+struct e2e_SCB_Regs    e2e_SCB;
+
 // ---- Globals used by main_comms.h (get_health_pkt + comms_control_handler) ----
 float interrupt_load;
 uint16_t sound_output_level;
@@ -138,6 +172,28 @@ uart_ring *get_ring_by_number(int a) {
 }
 
 #include "boards/board_declarations.h"
+
+// ---- enter_stop_mode tracking ----
+static int enter_stop_mode_call_count;
+static BootState last_bootkick_state;
+static int bootkick_call_count;
+static bool last_amp_enabled = true;
+static int amp_enabled_call_count;
+static int can_transceiver_disable_count;
+static bool adc1_deep_powerdown;
+static bool adc2_deep_powerdown;
+static bool hsi48_disabled;
+static bool sram_retention_disabled;
+static bool sbu_exti_configured;
+static bool can_exti_configured;
+static bool pwr_stop_mode_configured;
+static bool voltage_scaling_low_power_set;
+static bool wfi_entered;
+static bool ignition_checked;
+static bool nvic_interrupts_disabled;
+static bool nvic_wakeup_enabled;
+static bool sleepdeep_set;
+
 GPIO_TypeDef dummy_gpio;
 static bool som_gpio_value;
 static uint8_t can_mode_last;
@@ -161,10 +217,20 @@ void board_set_ir_power_stub(uint8_t p) {
 }
 void board_set_fan_enabled_stub(bool en) { (void)en; }
 void board_set_siren_stub(bool en) { siren_enabled = en; }
-void board_set_bootkick_stub(uint8_t s) { (void)s; }
+// Forward decls — implementations after macro overrides (need GPIOA/B/C/D)
+void board_set_bootkick_stub(uint8_t s);
+void board_set_amp_enabled_stub(bool en);
+void board_enable_can_transceiver_stub(uint8_t transceiver, bool enabled);
 bool board_read_som_gpio_stub(void) { return som_gpio_value; }
 
-struct harness_configuration harness_config_stub;
+struct harness_configuration harness_config_stub = {
+    .GPIO_SBU1 = (GPIO_TypeDef *)&e2e_GPIOC,
+    .GPIO_SBU2 = (GPIO_TypeDef *)&e2e_GPIOA,
+    .pin_SBU1 = 4,
+    .pin_SBU2 = 1,
+    .has_harness = false,
+    .HARNESS_CONNECTED_THRESHOLD = 10000,
+};
 struct board board_stub = {
     .harness_config = &harness_config_stub,
     .led_GPIO = {&dummy_gpio, &dummy_gpio, &dummy_gpio},
@@ -176,6 +242,8 @@ struct board board_stub = {
     .set_siren = board_set_siren_stub,
     .set_bootkick = board_set_bootkick_stub,
     .read_som_gpio = board_read_som_gpio_stub,
+    .set_amp_enabled = board_set_amp_enabled_stub,
+    .enable_can_transceiver = board_enable_can_transceiver_stub,
 };
 const struct board *current_board = &board_stub;
 
@@ -224,7 +292,6 @@ void enable_can_transceivers(bool en) {
 // Regenerate: python3 generate_power_save_stubs.py > power_save_e2e.gen.c
 #include "power_save_e2e.gen.c"
 
-void enter_stop_mode(void) {}
 void sound_init(void) {}
 void sound_tick(void) {}
 void sound_init_dac(void) {}
@@ -242,8 +309,57 @@ static int nvic_reset_call_count;
 void NVIC_SystemReset(void) { nvic_reset_call_count++; }
 
 int jna_get_nvic_reset_count(void) { return nvic_reset_call_count; }
+void jna_reset_nvic_count(void) { nvic_reset_call_count = 0; }
 
 int jna_get_stop_mode_requested(void) { return stop_mode_requested ? 1 : 0; }
+
+// ---- JNA API: enter_stop_mode tracking ----
+int jna_get_enter_stop_mode_call_count(void) { return enter_stop_mode_call_count; }
+
+// ---- JNA API: fake register value accessors ----
+uint32_t jna_get_reg_GPIOA_MODER(void) { return e2e_GPIOA.MODER; }
+uint32_t jna_get_reg_GPIOB_MODER(void) { return e2e_GPIOB.MODER; }
+uint32_t jna_get_reg_GPIOC_MODER(void) { return e2e_GPIOC.MODER; }
+uint32_t jna_get_reg_GPIOD_MODER(void) { return e2e_GPIOD.MODER; }
+uint32_t jna_get_reg_GPIOE_MODER(void) { return e2e_GPIOE.MODER; }
+uint32_t jna_get_reg_GPIOF_MODER(void) { return e2e_GPIOF.MODER; }
+uint32_t jna_get_reg_GPIOG_MODER(void) { return e2e_GPIOG.MODER; }
+uint32_t jna_get_reg_GPIOA_ODR(void)   { return e2e_GPIOA.ODR; }
+uint32_t jna_get_reg_GPIOB_ODR(void)   { return e2e_GPIOB.ODR; }
+uint32_t jna_get_reg_GPIOC_ODR(void)   { return e2e_GPIOC.ODR; }
+uint32_t jna_get_reg_GPIOD_ODR(void)   { return e2e_GPIOD.ODR; }
+uint32_t jna_get_reg_ADC1_CR(void)     { return e2e_ADC1.CR; }
+uint32_t jna_get_reg_ADC2_CR(void)     { return e2e_ADC2.CR; }
+uint32_t jna_get_reg_RCC_CR(void)          { return e2e_RCC.CR; }
+uint32_t jna_get_reg_RCC_AHB2LPENR(void)   { return e2e_RCC.AHB2LPENR; }
+uint32_t jna_get_reg_RCC_AHB3LPENR(void)   { return e2e_RCC.AHB3LPENR; }
+uint32_t jna_get_reg_RCC_AHB4LPENR(void)   { return e2e_RCC.AHB4LPENR; }
+uint32_t jna_get_reg_SYSCFG_EXTICR0(void)  { return e2e_SYSCFG.EXTICR[0]; }
+uint32_t jna_get_reg_SYSCFG_EXTICR1(void)  { return e2e_SYSCFG.EXTICR[1]; }
+uint32_t jna_get_reg_SYSCFG_EXTICR2(void)  { return e2e_SYSCFG.EXTICR[2]; }
+uint32_t jna_get_reg_SYSCFG_EXTICR3(void)  { return e2e_SYSCFG.EXTICR[3]; }
+uint32_t jna_get_reg_EXTI_IMR1(void)       { return e2e_EXTI.IMR1; }
+uint32_t jna_get_reg_EXTI_RTSR1(void)      { return e2e_EXTI.RTSR1; }
+uint32_t jna_get_reg_EXTI_FTSR1(void)      { return e2e_EXTI.FTSR1; }
+uint32_t jna_get_reg_EXTI_PR1(void)        { return e2e_EXTI.PR1; }
+uint32_t jna_get_reg_PWR_CR1(void)         { return e2e_PWR.CR1; }
+uint32_t jna_get_reg_PWR_CPUCR(void)       { return e2e_PWR.CPUCR; }
+uint32_t jna_get_reg_SCB_SCR(void)         { return e2e_SCB.SCR; }
+uint32_t jna_get_reg_NVIC_ICER0(void)      { return e2e_NVIC.ICER[0]; }
+
+void jna_reset_stop_mode_tracking(void) {
+    stop_mode_requested = false;
+    enter_stop_mode_call_count = 0;
+    // Zero all fake register instances
+    e2e_GPIOA = (struct e2e_GPIO_Regs){0};   e2e_GPIOB = (struct e2e_GPIO_Regs){0};
+    e2e_GPIOC = (struct e2e_GPIO_Regs){0};   e2e_GPIOD = (struct e2e_GPIO_Regs){0};
+    e2e_GPIOE = (struct e2e_GPIO_Regs){0};   e2e_GPIOF = (struct e2e_GPIO_Regs){0};
+    e2e_GPIOG = (struct e2e_GPIO_Regs){0};
+    e2e_ADC1 = (struct e2e_ADC_Regs){0};     e2e_ADC2 = (struct e2e_ADC_Regs){0};
+    e2e_RCC  = (struct e2e_RCC_Regs){0};     e2e_SYSCFG = (struct e2e_SYSCFG_Regs){0};
+    e2e_EXTI = (struct e2e_EXTI_Regs){0};    e2e_PWR = (struct e2e_PWR_Regs){0};
+    e2e_NVIC = (struct e2e_NVIC_Regs){0};    e2e_SCB = (struct e2e_SCB_Regs){0};
+}
 
 // Stubs for can_comms functions (real can_comms.h calls these)
 void can_tx_comms_resume_usb(void) {}
@@ -260,12 +376,18 @@ void adc_init(ADC_TypeDef *adc) { (void)adc; }
 
 // GPIO
 #include "board/drivers/gpio.h"
-void set_gpio_output(GPIO_TypeDef *gpio, uint8_t pin, bool val) { (void)gpio; (void)pin; (void)val; }
+void set_gpio_output(GPIO_TypeDef *gpio, uint8_t pin, bool val) {
+    // Cast to e2e_GPIO_Regs — the pointer is actually one of our fake instances
+    struct e2e_GPIO_Regs *regs = (struct e2e_GPIO_Regs *)gpio;
+    if (val) {
+        regs->ODR |= (1U << pin);
+    } else {
+        regs->ODR &= ~(1U << pin);
+    }
+}
 void set_gpio_mode(GPIO_TypeDef *gpio, uint8_t pin, uint8_t mode) { (void)gpio; (void)pin; (void)mode; }
 void set_gpio_pullup(GPIO_TypeDef *gpio, uint8_t pin, uint8_t pull) { (void)gpio; (void)pin; (void)pull; }
 
-// CMSIS intrinsics
-void __WFI(void) {}
 #define SCB_SCR_SLEEPDEEP_Msk 0x4U
 #define SCB_SCR_SLEEPONEXIT_Msk 0x2U
 
@@ -279,8 +401,119 @@ int put_char(uart_ring *q, char c) { (void)q; (void)c; return 0; }
 #include "board/libc.h"
 #include "board/drivers/interrupts.h"
 
+// CMSIS intrinsics (must be BEFORE board/main.c — main.c power_save path uses __WFI)
+void __disable_irq(void) {}
+void __enable_irq(void) {}
+void __DSB(void) {}
+void __ISB(void) {}
+void __WFI(void) {}
+
 // ---- FULL board/main.c ----
 #include "board/main.c"
+
+// ---- Override hardware registers for e2e testing ----
+// Must come AFTER board/main.c (which may define its own macros)
+#undef GPIOA
+#undef GPIOB
+#undef GPIOC
+#undef GPIOD
+#undef GPIOE
+#undef GPIOF
+#undef GPIOG
+#define GPIOA (&e2e_GPIOA)
+#define GPIOB (&e2e_GPIOB)
+#define GPIOC (&e2e_GPIOC)
+#define GPIOD (&e2e_GPIOD)
+#define GPIOE (&e2e_GPIOE)
+#define GPIOF (&e2e_GPIOF)
+#define GPIOG (&e2e_GPIOG)
+
+#undef ADC1
+#undef ADC2
+#define ADC1 (&e2e_ADC1)
+#define ADC2 (&e2e_ADC2)
+
+#undef RCC
+#define RCC (&e2e_RCC)
+#undef SYSCFG
+#define SYSCFG (&e2e_SYSCFG)
+#undef EXTI
+#define EXTI (&e2e_EXTI)
+#undef PWR
+#define PWR (&e2e_PWR)
+#undef NVIC
+#define NVIC (&e2e_NVIC)
+
+#undef SCB
+#define SCB ((struct e2e_SCB_Regs *)&e2e_SCB)
+#define SCB_SCR_SLEEPDEEP_Msk 0x4U
+
+// Bit definitions (matching stm32h7xx.h)
+#define ADC_CR_ADEN           (0x1UL << 0U)
+#define ADC_CR_DEEPPWD        (0x1UL << 29U)
+#define RCC_CR_HSI48ON        (0x1UL << 12U)
+#define RCC_AHB2LPENR_SRAM1LPEN  (0x1UL << 29U)
+#define RCC_AHB2LPENR_SRAM2LPEN  (0x1UL << 30U)
+#define RCC_AHB4LPENR_SRAM4LPEN  (0x1UL << 29U)
+#define RCC_AHB3LPENR_AXISRAMLPEN  (0x1UL << 31U)
+#define SYSCFG_EXTICR1_EXTI1_PA   ((uint32_t)0x00000000)
+#define SYSCFG_EXTICR2_EXTI4_PC   ((uint32_t)0x00000002)
+#define SYSCFG_EXTICR2_EXTI5_PB   ((uint32_t)0x00000010)
+#define SYSCFG_EXTICR3_EXTI8_PB   ((uint32_t)0x00000001)
+#define SYSCFG_EXTICR4_EXTI12_PD  ((uint32_t)0x00000003)
+#define PWR_CPUCR_PDDS_D1     (0x1UL << 0U)
+#define PWR_CPUCR_PDDS_D2     (0x1UL << 1U)
+#define PWR_CPUCR_PDDS_D3     (0x1UL << 2U)
+#define PWR_CR1_SVOS          (0x3UL << 14U)
+#define PWR_CR1_SVOS_0        (0x1UL << 14U)
+#define PWR_CR1_FLPS          (0x1UL << 9U)
+#define MODE_INPUT 0U
+#define EXTI1_IRQn        7
+#define EXTI4_IRQn        10
+#define EXTI9_5_IRQn      23
+#define EXTI15_10_IRQn    40
+#define NVIC_EnableIRQ(x) do {} while(0)
+
+// Forward declarations
+void register_set(volatile uint32_t *addr, uint32_t val, uint32_t mask);
+void register_clear_bits(volatile uint32_t *addr, uint32_t mask);
+void register_set_bits(volatile uint32_t *addr, uint32_t val);
+void set_gpio_mode(GPIO_TypeDef *gpio, uint8_t pin, uint8_t mode);
+
+// ---- REAL enter_stop_mode (auto-generated from board/sys/power_saving.h) ----
+// Regenerate: python3 generate_enter_stop_mode_stubs.py > enter_stop_mode_e2e.gen.c
+#include "enter_stop_mode_e2e.gen.c"
+
+// Simulates the main loop's stop_mode_requested check.
+void jna_process_stop_mode(void) {
+    if (stop_mode_requested) {
+        enter_stop_mode();
+    }
+}
+
+// Board stub implementations (after GPIO macro overrides so GPIOA/B/C/D work)
+void board_set_bootkick_stub(uint8_t s) {
+    BootState state = (BootState)s;
+    set_gpio_output(GPIOA, 0, state != BOOT_BOOTKICK);
+    set_gpio_output(GPIOC, 11, state != BOOT_BOOTKICK);
+    last_bootkick_state = state;
+    bootkick_call_count++;
+}
+void board_set_amp_enabled_stub(bool en) {
+    set_gpio_output(GPIOB, 0, en);
+    last_amp_enabled = en;
+    amp_enabled_call_count++;
+}
+void board_enable_can_transceiver_stub(uint8_t transceiver, bool enabled) {
+    switch (transceiver) {
+        case 1U: set_gpio_output(GPIOB, 7, !enabled); break;
+        case 2U: set_gpio_output(GPIOB, 10, !enabled); break;
+        case 3U: set_gpio_output(GPIOD, 8, !enabled); break;
+        case 4U: set_gpio_output(GPIOB, 11, !enabled); break;
+        default: break;
+    }
+    if (!enabled) can_transceiver_disable_count++;
+}
 
 // ---- Faithful can_init: writes to fake FDCAN_GlobalTypeDef registers ----
 // Auto-generated from real firmware source by generate_fdcan_stubs.py.
@@ -296,6 +529,14 @@ int put_char(uart_ring *q, char c) { (void)q; (void)c; return 0; }
 // e2e register_set: writes directly to fake register without critical section
 void register_set(volatile uint32_t *addr, uint32_t val, uint32_t mask) {
     (*addr) = ((*addr) & (~mask)) | (val & mask);
+}
+
+void register_set_bits(volatile uint32_t *addr, uint32_t val) {
+    register_set(addr, val, val);
+}
+
+void register_clear_bits(volatile uint32_t *addr, uint32_t mask) {
+    register_set(addr, (~mask), mask);
 }
 
 // ---- REAL clock_source_set_timer_params (auto-generated from board/drivers/clock_source.h) ----

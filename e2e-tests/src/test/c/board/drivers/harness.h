@@ -18,7 +18,12 @@ struct harness_t {
 };
 
 struct harness_configuration {
-    int _unused;
+    GPIO_TypeDef *GPIO_SBU1;
+    GPIO_TypeDef *GPIO_SBU2;
+    uint8_t pin_SBU1;
+    uint8_t pin_SBU2;
+    bool has_harness;
+    uint16_t HARNESS_CONNECTED_THRESHOLD;
 };
 typedef struct harness_configuration harness_configuration;
 
