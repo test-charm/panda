@@ -17,7 +17,7 @@
   PandaClient.java
         │
         ▼
-  ./gradlew cucumber  →  86 scenarios, 288 steps
+  ./gradlew cucumber  →  87 scenarios, 291 steps
 ```
 
 ## 目录结构
@@ -158,6 +158,7 @@ Cucumber BDD (Gherkin)
 | 自定义时钟源 | `clock_source.feature` | 3 | 0xe6 |
 | 微秒定时器 / 风扇转速 | `timer_fan.feature` | 2 | 0xa8, 0xb2 |
 | 风扇功率控制 | `fan_power.feature` | 5 | 0xb1 |
+| 系统复位 | `reset_st.feature` | 1 | 0xd8 |
 | SOM GPIO 读取 | `som_gpio.feature` | 1 | 0xc6 |
 | CAN 健康统计 | `can_health.feature` | 6 | 0xc2 |
 
@@ -297,5 +298,5 @@ cd .. && ./gradlew cucumber
 
 # 5. 重建 + 验证全绿
 cd src/test/c && ./build.sh && cd .. && ./gradlew cucumber
-# 86 scenarios (86 passed)
+# 87 scenarios (87 passed)
 ```

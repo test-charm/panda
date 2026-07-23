@@ -238,7 +238,10 @@ void fan_tick(void) {}
 void check_registers(void) {}
 void disable_interrupts(void) {}
 void enable_interrupts(void) {}
-void NVIC_SystemReset(void) {}
+static int nvic_reset_call_count;
+void NVIC_SystemReset(void) { nvic_reset_call_count++; }
+
+int jna_get_nvic_reset_count(void) { return nvic_reset_call_count; }
 
 // Stubs for can_comms functions (real can_comms.h calls these)
 void can_tx_comms_resume_usb(void) {}

@@ -52,7 +52,9 @@ public class PandaClient {
         void jna_clear_relay_calls();
 
         int jna_get_can_mode_call_count();
+
         int jna_get_can_mode();
+
         void jna_clear_can_mode_calls();
 
         // FDCAN register inspection
@@ -77,26 +79,39 @@ public class PandaClient {
         int jna_get_fdcan_gfc(int canNumber);
 
         int jna_get_fdcan_ile(int canNumber);
+
         int jna_get_fdcan_ir(int canNumber);
 
         // Heartbeat state inspection
         int jna_get_heartbeat_counter();
+
         int jna_get_heartbeat_lost();
+
         int jna_get_heartbeat_disabled();
+
         int jna_get_heartbeat_engaged();
 
         void jna_reset_heartbeat();
+
         void jna_reset_safety();
 
         // Health packet inspection
         void jna_read_health_pkt();
+
         int jna_get_health_uptime();
+
         int jna_get_health_voltage();
+
         int jna_get_health_current();
+
         int jna_get_health_safety_tx_blocked();
+
         int jna_get_health_safety_rx_invalid();
+
         int jna_get_health_safety_mode();
+
         int jna_get_health_safety_param();
+
         int jna_get_health_heartbeat_lost();
 
         // Power save state inspection
@@ -104,28 +119,42 @@ public class PandaClient {
 
         // Alternative experience inspection
         int jna_get_alternative_experience();
+
         void jna_reset_alternative_experience();
 
         // Siren state inspection
         int jna_get_siren_enabled();
+
         void jna_reset_siren();
 
         // Power-save hardware call tracking
         int jna_get_irq_enable_call_count();
+
         int jna_get_irq_disable_call_count();
+
         int jna_get_last_irq_enabled_bus();
+
         int jna_get_irq_disabled_bus(int bus);
+
         int jna_get_can_transceivers_enabled();
+
         int jna_get_can_transceivers_call_count();
+
         int jna_get_ir_power_call_count();
+
         int jna_get_ir_power_value_at(int index);
+
         int jna_get_fan_power();
+
         void jna_reset_power_save_tracking();
 
         // CAN comms buffer inspection (comms_can_reset)
         int jna_get_can_read_buffer_ptr();
+
         int jna_get_can_read_buffer_tail();
+
         int jna_get_can_write_buffer_ptr();
+
         int jna_get_can_write_buffer_tail();
 
         // Version
@@ -139,57 +168,93 @@ public class PandaClient {
 
         // CAN FD bus_config inspection
         int jna_get_bus_canfd_auto(int bus);
+
         int jna_get_bus_canfd_non_iso(int bus);
+
         int jna_get_bus_canfd_enabled(int bus);
+
         int jna_get_bus_brs_enabled(int bus);
+
         int jna_get_bus_can_data_speed(int bus);
 
         // Clock source tracking
         int jna_get_TIM1_CCR1();
+
         int jna_get_TIM1_CCR2();
+
         int jna_get_TIM8_CCR3();
+
         int jna_get_TIM1_ARR();
+
         int jna_get_TIM1_CCR4();
+
         void jna_reset_TIM_regs();
 
         // Microsecond timer and fan RPM
         int jna_get_microsecond_timer();
+
         int jna_get_fan_rpm();
 
         // Setup + response buffer
         void jna_set_microsecond_timer(int val);
+
         void jna_set_fan_rpm(int val);
+
         int jna_get_resp_len();
+
         int jna_get_resp_byte(int index);
 
         // Setup for read-request tests
         void jna_set_hw_type(int val);
+
         void jna_set_gitversion(String val);
+
         void jna_set_som_gpio(int val);
+
+        int jna_get_nvic_reset_count();
 
         // CAN health inspection
         int jna_get_can_health_speed(int bus);
+
         int jna_get_can_health_data_speed(int bus);
+
         int jna_get_can_health_canfd_enabled(int bus);
+
         int jna_get_can_health_brs_enabled(int bus);
+
         int jna_get_can_health_canfd_non_iso(int bus);
+
         int jna_get_can_health_last_error(int bus);
+
         int jna_get_can_health_receive_error_cnt(int bus);
+
         int jna_get_can_health_transmit_error_cnt(int bus);
+
         int jna_get_can_health_can_core_reset_cnt(int bus);
+
         int jna_get_can_health_bus_off_cnt(int bus);
+
         int jna_get_can_health_error_warning(int bus);
+
         int jna_get_can_health_error_passive(int bus);
+
         int jna_get_can_health_last_data_error(int bus);
+
         int jna_get_can_health_total_error_cnt(int bus);
+
         int jna_get_can_health_total_rx_lost_cnt(int bus);
+
         int jna_get_can_health_irq0_call_rate(int bus);
+
         int jna_get_can_health_irq1_call_rate(int bus);
+
         void jna_reset_can_health();
+
         void jna_call_update_can_health_pkt(int canNumber, int irReg);
 
         // FDCAN PSR/ECR setters (for test setup)
         void jna_set_fdcan_psr(int bus, int val);
+
         void jna_set_fdcan_ecr(int bus, int val);
     }
 
@@ -245,7 +310,6 @@ public class PandaClient {
     public void clearRelayCalls() {
         lib.jna_clear_relay_calls();
     }
-
 
 
     public CanModeCall canModeCall() {
@@ -526,6 +590,10 @@ public class PandaClient {
         lib.jna_set_som_gpio(val);
     }
 
+    public int getNvicResetCount() {
+        return lib.jna_get_nvic_reset_count();
+    }
+
     // ---- CAN health inspection ----
 
     public record CanHealth(
@@ -571,14 +639,21 @@ public class PandaClient {
         );
     }
 
-    public CanHealth getCanHealth0() { return getCanHealth(0); }
+    public CanHealth getCanHealth0() {
+        return getCanHealth(0);
+    }
 
     public void callUpdateCanHealthPkt(int canNumber, int irReg) {
         lib.jna_call_update_can_health_pkt(canNumber, irReg);
     }
 
-    public void setFdcanPsr(int bus, int val) { lib.jna_set_fdcan_psr(bus, val); }
-    public void setFdcanEcr(int bus, int val) { lib.jna_set_fdcan_ecr(bus, val); }
+    public void setFdcanPsr(int bus, int val) {
+        lib.jna_set_fdcan_psr(bus, val);
+    }
+
+    public void setFdcanEcr(int bus, int val) {
+        lib.jna_set_fdcan_ecr(bus, val);
+    }
 
     public record RespBuffer(AdaptiveList<Byte> bytes, int len) {
     }

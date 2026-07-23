@@ -211,4 +211,12 @@ public class UsbControlRequests {
             property("param2").defaultValue((short) 0);
         }
     }
+
+    public static class ResetSt extends UsbControlRequest {
+        @Override
+        public void main() {
+            property("request").defaultValue((byte) -40);       // 0xd8
+            property("param2").defaultValue((short) 0);
+        }
+    }
 }
