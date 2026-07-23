@@ -348,6 +348,9 @@ uint32_t jna_get_reg_GPIOA_ODR(void)   { return e2e_GPIOA.ODR; }
 uint32_t jna_get_reg_GPIOB_ODR(void)   { return e2e_GPIOB.ODR; }
 uint32_t jna_get_reg_GPIOC_ODR(void)   { return e2e_GPIOC.ODR; }
 uint32_t jna_get_reg_GPIOD_ODR(void)   { return e2e_GPIOD.ODR; }
+uint32_t jna_get_reg_GPIOE_ODR(void)   { return e2e_GPIOE.ODR; }
+uint32_t jna_get_reg_GPIOF_ODR(void)   { return e2e_GPIOF.ODR; }
+uint32_t jna_get_reg_GPIOG_ODR(void)   { return e2e_GPIOG.ODR; }
 uint32_t jna_get_reg_ADC1_CR(void)     { return e2e_ADC1.CR; }
 uint32_t jna_get_reg_ADC2_CR(void)     { return e2e_ADC2.CR; }
 uint32_t jna_get_reg_RCC_CR(void)          { return e2e_RCC.CR; }

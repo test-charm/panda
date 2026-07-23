@@ -25,6 +25,7 @@ Feature: Deep Sleep Request
       }
       """
 
+  @cuatro
   Scenario: Entering stop mode configures all GPIO MODER bits (analog → output / input)
     Given exists data:
       """
@@ -40,9 +41,53 @@ Feature: Deep Sleep Request
           gpioBModer: 0xFF5C73FD  # PB0→output(amp), PB5/8→input(CAN2/1), PB7/10/11→output(CAN)
           gpioCModer: 0xFF7FFCFF  # PC4→input(SBU1), PC11→output(bootkick)
           gpioDModer: 0xFCFDFFFF  # PD8→output(CAN3), PD12→input(CAN3 RX)
-          gpioEModer: 0xFFFFFFFF  # unchanged
+          gpioEModer: 0xFFFFFFFF
           gpioFModer: 0xFFFFFFFF
           gpioGModer: 0xFFFFFFFF
+        }
+      }
+      """
+
+  @tres
+  Scenario: Entering stop mode configures GPIO MODER for tres board
+    Given exists data:
+      """
+      RequestDeepSleep: { ... }
+      """
+    When process stop mode:
+    Then control data should be:
+      """
+      : {
+        enterStopModeCallCount: 1
+        stopModeRegs: {
+          gpioAModer: 0xFFFFFFF1  # PA0→output(bootkick), PA1→input(SBU2)
+          gpioBModer: 0xFF5CF3FF  # PB5/8→input(CAN), PB10/11→output(CAN2/4)
+          gpioCModer: 0xFDFFFCFF  # PC4→input(SBU1), PC12→output(bootkick)
+          gpioDModer: 0xFCFF7FFF  # PD7→output(tied-CAN), PD12→input(CAN3 RX)
+          gpioGModer: 0xFF7FFFFF  # PG11→output(tied-CAN)
+        }
+      }
+      """
+
+  @red
+  Scenario: Entering stop mode configures GPIO MODER for red board
+    Given exists data:
+      """
+      RequestDeepSleep: { ... }
+      """
+    When process stop mode:
+    Then control data should be:
+      """
+      : {
+        enterStopModeCallCount: 1
+        stopModeRegs: {
+          gpioAModer: 0xFFFFFFF3  # PA1→input(SBU2), no bootkick
+          gpioBModer: 0xFFFCF17F  # PB3/4→output(CAN2/4), PB5/8→input(CAN)
+          gpioCModer: 0xFFFFFCFF  # PC4→input(SBU1)
+          gpioDModer: 0xFCFF7FFF  # PD7→output(CAN3), PD12→input(CAN3 RX)
+          gpioEModer: 0xFFFFFFFF
+          gpioFModer: 0xFFFFFFFF
+          gpioGModer: 0xFF7FFFFF  # PG11→output(CAN1)
         }
       }
       """
@@ -169,10 +214,48 @@ Feature: Deep Sleep Request
       """
       : {
         stopModeRegs: {
-          gpioAOdr: 1L                           # PA0: bootkick STANDBY = high
-          gpioBOdr: 3200L                        # PB0: amp off=low, PB7+PB10+PB11: CAN1/2/4 disable=high
-          gpioCOdr: 2048L                        # PC11: bootkick STANDBY = high
-          gpioDOdr: 256L                         # PD8: CAN3 disable = high
+          gpioAOdr: 1L             # PA0: bootkick STANDBY = high
+          gpioBOdr: 3200L          # PB0: amp off=low, PB7+PB10+PB11: CAN1/2/4 disable=high
+          gpioCOdr: 2048L          # PC11: bootkick STANDBY = high
+          gpioDOdr: 256L           # PD8: CAN3 disable = high
+        }
+      }
+      """
+
+  @tres
+  Scenario: Entering stop mode drives GPIO outputs for tres board
+    Given exists data:
+      """
+      RequestDeepSleep: { ... }
+      """
+    When process stop mode:
+    Then control data should be:
+      """
+      : {
+        stopModeRegs: {
+          gpioAOdr: 1L             # PA0: bootkick = high
+          gpioBOdr: 3072L          # PB10+PB11: CAN2/4 disable=high
+          gpioCOdr: 4096L          # PC12: bootkick = high
+          gpioDOdr: 128L           # PD7: tied-CAN = high
+          gpioGOdr: 2048L          # PG11: tied-CAN = high
+        }
+      }
+      """
+
+  @red
+  Scenario: Entering stop mode drives GPIO outputs for red board
+    Given exists data:
+      """
+      RequestDeepSleep: { ... }
+      """
+    When process stop mode:
+    Then control data should be:
+      """
+      : {
+        stopModeRegs: {
+          gpioBOdr: 24L            # PB3+PB4: CAN2/4 disable=high
+          gpioDOdr: 128L           # PD7: CAN3 disable=high
+          gpioGOdr: 2048L          # PG11: CAN1 disable=high
         }
       }
       """
