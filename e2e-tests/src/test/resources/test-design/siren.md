@@ -25,30 +25,35 @@ set siren enabled (0xf6):
 | `request` | uint8 | 0xf6 (唯一) | 0xf6 |
 | `param1` | uint16 | ==0 (disable), !=0 (enable) | 0, 1, 255 |
 
-## 3. 输出因子 (通过 JNA 绑定的警笛状态观测)
+## 3. 输出因子 (通过假硬件寄存器 GPIOB ODR 观测)
 
 | 输出 | 类型 | 说明 |
 |------|------|------|
-| sirenEnabled | boolean | 警笛是否已启用 |
+| stopModeRegs.gpioBOdr | long | GPIOB ODR bit 14 (PB14, 警笛引脚) |
+|||
+| disabled (param1==0) → ODR bit14=0 (0L) |
+| enabled (param1!=0) → ODR bit14=1 (16384L) |
+
+> 注: 警笛启用后通过 `jna_tick_siren()` 将 `siren_enabled` 标志应用到 GPIO 输出。
 
 ## 4. 测试用例
 
 ### TC1: 禁用警笛 (param1=0)
 - 前置: 初始状态 (siren_enabled=false)
 - 输入: request=0xf6, param1=0
-- 输出: sirenEnabled=false
+- 输出: stopModeRegs.gpioBOdr=0L (PB14 low)
 - 等价类: param1 == 0
 
 ### TC2: 启用警笛 (param1=1)
 - 前置: 初始状态
 - 输入: request=0xf6, param1=1
-- 输出: sirenEnabled=true
+- 输出: stopModeRegs.gpioBOdr=16384L (PB14 high)
 - 等价类: param1 != 0
 
 ### TC3: 任意非零值均启用警笛 (param1=255)
 - 前置: 初始状态
 - 输入: request=0xf6, param1=255
-- 输出: sirenEnabled=true
+- 输出: stopModeRegs.gpioBOdr=16384L (PB14 high)
 - 等价类: param1 != 0 (验证 !=0 逻辑)
 
 ## 5. 覆盖检查

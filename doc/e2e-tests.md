@@ -99,32 +99,44 @@ e2e-tests/
 
 | 功能 | Feature | 场景 | 验证方式 |
 |------|---------|------|---------|
-| 安全模式 | `safety_mode.feature` | 7 | FDCAN CCCR, gpioAOdr |
+| 安全模式 | `safety_mode.feature` | 8 | FDCAN CCCR, gpioAOdr |
 | CAN 回环 | `can_loopback.feature` | 4 | FDCAN TEST/MON |
 | 心跳 | `heartbeat.feature` | 6 | heartbeat_* 变量 |
 | 健康数据包 | `health.feature` | 5 | healthPacket + 可设 voltage/current |
-| CAN 模式 | `can_mode.feature` | 3 | canModeCall |
-| 继电器 | `relay.feature` | 6 | gpioAOdr (PA3/PA9) |
-| 省电模式 | `power_save.feature` | 8 | powerSaveTracking + gpioBOdr/gpioDOdr |
-| 替代体验 | `alternative_experience.feature` | 5 | alternative_experience |
-| 警笛 | `siren.feature` | 3 | gpioBOdr (PB14) via jna_tick_siren |
-| CAN 通信重置 | `can_comms_reset.feature` | 3 | canCommsBuffers + gpioAOdr |
+| CAN 模式 | `can_mode.feature` | 6 | stopModeRegs (gpioBModer/gpioBOdr/gpioBPupdr) + canModeCall |
+| 继电器 | `relay.feature` | 6 | stopModeRegs.gpioAOdr (PA3/PA9) |
+| 省电模式 | `power_save.feature` | 12 | powerSaveTracking + stopModeRegs (gpioBOdr/gpioDOdr/gpioGOdr) |
+| 替代体验 | `alternative_experience.feature` | 5 | alternativeExperience |
+| 警笛 | `siren.feature` | 3 | stopModeRegs.gpioBOdr (PB14) via jna_tick_siren |
+| CAN 通信重置 | `can_comms_reset.feature` | 3 | canCommsBuffers + stopModeRegs.gpioAOdr |
 | CAN 环形缓冲 | `can_ring_clear.feature` | 4 | rxQueue/txQueue |
 | 固件版本 | `get_version.feature` | 1 | respBuffer |
-| 数据包版本 | `packet_versions.feature` | 1 | respBuffer |
+| 数据包版本 | `packet_versions.feature` | 1 | packetVersions |
 | IR 功率 | `ir_power.feature` | 3 | irPwm (TIM1 CCR1) |
 | 硬件类型 | `hw_type.feature` | 1 | respBuffer |
-| CAN 波特率 | `can_bitrate.feature` | 3 | FDCAN NBTP |
-| CAN FD 自动 | `can_fd_auto.feature` | 3 | bus_config |
+| CAN 波特率 | `can_bitrate.feature` | 3 | FDCAN NBTP/CCCR/IE/TXBC/RXF0C |
+| CAN FD 自动 | `can_fd_auto.feature` | 3 | canFdConfig |
 | CAN FD Non-ISO | `can_fd_non_iso.feature` | 3 | FDCAN CCCR |
-| CAN FD 数据率 | `can_fd_data_bitrate.feature` | 3 | FDCAN DBTP |
-| 时钟源 | `clock_source.feature` | 3 | fake_TIM1/TIM8 |
-| 定时器/风扇 | `timer_fan.feature` | 2 | MICROSECOND_TIMER, fan_state |
-| 风扇功率 | `fan_power.feature` | 5 | fan_state.power |
+| CAN FD 数据率 | `can_fd_data_bitrate.feature` | 3 | FDCAN DBTP/CCCR/IE/TXBC/RXF0C |
+| 时钟源 | `clock_source.feature` | 3 | clockSource (TIM1/TIM8 CCR) |
+| 定时器/风扇 | `timer_fan.feature` | 2 | respBuffer (little-endian) |
+| 风扇功率 | `fan_power.feature` | 5 | fanPower |
 | 系统复位 | `reset_st.feature` | 1 | nvicResetCount |
-| 深度休眠 | `deep_sleep.feature` | 8 | 25+ 假寄存器 (GPIO/ADC/RCC/SYSCFG/EXTI/PWR/SCB/NVIC) |
-| SOM GPIO | `som_gpio.feature` | 1 | get_gpio_input(GPIOC/GPIOB) |
-| CAN 健康 | `can_health.feature` | 6 | FDCAN PSR/ECR |
+| 深度休眠 | `deep_sleep.feature` | 13 | stopModeRegs (25+ 假寄存器: GPIO/ADC/RCC/SYSCFG/EXTI/PWR/SCB/NVIC) |
+| SOM GPIO | `som_gpio.feature` | 1 | respBuffer |
+| CAN 健康 | `can_health.feature` | 6 | canHealth0 (PSR/ECR 提取) |
+
+## 设计原则
+
+测试优先验证**寄存器级别**的行为（firmware 写入外设的实际位模式），而非中间函数的调用次数或传入参数。
+寄存器验证已覆盖函数行为时，不再重复验证调用计数。例如：
+
+* `deep_sleep.feature`：`stopModeRegs.gpio*Moder` 寄存器直接证明 `enter_stop_mode()` 正确配置了 GPIO，无需 `enterStopModeCallCount`
+* `can_mode.feature`：`stopModeRegs.gpioBModer/gpioBOdr` 寄存器直接证明 `set_can_mode()` 切换了 CAN 引脚，无需 `canModeCall`
+* `safety_mode.feature`：`fdcanRegs[N].cccr` 寄存器直接证明 `can_init_all()` 初始化了 CAN 硬件，无需 `canModeCall`
+* `relay.feature`：`stopModeRegs.gpioAOdr` 寄存器直接证明 `set_intercept_relay()` 设置了 GPIO，无需 relay 状态跟踪
+
+仅在无法通过寄存器验证时才保留函数调用计数或参数验证（如 `can_mode.feature` 中无寄存器操作的 `param1=2` 场景）。
 
 ## C 代码编译
 

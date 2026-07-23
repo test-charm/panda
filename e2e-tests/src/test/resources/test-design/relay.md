@@ -12,7 +12,10 @@ drive relay (0xc5):
            ▼
     relay_a = (param1 & 0x1) != 0
     relay_b = (param1 & 0x2) != 0
-    relay_call_count++
+           │
+           ▼
+    set_gpio_output(GPIOA, 9, !relay_b)   # PA9: ignition (active-low)
+    set_gpio_output(GPIOA, 3, !relay_a)   # PA3: intercept (active-low)
            │
            ▼
         (done)
@@ -29,7 +32,7 @@ drive relay (0xc5):
 | `param1` bit1 (relay B) | bool | 0 (off), 1 (on) | 0, 1 |
 | `param1` 高位 bits | uint16 | 被 bitmask 忽略，无影响 | 0, 非0 (等价) |
 
-## 3. 输出因子 (通过 JNA 绑定的 relay 状态观测)
+## 3. 输出因子 (通过假硬件寄存器停止观测)
 
 | 输出 | 类型 | 说明 |
 |------|------|------|
@@ -45,37 +48,37 @@ drive relay (0xc5):
 ### TC1: 两个继电器均关闭 (param1=0)
 - 前置: 初始状态 (relay 未调用)
 - 输入: request=0xc5, param1=0
-- 输出: relay_a=false, relay_b=false
+- 输出: stopModeRegs.gpioAOdr=520L (PA3+PA9 both HIGH, both off)
 - 等价类: bit0=0, bit1=0
 
 ### TC2: 仅继电器 A 打开 (param1=1)
 - 前置: 初始状态
 - 输入: request=0xc5, param1=1
-- 输出: relay_a=true, relay_b=false
+- 输出: stopModeRegs.gpioAOdr=512L (PA3 LOW=on, PA9 HIGH=off)
 - 等价类: bit0=1, bit1=0
 
 ### TC3: 仅继电器 B 打开 (param1=2)
 - 前置: 初始状态
 - 输入: request=0xc5, param1=2
-- 输出: relay_a=false, relay_b=true
+- 输出: stopModeRegs.gpioAOdr=8L (PA3 HIGH=off, PA9 LOW=on)
 - 等价类: bit0=0, bit1=1
 
 ### TC4: 两个继电器均打开 (param1=3)
 - 前置: 初始状态
 - 输入: request=0xc5, param1=3
-- 输出: relay_a=true, relay_b=true
+- 输出: stopModeRegs.gpioAOdr=0L (both LOW, both on)
 - 等价类: bit0=1, bit1=1
 
 ### TC5: 高位 bits 被 bitmask 忽略 (param1=0xFF)
 - 前置: 初始状态
 - 输入: request=0xc5, param1=0xFF (高位 bits 非零但有 bit0=1, bit1=1)
-- 输出: relay_a=true, relay_b=true (与 TC4 等价)
+- 输出: stopModeRegs.gpioAOdr=0L (与 TC4 等价)
 - 等价类: 高位 ≠0 但低2位 == 0b11
 
 ### TC6: 高位 bits 被 bitmask 忽略 (param1=4)
 - 前置: 初始状态
 - 输入: request=0xc5, param1=4 (bit2=1, bit0=0, bit1=0)
-- 输出: relay_a=false, relay_b=false (与 TC1 等价)
+- 输出: stopModeRegs.gpioAOdr=520L (与 TC1 等价)
 - 等价类: 高位 ≠0 但低2位 == 0b00
 
 ## 5. 覆盖检查

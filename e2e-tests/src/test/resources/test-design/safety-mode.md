@@ -56,8 +56,7 @@ can_clear:  -   -    bus1      -           -
 | 输出 | 说明 | feature 中验证 |
 |------|------|---------------|
 | safetyTxBlocked | 安全 hook 阻断的发送计数 | 阻断模式=1, 放行模式=0 |
-| relayCall.a / relayCall.b | 继电器驱动状态 | SILENT/NOOUTPUT=false, ALLOUTPUT/TOYOTA=true |
-| canModeCall.value | CAN 静默模式 (SILENT=0, NORMAL=0, OBD_CAN2=1) | ELM327 OBD_CAN2=1 |
+| stopModeRegs.gpioAOdr | GPIOA ODR 继电器驱动状态 | SILENT/NOOUTPUT=520L (off), ALLOUTPUT/TOYOTA=512L (intercept on) |
 | rxQueue | 接收队列（含 rejected 标记） | 阻断时含 rejected=true 的消息 |
 | txQueue[0] | 发送队列（空或含消息） | 阻断时为空，放行时含 rejected=false 的消息 |
 | fdcanRegs[N].cccr | FDCAN CCCR 寄存器（SILENT 模式下 CCCR.MON=1） | 非 SILENT=0x00, SILENT=0x20 |

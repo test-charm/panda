@@ -54,8 +54,8 @@ request deep sleep (0xb5):
 | 11 | 点火检测 (提前复位) | `harness_check_ignition()` → `NVIC_SystemReset` | 桩返回 false，跳过 |
 | 12 | PWR STOP 模式 + SVOS5 + FLPS | `pwrCpucr` / `pwrCr1` | `0` / `0x4200` |
 | 13 | SCB SLEEPDEEP | `scbScr` | `0x4` |
-| 14 | NVIC 全部禁用 + 使能唤醒 EXTI | `nvicIcer0` | `0xFFFFFFFF` |
-| 15 | WFI → NVIC_SystemReset | `nvicResetCount` | `1` |
+| 14 | NVIC 全部禁用 + 使能唤醒 EXTI + WFI | `nvicIcer0`=`nvicIcer7`=`nvicIcpr0`=`nvicIcpr7`=`0xFFFFFFFF`, `irqDisabled`/`dsbCalled`/`isbCalled`/`wfiEntered`=true |
+| 15 | NVIC_SystemReset | `nvicResetCount`=1 (reset_st.feature 验证) |
 
 ## 3. 输入因子
 
@@ -69,18 +69,17 @@ request deep sleep (0xb5):
 
 | 输出 | 类型 | 说明 |
 |------|------|------|
-| relayCall.a / relayCall.b | boolean | SILENT 模式关断继电器 |
+| stopModeRegs.gpioAOdr | long | SILENT 模式关断继电器 (PA3+PA9 high, 520L) |
 | powerSaveEnabled | boolean | 省电模式已启用 |
 | stopModeRequested | boolean | 标志已置位 |
-| enterStopModeCallCount | int | `enter_stop_mode()` 调用次数 |
-| stopModeRegs.* (25 个寄存器) | long | 假外设寄存器值 |
-| nvicResetCount | int | `NVIC_SystemReset()` 调用次数 |
+| stopModeRegs.* (25+ 个寄存器) | long | 假外设寄存器值 |
+| nvicResetCount | int | `NVIC_SystemReset()` 调用次数 (仅 reset_st.feature 验证) |
 
 ## 5. 测试用例
 
 ### TC1: 触发深度休眠请求
 - 输入: request=0xb5
-- 验证: `relayCall={a:false, b:false}`, `powerSaveEnabled=true`, `stopModeRequested=true`, `irqDisableCount=2`
+- 验证: `stopModeRegs.gpioAOdr: 520L` (继电器关断), `powerSaveEnabled=true`, `stopModeRequested=true`, `irqDisableCount=2`
 
 ### TC2: GPIO 全模拟模式
 - 前置: TC1
@@ -117,7 +116,7 @@ request deep sleep (0xb5):
 ### TC8: SCB SLEEPDEEP + NVIC 系统复位
 - 前置: TC1
 - 输入: processStopMode()
-- 验证: `scbScr`=4 (SLEEPDEEP), `nvicIcer0`=0xFFFFFFFF, `nvicResetCount`=1
+- 验证: `scbScr=4` (SLEEPDEEP), `nvicIcer0`=`nvicIcer7`=`nvicIcpr0`=`nvicIcpr7`=`0xFFFFFFFF`, `irqDisabled=true`, `dsbCalled=true`, `isbCalled=true`, `wfiEntered=true`
 
 ## 6. 覆盖检查
 
