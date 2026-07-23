@@ -27,14 +27,6 @@ public class PandaClient {
         private final boolean rejected;
     }
 
-    @AllArgsConstructor
-    @Getter
-    public static class RelayCall {
-        private final boolean a;
-        private final boolean b;
-    }
-
-
     // Simple wrapper needed for DAL-java to distinguish "not called" (null) from "called with value"
     @AllArgsConstructor
     @Getter
@@ -58,14 +50,6 @@ public class PandaClient {
         boolean jna_can_pop_tx(int queueIdx, int[] outAddr, byte[] outData, byte[] outLen);
 
         void jna_can_clear_all();
-
-        int jna_get_relay_call_count();
-
-        int jna_get_relay_a();
-
-        int jna_get_relay_b();
-
-        void jna_clear_relay_calls();
 
         int jna_get_can_mode_call_count();
 
@@ -139,7 +123,6 @@ public class PandaClient {
         void jna_reset_alternative_experience();
 
         // Siren state inspection
-        int jna_get_siren_enabled();
         long jna_get_ir_pwm();
 
         void jna_reset_siren();
@@ -174,14 +157,8 @@ public class PandaClient {
 
         int jna_get_can_write_buffer_tail();
 
-        // Version
-        String jna_get_gitversion();
-
         // Packet versions (response from 0xdd)
         void jna_get_packet_versions(int[] outHealthVersion, int[] outCanVersionHash);
-
-        // Hardware type
-        int jna_get_hw_type();
 
         // CAN FD bus_config inspection
         int jna_get_bus_canfd_auto(int bus);
@@ -208,11 +185,6 @@ public class PandaClient {
         void jna_reset_TIM_regs();
 
         // Microsecond timer and fan RPM
-        int jna_get_microsecond_timer();
-
-        int jna_get_fan_rpm();
-
-        // Setup + response buffer
         void jna_set_microsecond_timer(int val);
 
         void jna_set_fan_rpm(int val);
@@ -235,9 +207,6 @@ public class PandaClient {
         void jna_reset_nvic_count();
 
         int jna_get_stop_mode_requested();
-
-        // enter_stop_mode tracking
-        int jna_get_enter_stop_mode_call_count();
 
         void jna_process_stop_mode();
         void jna_tick_siren();
@@ -309,8 +278,6 @@ public class PandaClient {
         int jna_get_dsb_called();
         int jna_get_isb_called();
         int jna_get_wfi_entered();
-        int jna_get_nvic_irq_enable_count();
-        int jna_get_nvic_irq_enabled_at(int i);
 
         // CAN health inspection
         int jna_get_can_health_speed(int bus);
@@ -342,10 +309,6 @@ public class PandaClient {
         int jna_get_can_health_total_error_cnt(int bus);
 
         int jna_get_can_health_total_rx_lost_cnt(int bus);
-
-        int jna_get_can_health_irq0_call_rate(int bus);
-
-        int jna_get_can_health_irq1_call_rate(int bus);
 
         void jna_reset_can_health();
 
@@ -399,18 +362,6 @@ public class PandaClient {
         lib.jna_can_clear_all();
     }
 
-    public RelayCall relayCall() {
-        int count = lib.jna_get_relay_call_count();
-        return (count == 0) ? null : new RelayCall(
-                lib.jna_get_relay_a() != 0,
-                lib.jna_get_relay_b() != 0);
-    }
-
-    public void clearRelayCalls() {
-        lib.jna_clear_relay_calls();
-    }
-
-
     public CanModeCall canModeCall() {
         int count = lib.jna_get_can_mode_call_count();
         return (count == 0) ? null : new CanModeCall(lib.jna_get_can_mode());
@@ -430,7 +381,6 @@ public class PandaClient {
 
     public void clearAll() {
         clearCanQueues();
-        clearRelayCalls();
         clearCanModeCalls();
         lib.jna_reset_fdcan();
         lib.jna_reset_heartbeat();
@@ -539,10 +489,6 @@ public class PandaClient {
         return lib.jna_get_alternative_experience();
     }
 
-    public boolean isSirenEnabled() {
-        return lib.jna_get_siren_enabled() != 0;
-    }
-
     // ---- Power-save hardware call tracking ----
 
     @AllArgsConstructor
@@ -595,10 +541,6 @@ public class PandaClient {
         );
     }
 
-    public String getGitversion() {
-        return lib.jna_get_gitversion();
-    }
-
     @AllArgsConstructor
     @Getter
     public static class PacketVersions {
@@ -611,10 +553,6 @@ public class PandaClient {
         int[] outCan = new int[1];
         lib.jna_get_packet_versions(outHealth, outCan);
         return new PacketVersions(outHealth[0], outCan[0]);
-    }
-
-    public int getHwType() {
-        return lib.jna_get_hw_type();
     }
 
     // ---- CAN FD bus_config ----
@@ -677,14 +615,6 @@ public class PandaClient {
                 lib.jna_get_TIM1_ARR(),
                 lib.jna_get_TIM1_CCR4()
         );
-    }
-
-    public int getMicrosecondTimer() {
-        return lib.jna_get_microsecond_timer();
-    }
-
-    public int getFanRpm() {
-        return lib.jna_get_fan_rpm();
     }
 
     public void setMicrosecondTimer(int val) {
@@ -768,7 +698,6 @@ public class PandaClient {
         private final boolean dsbCalled;
         private final boolean isbCalled;
         private final boolean wfiEntered;
-        private final int nvicIrqEnableCount;
     }
 
     public int getIrPwm() {
@@ -816,13 +745,8 @@ public class PandaClient {
                 lib.jna_get_irq_disabled() != 0,
                 lib.jna_get_dsb_called() != 0,
                 lib.jna_get_isb_called() != 0,
-                lib.jna_get_wfi_entered() != 0,
-                lib.jna_get_nvic_irq_enable_count()
+                lib.jna_get_wfi_entered() != 0
         );
-    }
-
-    public int getEnterStopModeCallCount() {
-        return lib.jna_get_enter_stop_mode_call_count();
     }
 
     public void processStopMode() {
@@ -853,8 +777,6 @@ public class PandaClient {
         private final int totalErrorCnt;
         private final int totalRxLostCnt;
         private final int canCoreResetCnt;
-        private final int irq0CallRate;
-        private final int irq1CallRate;
     }
 
     public CanHealth getCanHealth(int bus) {
@@ -873,9 +795,7 @@ public class PandaClient {
                 lib.jna_get_can_health_bus_off_cnt(bus),
                 lib.jna_get_can_health_total_error_cnt(bus),
                 lib.jna_get_can_health_total_rx_lost_cnt(bus),
-                lib.jna_get_can_health_can_core_reset_cnt(bus),
-                lib.jna_get_can_health_irq0_call_rate(bus),
-                lib.jna_get_can_health_irq1_call_rate(bus)
+                lib.jna_get_can_health_can_core_reset_cnt(bus)
         );
     }
 
@@ -909,15 +829,6 @@ public class PandaClient {
             list.add((byte) lib.jna_get_resp_byte(i));
         }
         return new RespBuffer(AdaptiveList.staticList(list), len);
-    }
-
-    public AdaptiveList<Integer> getIrPower() {
-        int count = lib.jna_get_ir_power_call_count();
-        var list = new ArrayList<Integer>();
-        for (int i = 0; i < count; i++) {
-            list.add(lib.jna_get_ir_power_value_at(i));
-        }
-        return AdaptiveList.staticList(list);
     }
 
     public int getFanPower() {

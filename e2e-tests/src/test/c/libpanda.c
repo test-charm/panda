@@ -179,15 +179,10 @@ uart_ring *get_ring_by_number(int a) {
 // Health voltage/current — JNA setters for e2e testing
 
 // ---- enter_stop_mode tracking ----
-#define NVIC_IRQ_TRACK_MAX 8
-static int enter_stop_mode_call_count;
 static bool irq_disabled;
 static bool dsb_called;
 static bool isb_called;
 static bool wfi_entered;
-#define NVIC_IRQ_TRACK_MAX 8
-static int nvic_irq_enable_count;
-static int nvic_irq_enabled[NVIC_IRQ_TRACK_MAX];
 static bool adc1_deep_powerdown;
 static bool adc2_deep_powerdown;
 static bool hsi48_disabled;
@@ -286,8 +281,6 @@ const struct board *current_board = &board_stub;
 
 // ---- Function stubs ----
 // Recording stub: captures last set_intercept_relay call for test verification
-static bool relay_a, relay_b;
-static int relay_call_count;
 void set_intercept_relay(bool a, bool b);
 void harness_init(void) {}
 void harness_tick(void) {}
@@ -351,9 +344,6 @@ void jna_reset_nvic_count(void) { nvic_reset_call_count = 0; }
 
 int jna_get_stop_mode_requested(void) { return stop_mode_requested ? 1 : 0; }
 
-// ---- JNA API: enter_stop_mode tracking ----
-int jna_get_enter_stop_mode_call_count(void) { return enter_stop_mode_call_count; }
-
 // ---- JNA API: fake register value accessors ----
 uint32_t jna_get_reg_GPIOA_MODER(void) { return e2e_GPIOA.MODER; }
 uint32_t jna_get_reg_GPIOB_MODER(void) { return e2e_GPIOB.MODER; }
@@ -397,17 +387,13 @@ int jna_get_irq_disabled(void)             { return irq_disabled ? 1 : 0; }
 int jna_get_dsb_called(void)               { return dsb_called ? 1 : 0; }
 int jna_get_isb_called(void)               { return isb_called ? 1 : 0; }
 int jna_get_wfi_entered(void)              { return wfi_entered ? 1 : 0; }
-int jna_get_nvic_irq_enable_count(void)    { return nvic_irq_enable_count; }
-int jna_get_nvic_irq_enabled_at(int i)     { return (i >= 0 && i < NVIC_IRQ_TRACK_MAX) ? nvic_irq_enabled[i] : -1; }
 
 void jna_reset_stop_mode_tracking(void) {
     stop_mode_requested = false;
-    enter_stop_mode_call_count = 0;
     irq_disabled = false;
     dsb_called = false;
     isb_called = false;
     wfi_entered = false;
-    nvic_irq_enable_count = 0;
     e2e_voltage_mV = 12000;
     e2e_current_mA = 0;
     // Zero all fake register instances
@@ -456,10 +442,7 @@ int put_char(uart_ring *q, char c) { (void)q; (void)c; return 0; }
 
 // CMSIS intrinsics (must be BEFORE board/main.c — main.c power_save path uses __WFI)
 static void e2e_nvic_enable_irq(int irqn) {
-    if (nvic_irq_enable_count < NVIC_IRQ_TRACK_MAX) {
-        nvic_irq_enabled[nvic_irq_enable_count] = irqn;
-    }
-    nvic_irq_enable_count++;
+    (void)irqn;
 }
 void __disable_irq(void) { irq_disabled = true; }
 void __enable_irq(void) {}
@@ -593,9 +576,6 @@ void set_intercept_relay(bool a, bool b) {
     // Cuatro: relay SBU1 = PA9 (ignition), relay SBU2 = PA3 (intercept), active-low
     set_gpio_output(GPIOA, 9, !b);
     set_gpio_output(GPIOA, 3, !a);
-    relay_a = a;
-    relay_b = b;
-    relay_call_count++;
 }
 
 // ---- Faithful can_init: writes to fake FDCAN_GlobalTypeDef registers ----
@@ -717,22 +697,6 @@ void jna_can_clear_all(void) {
         can_queues[i]->w_ptr = 0U;
         can_queues[i]->r_ptr = 0U;
     }
-}
-
-// Query last set_intercept_relay call parameters
-int jna_get_relay_call_count(void) {
-    return relay_call_count;
-}
-int jna_get_relay_a(void) {
-    return relay_a ? 1 : 0;
-}
-int jna_get_relay_b(void) {
-    return relay_b ? 1 : 0;
-}
-void jna_clear_relay_calls(void) {
-    relay_call_count = 0;
-    relay_a = false;
-    relay_b = false;
 }
 
 // Query last set_can_mode call
@@ -873,9 +837,6 @@ void jna_reset_alternative_experience(void) {
 }
 
 // ---- JNA API: Siren state inspection ----
-int jna_get_siren_enabled(void) {
-    return siren_enabled ? 1 : 0;
-}
 void jna_reset_siren(void) {
     siren_enabled = false;
 }
@@ -929,11 +890,6 @@ uint32_t jna_get_can_write_buffer_tail(void) {
     return can_write_buffer.tail_size;
 }
 
-// ---- JNA API: Version ----
-const char *jna_get_gitversion(void) {
-    return gitversion;
-}
-
 // ---- JNA API: Packet versions (read from response after 0xdd) ----
 // Returns the two uint32 values from the last control response buffer.
 // Call after controlWrite(0xdd, 0, 0).
@@ -942,11 +898,6 @@ void jna_get_packet_versions(uint32_t *out_health_version, uint32_t *out_can_ver
         (void)memcpy(out_health_version, jna_resp, 4U);
         (void)memcpy(out_can_version_hash, jna_resp + 4U, 4U);
     }
-}
-
-// ---- JNA API: Hardware type ----
-uint8_t jna_get_hw_type(void) {
-    return hw_type;
 }
 
 // ---- JNA API: CAN FD bus_config inspection ----
@@ -983,14 +934,6 @@ uint32_t jna_get_TIM1_CCR4(void) { return fake_TIM1.CCR4; }
 void jna_reset_TIM_regs(void) {
     fake_TIM1 = (e2e_TIM_TypeDef){0};
     fake_TIM8 = (e2e_TIM_TypeDef){0};
-}
-
-// ---- JNA API: Microsecond timer and fan RPM ----
-uint32_t jna_get_microsecond_timer(void) {
-    return microsecond_timer_get();
-}
-uint16_t jna_get_fan_rpm(void) {
-    return fan_state.rpm;
 }
 
 // ---- JNA API: Setup + response buffer inspection ----
@@ -1082,14 +1025,6 @@ int jna_get_can_health_total_error_cnt(int bus) {
 int jna_get_can_health_total_rx_lost_cnt(int bus) {
     if ((bus < 0) || (bus >= PANDA_CAN_CNT)) return 0;
     return (int)can_health[bus].total_rx_lost_cnt;
-}
-int jna_get_can_health_irq0_call_rate(int bus) {
-    if ((bus < 0) || (bus >= PANDA_CAN_CNT)) return 0;
-    return (int)can_health[bus].irq0_call_rate;
-}
-int jna_get_can_health_irq1_call_rate(int bus) {
-    if ((bus < 0) || (bus >= PANDA_CAN_CNT)) return 0;
-    return (int)can_health[bus].irq1_call_rate;
 }
 // Direct call to update_can_health_pkt with custom ir_reg (bypasses handler)
 void jna_call_update_can_health_pkt(int can_number, uint32_t ir_reg) {

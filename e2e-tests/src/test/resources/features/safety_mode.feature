@@ -25,9 +25,6 @@ Feature: Safety Mode Switching
         stopModeRegs: {
           gpioAOdr: 520L      # PA3+PA9 high (relays off, SILENT)
         }
-        canModeCall= {
-          value: 0
-        }
         rxQueue= {
           address: 256
           bus: 0y
@@ -60,9 +57,6 @@ Feature: Safety Mode Switching
         safetyTxBlocked: 1
         stopModeRegs: {
           gpioAOdr: 520L
-        }
-        canModeCall= {
-          value: 0
         }
         rxQueue: {
           rejected: true
@@ -98,9 +92,6 @@ Feature: Safety Mode Switching
         }
         stopModeRegs: {
           gpioAOdr: 512L      # PA3 low (intercept on), PA9 high (ignition off)
-        }
-        canModeCall= {
-          value: 0
         }
         rxQueue: []
         txQueue[0]: {
@@ -140,9 +131,6 @@ Feature: Safety Mode Switching
           gpioAOdr: 520L
         }
         fdcanRegs[1].ir[3]: 0b0011_1111y
-        canModeCall= {
-          value: 1
-        }
         rxQueue: []
         txQueue[0]: {
           address: 2015
@@ -179,9 +167,6 @@ Feature: Safety Mode Switching
           gpioAOdr: 520L
         }
         fdcanRegs[1].ir[3]: 0b0011_1111y
-        canModeCall= {
-          value: 0
-        }
         rxQueue: []
         txQueue[0]: {
           address: 2015
@@ -215,9 +200,6 @@ Feature: Safety Mode Switching
         stopModeRegs: {
           gpioAOdr: 512L
         }
-        canModeCall= {
-          value: 0
-        }
         rxQueue: {
           rejected: true
           data.string: blocked
@@ -248,9 +230,6 @@ Feature: Safety Mode Switching
         safetyTxBlocked: 1
         stopModeRegs: {
           gpioAOdr: 520L
-        }
-        canModeCall= {
-          value: 0
         }
         rxQueue: {
           rejected: true

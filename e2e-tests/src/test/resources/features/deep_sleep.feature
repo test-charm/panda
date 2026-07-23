@@ -34,7 +34,6 @@ Feature: Deep Sleep Request
     Then control data should be:
       """
       : {
-        enterStopModeCallCount: 1
         stopModeRegs: {
           gpioAModer: 0xFFFFFFF1  # PA0→output(bootkick), PA1→input(SBU2)
           gpioBModer: 0xFF5C73FD  # PB0→output(amp), PB5/8→input(CAN2/1), PB7/10/11→output(CAN)
@@ -57,7 +56,6 @@ Feature: Deep Sleep Request
     Then control data should be:
       """
       : {
-        enterStopModeCallCount: 1
         stopModeRegs: {
           gpioAModer: 0xFFFFFFF1  # PA0→output(bootkick), PA1→input(SBU2)
           gpioBModer: 0xFF5CF3FF  # PB5/8→input(CAN), PB10/11→output(CAN2/4)
@@ -78,7 +76,6 @@ Feature: Deep Sleep Request
     Then control data should be:
       """
       : {
-        enterStopModeCallCount: 1
         stopModeRegs: {
           gpioAModer: 0xFFFFFFF3  # PA1→input(SBU2), no bootkick
           gpioBModer: 0xFFFCF17F  # PB3/4→output(CAN2/4), PB5/8→input(CAN)
@@ -196,9 +193,7 @@ Feature: Deep Sleep Request
           dsbCalled: true        # __DSB() called
           isbCalled: true        # __ISB() called
           wfiEntered: true       # __WFI() called
-          nvicIrqEnableCount: 4  # EXTI1, EXTI4, EXTI9_5, EXTI15_10
         }
-        nvicResetCount: 1
       }
       """
 

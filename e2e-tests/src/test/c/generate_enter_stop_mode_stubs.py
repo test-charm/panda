@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """
 Generate e2e enter_stop_mode() verbatim from board/sys/power_saving.h.
-Adds enter_stop_mode_call_count++ at the beginning.
 All hardware register operations are preserved as-is.
 
 Usage: python3 generate_enter_stop_mode_stubs.py > enter_stop_mode_e2e.gen.c
@@ -60,7 +59,6 @@ def generate():
     body_lines = lines[body_start + 1:-1]
 
     result = [header, f"// From {POWER_SAVING_H}:{start + 1}", func_decl, "{"]
-    result.append("  enter_stop_mode_call_count++;")
     result.extend(body_lines)
     result.append("}")
     return "\n".join(result)

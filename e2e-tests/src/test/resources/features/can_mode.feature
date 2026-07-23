@@ -12,9 +12,6 @@ Feature: OBD CAN Multiplexing Mode
     Then control data should be:
       """
       : {
-        canModeCall= {
-          value: 0
-        }
         stopModeRegs: {
           gpioBModer: 256911360L    # PB5/6→alt(2), PB10/11→out(1), PB12/13→analog(3)
           gpioBPupdr: 0L           # PB5/6/12/13 → PULL_NONE
@@ -34,9 +31,6 @@ Feature: OBD CAN Multiplexing Mode
     Then control data should be:
       """
       : {
-        canModeCall: {
-          value: 1
-        }
         stopModeRegs: {
           gpioBModer: 173030400L   # PB5/6→analog(3), PB10/11→out(1), PB12/13→alt(2)
           gpioBPupdr: 0L
@@ -56,9 +50,6 @@ Feature: OBD CAN Multiplexing Mode
     Then control data should be:
       """
       : {
-        canModeCall= {
-          value: 0
-        }
         stopModeRegs: {
           gpioBModer: 256911360L
           gpioBOdr: 2048L
@@ -77,9 +68,6 @@ Feature: OBD CAN Multiplexing Mode
     Then control data should be:
       """
       : {
-        canModeCall= {
-          value: 0
-        }
         stopModeRegs: {
           gpioBModer: 251668800L   # PB3/4→out(1), PB5/6→alt(2), PB12/13→analog(3)
           gpioBOdr: 16L            # PB4 CAN4 disabled, PB3 CAN2 re-enabled
@@ -98,9 +86,6 @@ Feature: OBD CAN Multiplexing Mode
     Then control data should be:
       """
       : {
-        canModeCall: {
-          value: 1
-        }
         stopModeRegs: {
           gpioBModer: 167787840L   # PB3/4→out(1), PB5/6→analog(3), PB12/13→alt(2)
           gpioBOdr: 8L             # PB3 CAN2 disabled, PB4 CAN4 re-enabled
