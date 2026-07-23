@@ -294,6 +294,15 @@ public class PandaClient {
         long jna_get_reg_SCB_SCR();
 
         long jna_get_reg_NVIC_ICER0();
+        long jna_get_reg_NVIC_ICER7();
+        long jna_get_reg_NVIC_ICPR0();
+        long jna_get_reg_NVIC_ICPR7();
+        int jna_get_irq_disabled();
+        int jna_get_dsb_called();
+        int jna_get_isb_called();
+        int jna_get_wfi_entered();
+        int jna_get_nvic_irq_enable_count();
+        int jna_get_nvic_irq_enabled_at(int i);
 
         // CAN health inspection
         int jna_get_can_health_speed(int bus);
@@ -732,6 +741,14 @@ public class PandaClient {
         private final long pwrCpucr;
         private final long scbScr;
         private final long nvicIcer0;
+        private final long nvicIcer7;
+        private final long nvicIcpr0;
+        private final long nvicIcpr7;
+        private final boolean irqDisabled;
+        private final boolean dsbCalled;
+        private final boolean isbCalled;
+        private final boolean wfiEntered;
+        private final int nvicIrqEnableCount;
     }
 
     public StopModeRegs getStopModeRegs() {
@@ -764,7 +781,15 @@ public class PandaClient {
                 lib.jna_get_reg_PWR_CR1(),
                 lib.jna_get_reg_PWR_CPUCR(),
                 lib.jna_get_reg_SCB_SCR(),
-                lib.jna_get_reg_NVIC_ICER0()
+                lib.jna_get_reg_NVIC_ICER0(),
+                lib.jna_get_reg_NVIC_ICER7(),
+                lib.jna_get_reg_NVIC_ICPR0(),
+                lib.jna_get_reg_NVIC_ICPR7(),
+                lib.jna_get_irq_disabled() != 0,
+                lib.jna_get_dsb_called() != 0,
+                lib.jna_get_isb_called() != 0,
+                lib.jna_get_wfi_entered() != 0,
+                lib.jna_get_nvic_irq_enable_count()
         );
     }
 

@@ -117,7 +117,7 @@ static uint8_t fake_fdcan_sram[FAKE_FDCAN_SRAM_SIZE];
 FDCAN_GlobalTypeDef *cans[3] = {FDCAN1, FDCAN2, FDCAN3};
 
 // Hardware stubs needed by can_init code path
-#define NVIC_EnableIRQ(x) do {} while(0)
+#define NVIC_EnableIRQ(x) e2e_nvic_enable_irq(x)
 #define NVIC_DisableIRQ(x) do {} while(0)
 
 // Tracking stubs for llcan_irq_enable/disable — records last CAN bus operated on
@@ -177,7 +177,15 @@ uart_ring *get_ring_by_number(int a) {
 #endif
 
 // ---- enter_stop_mode tracking ----
+#define NVIC_IRQ_TRACK_MAX 8
 static int enter_stop_mode_call_count;
+static bool irq_disabled;
+static bool dsb_called;
+static bool isb_called;
+static bool wfi_entered;
+#define NVIC_IRQ_TRACK_MAX 8
+static int nvic_irq_enable_count;
+static int nvic_irq_enabled[NVIC_IRQ_TRACK_MAX];
 static bool adc1_deep_powerdown;
 static bool adc2_deep_powerdown;
 static bool hsi48_disabled;
@@ -358,10 +366,26 @@ uint32_t jna_get_reg_PWR_CR1(void)         { return e2e_PWR.CR1; }
 uint32_t jna_get_reg_PWR_CPUCR(void)       { return e2e_PWR.CPUCR; }
 uint32_t jna_get_reg_SCB_SCR(void)         { return e2e_SCB.SCR; }
 uint32_t jna_get_reg_NVIC_ICER0(void)      { return e2e_NVIC.ICER[0]; }
+uint32_t jna_get_reg_NVIC_ICER7(void)      { return e2e_NVIC.ICER[7]; }
+uint32_t jna_get_reg_NVIC_ICPR0(void)      { return e2e_NVIC.ICPR[0]; }
+uint32_t jna_get_reg_NVIC_ICPR7(void)      { return e2e_NVIC.ICPR[7]; }
+
+// CMSIS intrinsic tracking
+int jna_get_irq_disabled(void)             { return irq_disabled ? 1 : 0; }
+int jna_get_dsb_called(void)               { return dsb_called ? 1 : 0; }
+int jna_get_isb_called(void)               { return isb_called ? 1 : 0; }
+int jna_get_wfi_entered(void)              { return wfi_entered ? 1 : 0; }
+int jna_get_nvic_irq_enable_count(void)    { return nvic_irq_enable_count; }
+int jna_get_nvic_irq_enabled_at(int i)     { return (i >= 0 && i < NVIC_IRQ_TRACK_MAX) ? nvic_irq_enabled[i] : -1; }
 
 void jna_reset_stop_mode_tracking(void) {
     stop_mode_requested = false;
     enter_stop_mode_call_count = 0;
+    irq_disabled = false;
+    dsb_called = false;
+    isb_called = false;
+    wfi_entered = false;
+    nvic_irq_enable_count = 0;
     // Zero all fake register instances
     e2e_GPIOA = (GPIO_TypeDef){0};   e2e_GPIOB = (GPIO_TypeDef){0};
     e2e_GPIOC = (GPIO_TypeDef){0};   e2e_GPIOD = (GPIO_TypeDef){0};
@@ -407,11 +431,17 @@ int put_char(uart_ring *q, char c) { (void)q; (void)c; return 0; }
 #include "board/drivers/interrupts.h"
 
 // CMSIS intrinsics (must be BEFORE board/main.c — main.c power_save path uses __WFI)
-void __disable_irq(void) {}
+static void e2e_nvic_enable_irq(int irqn) {
+    if (nvic_irq_enable_count < NVIC_IRQ_TRACK_MAX) {
+        nvic_irq_enabled[nvic_irq_enable_count] = irqn;
+    }
+    nvic_irq_enable_count++;
+}
+void __disable_irq(void) { irq_disabled = true; }
 void __enable_irq(void) {}
-void __DSB(void) {}
-void __ISB(void) {}
-void __WFI(void) {}
+void __DSB(void) { dsb_called = true; }
+void __ISB(void) { isb_called = true; }
+void __WFI(void) { wfi_entered = true; }
 
 // ---- FULL board/main.c ----
 #include "board/main.c"
@@ -481,7 +511,7 @@ void __WFI(void) {}
 #define EXTI4_IRQn        10
 #define EXTI9_5_IRQn      23
 #define EXTI15_10_IRQn    40
-#define NVIC_EnableIRQ(x) do {} while(0)
+#define NVIC_EnableIRQ(x) e2e_nvic_enable_irq(x)
 
 // Forward declarations
 void register_set(volatile uint32_t *addr, uint32_t val, uint32_t mask);

@@ -133,7 +133,7 @@ Feature: Deep Sleep Request
       }
       """
 
-  Scenario: Entering stop mode sets SLEEPDEEP and triggers NVIC_SystemReset
+  Scenario: Entering stop mode sets SLEEPDEEP, disables NVIC, enables wakeup IRQs, and triggers WFI→reset
     Given exists data:
       """
       RequestDeepSleep: { ... }
@@ -143,8 +143,16 @@ Feature: Deep Sleep Request
       """
       : {
         stopModeRegs: {
-          scbScr: 0b0000_0100y               # SCB_SCR_SLEEPDEEP_Msk = 0x4
-          nvicIcer0: 0xFFFFFFFF   # all interrupts disabled (0xFFFFFFFF)
+          scbScr: 0b0000_0100y              # SCB_SCR_SLEEPDEEP_Msk = 0x4
+          nvicIcer0: 0xFFFFFFFF  # ICER[0] all interrupts disabled
+          nvicIcer7: 0xFFFFFFFF  # ICER[7]
+          nvicIcpr0: 0xFFFFFFFF  # ICPR[0] all pending cleared
+          nvicIcpr7: 0xFFFFFFFF  # ICPR[7]
+          irqDisabled: true      # __disable_irq() called
+          dsbCalled: true        # __DSB() called
+          isbCalled: true        # __ISB() called
+          wfiEntered: true       # __WFI() called
+          nvicIrqEnableCount: 4  # EXTI1, EXTI4, EXTI9_5, EXTI15_10
         }
         nvicResetCount: 1
       }
