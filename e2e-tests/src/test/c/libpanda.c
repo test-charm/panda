@@ -176,6 +176,8 @@ uart_ring *get_ring_by_number(int a) {
 #define E2E_BOARD_CUATRO
 #endif
 
+// Health voltage/current — JNA setters for e2e testing
+
 // ---- enter_stop_mode tracking ----
 #define NVIC_IRQ_TRACK_MAX 8
 static int enter_stop_mode_call_count;
@@ -201,28 +203,34 @@ static bool nvic_wakeup_enabled;
 static bool sleepdeep_set;
 
 GPIO_TypeDef dummy_gpio;
-static bool som_gpio_value;
+
 static uint8_t can_mode_last;
 static int can_mode_call_count;
+static uint32_t e2e_voltage_mV = 12000;
+static uint32_t e2e_current_mA = 0;
 void board_set_can_mode_stub(uint8_t mode) {
     can_mode_last = mode;
     can_mode_call_count++;
 }
-uint32_t board_read_voltage_mV_stub(void) { return 12000; }
-uint32_t board_read_current_mA_stub(void) { return 0; }
+uint32_t board_read_voltage_mV_stub(void) { return e2e_voltage_mV; }
+uint32_t board_read_current_mA_stub(void) { return e2e_current_mA; }
+
+void jna_set_voltage_mV(int val) { e2e_voltage_mV = (uint32_t)val; }
+void jna_set_current_mA(int val) { e2e_current_mA = (uint32_t)val; }
 
 // Tracking stub for set_ir_power — records all calls
 #define MAX_IR_POWER_CALLS 16
 static uint8_t ir_power_values[MAX_IR_POWER_CALLS];
 static int ir_power_call_count;
 void board_set_ir_power_stub(uint8_t p) {
-    if (ir_power_call_count < MAX_IR_POWER_CALLS) {
-        ir_power_values[ir_power_call_count] = p;
-    }
+    // Write IR power percentage to fake PWM register (TIM CCR)
+    // Real implementations use pwm_set(TIMx, channel, percentage)
+    // For e2e testing, record in TIM CCR for verification
+    fake_TIM1.CCR1 = p;  // IR PWM duty cycle
     ir_power_call_count++;
 }
 void board_set_fan_enabled_stub(bool en) { (void)en; }
-void board_set_siren_stub(bool en) { siren_enabled = en; }
+void board_set_siren_stub(bool en);
 static void stub_unused_set_amp_enabled(bool en) { (void)en; }
 // Forward declarations — defined in board_stubs_e2e.gen.c (included after macro overrides)
 void cuatro_set_bootkick(BootState state);
@@ -231,7 +239,7 @@ void cuatro_enable_can_transceiver(uint8_t transceiver, bool enabled);
 void tres_set_bootkick(BootState state);
 void tres_enable_can_transceiver(uint8_t transceiver, bool enabled);
 void red_enable_can_transceiver(uint8_t transceiver, bool enabled);
-bool board_read_som_gpio_stub(void) { return som_gpio_value; }
+bool board_read_som_gpio_stub(void);
 
 struct harness_configuration harness_config_stub = {
     .GPIO_SBU1 = (GPIO_TypeDef *)&e2e_GPIOC,
@@ -271,11 +279,7 @@ const struct board *current_board = &board_stub;
 // Recording stub: captures last set_intercept_relay call for test verification
 static bool relay_a, relay_b;
 static int relay_call_count;
-void set_intercept_relay(bool a, bool b) {
-    relay_a = a;
-    relay_b = b;
-    relay_call_count++;
-}
+void set_intercept_relay(bool a, bool b);
 void harness_init(void) {}
 void harness_tick(void) {}
 bool harness_check_ignition(void) { return false; }
@@ -300,12 +304,17 @@ void peripherals_init(void) {}
 void detect_board_type(void) {}
 void get_provision_chunk(uint8_t *out) { if (out) out[0] = 0; }
 
-// Tracking stub: records last enable_can_transceivers call
+// Tracking stub: records last enable_can_transceivers call AND drives real GPIO
 static bool last_can_transceivers_enabled;
 static int can_transceivers_call_count;
 void enable_can_transceivers(bool en) {
     last_can_transceivers_enabled = en;
     can_transceivers_call_count++;
+    // Drive real GPIO via board implementation
+    uint8_t main_bus = 1U;
+    for (uint8_t i = 1U; i <= 4U; i++) {
+        current_board->enable_can_transceiver(i, (i == main_bus) || en);
+    }
 }
 
 // ---- REAL set_power_save_state (auto-generated from board/sys/power_saving.h) ----
@@ -389,6 +398,8 @@ void jna_reset_stop_mode_tracking(void) {
     isb_called = false;
     wfi_entered = false;
     nvic_irq_enable_count = 0;
+    e2e_voltage_mV = 12000;
+    e2e_current_mA = 0;
     // Zero all fake register instances
     e2e_GPIOA = (GPIO_TypeDef){0};   e2e_GPIOB = (GPIO_TypeDef){0};
     e2e_GPIOC = (GPIO_TypeDef){0};   e2e_GPIOD = (GPIO_TypeDef){0};
@@ -534,6 +545,37 @@ void jna_process_stop_mode(void) {
     if (stop_mode_requested) {
         enter_stop_mode();
     }
+}
+
+// Real board_read_som_gpio (after GPIO macro overrides)
+bool board_read_som_gpio_stub(void) {
+#if defined(E2E_BOARD_TRES)
+    return get_gpio_input(GPIOB, 1);
+#elif defined(E2E_BOARD_RED)
+    return false;
+#else
+    return !get_gpio_input(GPIOC, 3);
+#endif
+}
+
+// Siren stub (after GPIO macro overrides)
+void board_set_siren_stub(bool en) {
+    set_gpio_output(GPIOB, 14, en);
+}
+
+// Simulate main.c tick handler — applies siren_enabled flag to GPIO
+void jna_tick_siren(void) {
+    current_board->set_siren(siren_enabled);
+}
+
+// Real relay control (after GPIO macro overrides)
+void set_intercept_relay(bool a, bool b) {
+    // Cuatro: relay SBU1 = PA9 (ignition), relay SBU2 = PA3 (intercept), active-low
+    set_gpio_output(GPIOA, 9, !b);
+    set_gpio_output(GPIOA, 3, !a);
+    relay_a = a;
+    relay_b = b;
+    relay_call_count++;
 }
 
 // ---- Faithful can_init: writes to fake FDCAN_GlobalTypeDef registers ----
@@ -913,6 +955,7 @@ int jna_get_bus_can_data_speed(int bus) {
 // After clock_source_set_timer_params(param1, param2), the fake TIM
 // registers are set to computed values. Expose them for verification.
 uint32_t jna_get_TIM1_CCR1(void) { return fake_TIM1.CCR1; }
+uint32_t jna_get_ir_pwm(void)               { return fake_TIM1.CCR1; }
 uint32_t jna_get_TIM1_CCR2(void) { return fake_TIM1.CCR2; }
 uint32_t jna_get_TIM8_CCR3(void) { return fake_TIM8.CCR3; }
 uint32_t jna_get_TIM1_ARR(void)  { return fake_TIM1.ARR; }
@@ -949,7 +992,15 @@ void jna_set_gitversion(const char *val) {
     }
     gitversion[len] = '\0';
 }
-void jna_set_som_gpio(int val) { som_gpio_value = (val != 0); }
+void jna_set_som_gpio(int val) {
+#if defined(E2E_BOARD_TRES)
+    // Tres: SOM GPIO is on GPIOB pin 1, active-high
+    if (val) e2e_GPIOB.IDR |= (1U << 1); else e2e_GPIOB.IDR &= ~(1U << 1);
+#else
+    // Cuatro/Red: GPIOC pin 3, active-low
+    if (val) e2e_GPIOC.IDR &= ~(1U << 3); else e2e_GPIOC.IDR |= (1U << 3);
+#endif
+}
 
 // ---- JNA API: CAN health inspection ----
 int jna_get_can_health_speed(int bus) {

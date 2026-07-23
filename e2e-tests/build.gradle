@@ -66,20 +66,15 @@ tasks.register('cucumber', JavaExec) {
     classpath = configurations.cucumberRuntime + sourceSets.main.output + sourceSets.test.output
     jvmArgs "-Dfile.encoding=UTF-8", "-Dsun.jnu.encoding=utf-8"
     def boardName = project.hasProperty('board') ? project.board : 'cuatro'
-    def tagExpr = null
-    if (project.hasProperty('board')) {
-        // Exclude board-specific scenarios for OTHER boards
-        def others = ['cuatro','tres','red'].findAll { it != boardName }
-        tagExpr = others.collect { "not @$it" }.join(' and ')
-    }
+    // Always exclude board-specific scenarios for non-current boards
+    def others = ['cuatro','tres','red'].findAll { it != boardName }
+    def tagExpr = others.collect { "not @$it" }.join(' and ')
     args = ['--plugin', 'pretty',
             '--plugin', 'html:build/reports/cucumber/cucumber-html.html',
             '--glue', 'com.panda.e2e',
             '--glue', 'org.testcharm',
             project.hasProperty('file') ? project.file : 'src/test/resources/features']
-    if (tagExpr) {
-        args += ['--tags', tagExpr]
-    }
+    args += ['--tags', tagExpr]
     systemProperty 'java.library.path',
             file('src/test/c').absolutePath
     systemProperty 'panda.board', boardName
@@ -101,9 +96,7 @@ tasks.register('cucumberCoverage', JavaExec) {
             '--glue', 'com.panda.e2e',
             '--glue', 'org.testcharm',
             project.hasProperty('file') ? project.file : 'src/test/resources/features']
-    if (tagExpr) {
-        args += ['--tags', tagExpr]
-    }
+    args += ['--tags', tagExpr]
     systemProperty 'java.library.path',
             file('src/test/c').absolutePath
     systemProperty 'panda.board', boardName

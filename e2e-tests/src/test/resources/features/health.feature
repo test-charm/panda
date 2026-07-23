@@ -77,3 +77,47 @@ Feature: Health Packet Retrieval
         }
       }
       """
+
+  Scenario: Health packet voltage reflects settable e2e value
+    Given exists data:
+      """
+      ControlSetup: {
+        voltageMV: 13500
+      }
+      """
+    When control write:
+      """
+      GetHealth: {
+        param1: 0
+      }
+      """
+    Then control data should be:
+      """
+      : {
+        healthPacket: {
+          voltage: 13500
+        }
+      }
+      """
+
+  Scenario: Health packet current reflects settable e2e value
+    Given exists data:
+      """
+      ControlSetup: {
+        currentMA: 500
+      }
+      """
+    When control write:
+      """
+      GetHealth: {
+        param1: 0
+      }
+      """
+    Then control data should be:
+      """
+      : {
+        healthPacket: {
+          current: 500
+        }
+      }
+      """

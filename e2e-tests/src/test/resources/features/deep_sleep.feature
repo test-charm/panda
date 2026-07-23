@@ -13,9 +13,8 @@ Feature: Deep Sleep Request
     Then control data should be:
       """
       : {
-        relayCall= {
-          a: false
-          b: false
+        stopModeRegs: {
+          gpioAOdr: 520L
         }
         powerSaveEnabled: true
         stopModeRequested: true
@@ -214,7 +213,7 @@ Feature: Deep Sleep Request
       """
       : {
         stopModeRegs: {
-          gpioAOdr: 1L             # PA0: bootkick STANDBY = high
+          gpioAOdr: 521L            # PA0→bootkick=1 + PA3+PA9→relay off=1 (set by SILENT mode)
           gpioBOdr: 3200L          # PB0: amp off=low, PB7+PB10+PB11: CAN1/2/4 disable=high
           gpioCOdr: 2048L          # PC11: bootkick STANDBY = high
           gpioDOdr: 256L           # PD8: CAN3 disable = high
@@ -233,7 +232,7 @@ Feature: Deep Sleep Request
       """
       : {
         stopModeRegs: {
-          gpioAOdr: 1L             # PA0: bootkick = high
+          gpioAOdr: 521L            # PA0→bootkick=1 + PA3+PA9→relay off (set by SILENT mode via set_intercept_relay)
           gpioBOdr: 3072L          # PB10+PB11: CAN2/4 disable=high
           gpioCOdr: 4096L          # PC12: bootkick = high
           gpioDOdr: 128L           # PD7: tied-CAN = high

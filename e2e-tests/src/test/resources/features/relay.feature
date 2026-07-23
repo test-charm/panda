@@ -13,9 +13,8 @@ Feature: Intercept Relay Control
     Then control data should be:
       """
       : {
-        relayCall= {
-          a: false
-          b: false
+        stopModeRegs: {
+          gpioAOdr: 520L    # PA3+PA9 both high (active-low, so relays OFF)
         }
       }
       """
@@ -30,9 +29,8 @@ Feature: Intercept Relay Control
     Then control data should be:
       """
       : {
-        relayCall= {
-          a: true
-          b: false
+        stopModeRegs: {
+          gpioAOdr: 512L    # PA3=low(A on), PA9=high(B off)
         }
       }
       """
@@ -47,9 +45,8 @@ Feature: Intercept Relay Control
     Then control data should be:
       """
       : {
-        relayCall= {
-          a: false
-          b: true
+        stopModeRegs: {
+          gpioAOdr: 8L      # PA3=high(A off), PA9=low(B on)
         }
       }
       """
@@ -64,14 +61,13 @@ Feature: Intercept Relay Control
     Then control data should be:
       """
       : {
-        relayCall= {
-          a: true
-          b: true
+        stopModeRegs: {
+          gpioAOdr: 0L      # PA3+PA9 both low (both ON)
         }
       }
       """
 
-  Scenario: Higher bits ignored — param1=0xFF behaves as both on (bitmasked to 0b11)
+  Scenario: Higher bits ignored — param1=0xFF behaves as both on
     When control write:
       """
       DriveRelay: {
@@ -81,14 +77,13 @@ Feature: Intercept Relay Control
     Then control data should be:
       """
       : {
-        relayCall= {
-          a: true
-          b: true
+        stopModeRegs: {
+          gpioAOdr: 0L
         }
       }
       """
 
-  Scenario: Higher bits ignored — param1=4 behaves as both off (bitmasked to 0b00)
+  Scenario: Higher bits ignored — param1=4 behaves as both off
     When control write:
       """
       DriveRelay: {
@@ -98,9 +93,8 @@ Feature: Intercept Relay Control
     Then control data should be:
       """
       : {
-        relayCall= {
-          a: false
-          b: false
+        stopModeRegs: {
+          gpioAOdr: 520L
         }
       }
       """

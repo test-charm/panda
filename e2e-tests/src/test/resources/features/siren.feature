@@ -1,7 +1,7 @@
 # language: en
 Feature: Siren Control
 
-  Scenario: Disabling siren with param1=0
+  Scenario: Disabling siren sets GPIO PB14 low
     When control write:
       """
       UsbControlRequest: {
@@ -10,24 +10,30 @@ Feature: Siren Control
         param2: 0
       }
       """
+    When tick siren:
     Then control data should be:
       """
       : {
-        sirenEnabled: false
+        stopModeRegs: {
+          gpioBOdr: 0L
+        }
       }
       """
 
-  Scenario: Enabling siren with param1=1
+  Scenario: Enabling siren sets GPIO PB14 high
     When control write:
       """
       SetSiren: {
         param1: 1
       }
       """
+    When tick siren:
     Then control data should be:
       """
       : {
-        sirenEnabled: true
+        stopModeRegs: {
+          gpioBOdr: 16384L
+        }
       }
       """
 
@@ -38,9 +44,12 @@ Feature: Siren Control
         param1: 255
       }
       """
+    When tick siren:
     Then control data should be:
       """
       : {
-        sirenEnabled: true
+        stopModeRegs: {
+          gpioBOdr: 16384L
+        }
       }
       """

@@ -13,7 +13,7 @@ Feature: IR Power Control
     Then control data should be:
       """
       : {
-        irPower: [0]
+        irPwm: 0
       }
       """
 
@@ -27,7 +27,7 @@ Feature: IR Power Control
     Then control data should be:
       """
       : {
-        irPower: [50]
+        irPwm: 50
       }
       """
 
@@ -41,6 +41,6 @@ Feature: IR Power Control
     Then control data should be:
       """
       : {
-        irPower: [255]
+        irPwm: 255
       }
       """

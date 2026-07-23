@@ -23,6 +23,12 @@ Feature: CAN Communications Reset
       """
 
   Scenario: Reset does not affect safety mode or relay state
+    Given exists data:
+      """
+      SetSafetyMode: {
+        param1: 0
+      }
+      """
     When control write:
       """
       ResetCanComms: {
@@ -33,9 +39,8 @@ Feature: CAN Communications Reset
       """
       : {
         safetyTxBlocked: 0
-        relayCall= {
-          a: false
-          b: false
+        stopModeRegs: {
+          gpioAOdr: 520L
         }
         rxQueue: []
         txQueue[0]: []
@@ -58,9 +63,8 @@ Feature: CAN Communications Reset
     Then control data should be:
       """
       : {
-        relayCall= {
-          a: true
-          b: false
+        stopModeRegs: {
+          gpioAOdr: 512L
         }
       }
       """

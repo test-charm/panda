@@ -140,6 +140,7 @@ public class PandaClient {
 
         // Siren state inspection
         int jna_get_siren_enabled();
+        long jna_get_ir_pwm();
 
         void jna_reset_siren();
 
@@ -226,6 +227,8 @@ public class PandaClient {
         void jna_set_gitversion(String val);
 
         void jna_set_som_gpio(int val);
+        void jna_set_voltage_mV(int val);
+        void jna_set_current_mA(int val);
 
         int jna_get_nvic_reset_count();
 
@@ -237,6 +240,7 @@ public class PandaClient {
         int jna_get_enter_stop_mode_call_count();
 
         void jna_process_stop_mode();
+        void jna_tick_siren();
 
         void jna_reset_stop_mode_tracking();
 
@@ -702,6 +706,14 @@ public class PandaClient {
         lib.jna_set_som_gpio(val);
     }
 
+    public void setVoltageMV(int val) {
+        lib.jna_set_voltage_mV(val);
+    }
+
+    public void setCurrentMA(int val) {
+        lib.jna_set_current_mA(val);
+    }
+
     public int getNvicResetCount() {
         return lib.jna_get_nvic_reset_count();
     }
@@ -757,6 +769,10 @@ public class PandaClient {
         private final int nvicIrqEnableCount;
     }
 
+    public int getIrPwm() {
+        return (int) lib.jna_get_ir_pwm();
+    }
+
     public StopModeRegs getStopModeRegs() {
         return new StopModeRegs(
                 lib.jna_get_reg_GPIOA_MODER(),
@@ -808,6 +824,10 @@ public class PandaClient {
 
     public void processStopMode() {
         lib.jna_process_stop_mode();
+    }
+
+    public void tickSiren() {
+        lib.jna_tick_siren();
     }
 
     // ---- CAN health inspection ----

@@ -33,8 +33,12 @@ drive relay (0xc5):
 
 | 输出 | 类型 | 说明 |
 |------|------|------|
-| relayCall.a | boolean (nullable) | 继电器 A 状态，null = 未调用 |
-| relayCall.b | boolean (nullable) | 继电器 B 状态，null = 未调用 |
+| stopModeRegs.gpioAOdr | long | GPIOA ODR bit 3 (intercept) + bit 9 (ignition), active-low |
+|||
+| a=false,b=false → ODR=520 (bit3+bit9 HIGH, both off) |
+| a=true,b=false → ODR=512 (bit3 LOW, bit9 HIGH, intercept on) |
+| a=false,b=true → ODR=8 (bit3 HIGH, bit9 LOW, ignition on) |
+| a=true,b=true → ODR=0 (both LOW, both on) |
 
 ## 4. 测试用例
 

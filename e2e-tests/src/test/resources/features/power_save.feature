@@ -143,3 +143,47 @@ Feature: Power Save State Control
         }
       }
       """
+
+  @cuatro
+  Scenario: Enabling power save drives CAN transceiver GPIO pins
+    When control write:
+      """
+      SetPowerSaveState: {
+        param1: 1
+      }
+      """
+    Then control data should be:
+      """
+      : {
+        powerSaveEnabled: true
+        stopModeRegs: {
+          gpioBOdr: 3072L          # PB10+PB11: CAN2/4 disabled (active-low HIGH)
+          gpioDOdr: 256L           # PD8: CAN3 disabled
+        }
+      }
+      """
+
+  @cuatro
+  Scenario: Disabling power save releases CAN transceiver GPIO pins
+    Given exists data:
+      """
+      SetPowerSaveState: {
+        param1: 1
+      }
+      """
+    When control write:
+      """
+      SetPowerSaveState: {
+        param1: 0
+      }
+      """
+    Then control data should be:
+      """
+      : {
+        powerSaveEnabled: false
+        stopModeRegs: {
+          gpioBOdr: 0L
+          gpioDOdr: 0L
+        }
+      }
+      """

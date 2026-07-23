@@ -22,9 +22,8 @@ Feature: Safety Mode Switching
       """
       : {
         safetyTxBlocked: 1
-        relayCall= {
-          a: false
-          b: false
+        stopModeRegs: {
+          gpioAOdr: 520L      # PA3+PA9 high (relays off, SILENT)
         }
         canModeCall= {
           value: 0
@@ -59,9 +58,8 @@ Feature: Safety Mode Switching
       """
       : {
         safetyTxBlocked: 1
-        relayCall= {
-          a: false
-          b: false
+        stopModeRegs: {
+          gpioAOdr: 520L
         }
         canModeCall= {
           value: 0
@@ -98,9 +96,8 @@ Feature: Safety Mode Switching
           counter: 0
           lost: 0
         }
-        relayCall= {
-          a: true
-          b: false
+        stopModeRegs: {
+          gpioAOdr: 512L      # PA3 low (intercept on), PA9 high (ignition off)
         }
         canModeCall= {
           value: 0
@@ -139,9 +136,8 @@ Feature: Safety Mode Switching
           counter: 0
           lost: 0
         }
-        relayCall= {
-          a: false
-          b: false
+        stopModeRegs: {
+          gpioAOdr: 520L
         }
         fdcanRegs[1].ir[3]: 0b0011_1111y
         canModeCall= {
@@ -179,9 +175,8 @@ Feature: Safety Mode Switching
           counter: 0
           lost: 0
         }
-        relayCall= {
-          a: false
-          b: false
+        stopModeRegs: {
+          gpioAOdr: 520L
         }
         fdcanRegs[1].ir[3]: 0b0011_1111y
         canModeCall= {
@@ -217,9 +212,8 @@ Feature: Safety Mode Switching
           counter: 0
           lost: 0
         }
-        relayCall= {
-          a: true
-          b: false
+        stopModeRegs: {
+          gpioAOdr: 512L
         }
         canModeCall= {
           value: 0
@@ -252,9 +246,8 @@ Feature: Safety Mode Switching
       """
       : {
         safetyTxBlocked: 1
-        relayCall= {
-          a: false
-          b: false
+        stopModeRegs: {
+          gpioAOdr: 520L
         }
         canModeCall= {
           value: 0

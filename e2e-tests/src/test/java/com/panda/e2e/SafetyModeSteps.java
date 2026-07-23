@@ -48,6 +48,11 @@ public class SafetyModeSteps {
         client.processStopMode();
     }
 
+    @When("tick siren:")
+    public void tickSiren() {
+        client.tickSiren();
+    }
+
     @Then("control data should be:")
     public void controlDataShould(String expression) {
         expect(client).should(expression);
@@ -73,5 +78,7 @@ public class SafetyModeSteps {
         public int fdcanPsr;
         public int fdcanEcr;
         public int irReg;
+        public int voltageMV;
+        public int currentMA;
     }
 }

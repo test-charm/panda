@@ -1,6 +1,7 @@
 # language: en
 Feature: SOM GPIO Reading
 
+  @cuatro @tres
   Scenario: Reading SOM GPIO with preset value returns 1 in resp buffer
     Given exists data:
       """

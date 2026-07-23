@@ -80,6 +80,12 @@ public class Factories {
             if (setup.somGpio != 0) {
                 client.setSomGpio(setup.somGpio);
             }
+            if (setup.voltageMV != 0) {
+                client.setVoltageMV(setup.voltageMV);
+            }
+            if (setup.currentMA != 0) {
+                client.setCurrentMA(setup.currentMA);
+            }
             if (setup.fdcanPsr != 0) {
                 client.setFdcanPsr(0, setup.fdcanPsr);
             }
