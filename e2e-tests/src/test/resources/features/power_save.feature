@@ -187,3 +187,93 @@ Feature: Power Save State Control
         }
       }
       """
+
+  @tres
+  Scenario: Enabling power save drives CAN transceiver GPIO for tres
+    When control write:
+      """
+      SetPowerSaveState: {
+        param1: 1
+      }
+      """
+    Then control data should be:
+      """
+      : {
+        powerSaveEnabled: true
+        stopModeRegs: {
+          gpioBOdr: 3072L          # PB10+PB11: CAN2/4 disabled
+          gpioDOdr: 0L             # CAN3 software-only, tied-CAN low (bus1 enabled)
+        }
+      }
+      """
+
+  @tres
+  Scenario: Disabling power save releases CAN transceiver GPIO for tres
+    Given exists data:
+      """
+      SetPowerSaveState: {
+        param1: 1
+      }
+      """
+    When control write:
+      """
+      SetPowerSaveState: {
+        param1: 0
+      }
+      """
+    Then control data should be:
+      """
+      : {
+        powerSaveEnabled: false
+        stopModeRegs: {
+          gpioBOdr: 0L
+          gpioDOdr: 0L
+        }
+      }
+      """
+
+  @red
+  Scenario: Enabling power save drives CAN transceiver GPIO for red
+    When control write:
+      """
+      SetPowerSaveState: {
+        param1: 1
+      }
+      """
+    Then control data should be:
+      """
+      : {
+        powerSaveEnabled: true
+        stopModeRegs: {
+          gpioBOdr: 24L            # PB3+PB4: CAN2/4 disabled
+          gpioDOdr: 128L           # PD7: CAN3 disabled
+          gpioGOdr: 0L             # PG11: bus1 stays enabled (main bus)
+        }
+      }
+      """
+
+  @red
+  Scenario: Disabling power save releases CAN transceiver GPIO for red
+    Given exists data:
+      """
+      SetPowerSaveState: {
+        param1: 1
+      }
+      """
+    When control write:
+      """
+      SetPowerSaveState: {
+        param1: 0
+      }
+      """
+    Then control data should be:
+      """
+      : {
+        powerSaveEnabled: false
+        stopModeRegs: {
+          gpioBOdr: 0L
+          gpioDOdr: 0L
+          gpioGOdr: 0L
+        }
+      }
+      """

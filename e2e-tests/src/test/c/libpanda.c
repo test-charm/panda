@@ -208,10 +208,7 @@ static uint8_t can_mode_last;
 static int can_mode_call_count;
 static uint32_t e2e_voltage_mV = 12000;
 static uint32_t e2e_current_mA = 0;
-void board_set_can_mode_stub(uint8_t mode) {
-    can_mode_last = mode;
-    can_mode_call_count++;
-}
+void board_set_can_mode_stub(uint8_t mode);
 uint32_t board_read_voltage_mV_stub(void) { return e2e_voltage_mV; }
 uint32_t board_read_current_mA_stub(void) { return e2e_current_mA; }
 
@@ -229,7 +226,7 @@ void board_set_ir_power_stub(uint8_t p) {
     fake_TIM1.CCR1 = p;  // IR PWM duty cycle
     ir_power_call_count++;
 }
-void board_set_fan_enabled_stub(bool en) { (void)en; }
+void board_set_fan_enabled_stub(bool en);
 void board_set_siren_stub(bool en);
 static void stub_unused_set_amp_enabled(bool en) { (void)en; }
 // Forward declarations — defined in board_stubs_e2e.gen.c (included after macro overrides)
@@ -239,7 +236,19 @@ void cuatro_enable_can_transceiver(uint8_t transceiver, bool enabled);
 void tres_set_bootkick(BootState state);
 void tres_enable_can_transceiver(uint8_t transceiver, bool enabled);
 void red_enable_can_transceiver(uint8_t transceiver, bool enabled);
+void tres_set_can_mode(uint8_t mode);
+void red_set_can_mode(uint8_t mode);
 bool board_read_som_gpio_stub(void);
+
+void board_set_can_mode_stub(uint8_t mode) {
+    can_mode_last = mode;
+    can_mode_call_count++;
+#if defined(E2E_BOARD_RED)
+    red_set_can_mode(mode);
+#else
+    tres_set_can_mode(mode);
+#endif
+}
 
 struct harness_configuration harness_config_stub = {
     .GPIO_SBU1 = (GPIO_TypeDef *)&e2e_GPIOC,
@@ -357,6 +366,7 @@ uint32_t jna_get_reg_GPIOA_ODR(void)   { return e2e_GPIOA.ODR; }
 uint32_t jna_get_reg_GPIOB_ODR(void)   { return e2e_GPIOB.ODR; }
 uint32_t jna_get_reg_GPIOC_ODR(void)   { return e2e_GPIOC.ODR; }
 uint32_t jna_get_reg_GPIOD_ODR(void)   { return e2e_GPIOD.ODR; }
+uint32_t jna_get_reg_GPIOB_PUPDR(void)  { return e2e_GPIOB.PUPDR; }
 uint32_t jna_get_reg_GPIOE_ODR(void)   { return e2e_GPIOE.ODR; }
 uint32_t jna_get_reg_GPIOF_ODR(void)   { return e2e_GPIOF.ODR; }
 uint32_t jna_get_reg_GPIOG_ODR(void)   { return e2e_GPIOG.ODR; }
@@ -520,6 +530,7 @@ void __WFI(void) { wfi_entered = true; }
 #define MODE_OUTPUT 1U
 #define MODE_ANALOG 3U
 #define PULL_NONE 0U
+#define GPIO_AF9_FDCAN2    ((uint8_t)0x09)
 #define OUTPUT_TYPE_OPEN_DRAIN 1U
 #define EXTI1_IRQn        7
 #define EXTI4_IRQn        10
@@ -561,6 +572,15 @@ bool board_read_som_gpio_stub(void) {
 // Siren stub (after GPIO macro overrides)
 void board_set_siren_stub(bool en) {
     set_gpio_output(GPIOB, 14, en);
+}
+
+// Fan enabled (after GPIO macro overrides)
+void board_set_fan_enabled_stub(bool en) {
+#if defined(E2E_BOARD_TRES) || defined(E2E_BOARD_RED)
+    (void)en;  // tres: software-controlled via pwm, red: unused
+#else
+    set_gpio_output(GPIOD, 3, !en);  // Cuatro: PD3 active-low
+#endif
 }
 
 // Simulate main.c tick handler — applies siren_enabled flag to GPIO

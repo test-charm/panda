@@ -262,6 +262,7 @@ public class PandaClient {
         long jna_get_reg_GPIOB_ODR();
         long jna_get_reg_GPIOC_ODR();
         long jna_get_reg_GPIOD_ODR();
+        long jna_get_reg_GPIOB_PUPDR();
         long jna_get_reg_GPIOE_ODR();
         long jna_get_reg_GPIOF_ODR();
         long jna_get_reg_GPIOG_ODR();
@@ -741,6 +742,7 @@ public class PandaClient {
         private final long gpioEOdr;
         private final long gpioFOdr;
         private final long gpioGOdr;
+        private final long gpioBPupdr;
         private final long adc1Cr;
         private final long adc2Cr;
         private final long rccCr;
@@ -789,6 +791,7 @@ public class PandaClient {
                 lib.jna_get_reg_GPIOE_ODR(),
                 lib.jna_get_reg_GPIOF_ODR(),
                 lib.jna_get_reg_GPIOG_ODR(),
+                lib.jna_get_reg_GPIOB_PUPDR(),
                 lib.jna_get_reg_ADC1_CR(),
                 lib.jna_get_reg_ADC2_CR(),
                 lib.jna_get_reg_RCC_CR(),

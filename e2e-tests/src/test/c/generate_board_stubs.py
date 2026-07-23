@@ -84,5 +84,32 @@ def generate():
     return "\n".join(result)
 
 
+# ---- Always-included helpers (not board-specific) ----
+def generate_shared():
+    """Generate functions that are shared across boards."""
+    result = []
+
+    # tres_set_can_mode — used by cuatro and tres
+    source_tres = read_file(BOARDS["tres"])
+    func = extract_function(source_tres, "tres", "set_can_mode")
+    if func:
+        result.append("// tres_set_can_mode — shared by cuatro and tres")
+        result.append(func)
+        result.append("")
+
+    # red_set_can_mode — used by red only
+    source_red = read_file(BOARDS["red"])
+    func = extract_function(source_red, "red", "set_can_mode")
+    if func:
+        result.append("#ifdef E2E_BOARD_RED")
+        result.append("// red_set_can_mode")
+        result.append(func)
+        result.append("#endif")
+        result.append("")
+
+    return "\n".join(result)
+
+
 if __name__ == "__main__":
     print(generate())
+    print(generate_shared())
