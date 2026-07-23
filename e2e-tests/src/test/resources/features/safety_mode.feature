@@ -36,7 +36,7 @@ Feature: Safety Mode Switching
           data.string: blocked
         }
         txQueue[0]: []
-        fdcanRegs[0]= {
+        fdcanRegs[0]: {
           cccr: [ 0b0010_0000y, 0b0101_0011y ]
         }
       }
@@ -66,12 +66,12 @@ Feature: Safety Mode Switching
         canModeCall= {
           value: 0
         }
-        rxQueue= {
+        rxQueue: {
           rejected: true
           data.string: blocked
         }
         txQueue[0]: []
-        fdcanRegs[0]= {
+        fdcanRegs[0]: {
           cccr: [ 0b0000_0000y, 0b0101_0011y ]
         }
       }
@@ -94,7 +94,7 @@ Feature: Safety Mode Switching
       """
       : {
         safetyTxBlocked: 0
-        heartbeat= {
+        heartbeat: {
           counter: 0
           lost: 0
         }
@@ -106,11 +106,11 @@ Feature: Safety Mode Switching
           value: 0
         }
         rxQueue: []
-        txQueue[0]= {
+        txQueue[0]: {
           rejected: false
           data.string: allowed
         }
-        fdcanRegs[0]= {
+        fdcanRegs[0]: {
           cccr: [ 0b0000_0000y, 0b0101_0011y ]
         }
       }
@@ -135,7 +135,7 @@ Feature: Safety Mode Switching
       """
       : {
         safetyTxBlocked: 0
-        heartbeat= {
+        heartbeat: {
           counter: 0
           lost: 0
         }
@@ -148,7 +148,7 @@ Feature: Safety Mode Switching
           value: 1
         }
         rxQueue: []
-        txQueue[0]= {
+        txQueue[0]: {
           address: 2015
           rejected: false
           data.string: '12345678'
@@ -175,7 +175,7 @@ Feature: Safety Mode Switching
       """
       : {
         safetyTxBlocked: 0
-        heartbeat= {
+        heartbeat: {
           counter: 0
           lost: 0
         }
@@ -188,7 +188,7 @@ Feature: Safety Mode Switching
           value: 0
         }
         rxQueue: []
-        txQueue[0]= {
+        txQueue[0]: {
           address: 2015
           rejected: false
           data.string: '12345678'
@@ -213,7 +213,7 @@ Feature: Safety Mode Switching
       """
       : {
         safetyTxBlocked: 1
-        heartbeat= {
+        heartbeat: {
           counter: 0
           lost: 0
         }
@@ -224,12 +224,12 @@ Feature: Safety Mode Switching
         canModeCall= {
           value: 0
         }
-        rxQueue= {
+        rxQueue: {
           rejected: true
           data.string: blocked
         }
         txQueue[0]: []
-        fdcanRegs[0]= {
+        fdcanRegs[0]: {
           cccr: [ 0b0000_0000y, 0b0101_0011y ]
         }
       }
@@ -259,12 +259,12 @@ Feature: Safety Mode Switching
         canModeCall= {
           value: 0
         }
-        rxQueue= {
+        rxQueue: {
           rejected: true
           data.string: blocked
         }
         txQueue[0]: []
-        fdcanRegs[0]= {
+        fdcanRegs[0]: {
           cccr: [ 0b0010_0000y, 0b0101_0011y ]
         }
       }
@@ -289,7 +289,7 @@ Feature: Safety Mode Switching
     Then control data should be:
       """
       : {
-        heartbeat= {
+        heartbeat: {
           counter: 0
           lost: 0
         }

@@ -90,7 +90,7 @@ Feature: CAN Ring Buffer Clear
     Then control data should be:
       """
       : {
-        txQueue[0]= {
+        txQueue[0]: {
           rejected: false
           data.string: no-clear
         }

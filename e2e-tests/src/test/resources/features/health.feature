@@ -42,7 +42,7 @@ Feature: Health Packet Retrieval
     Then control data should be:
       """
       : {
-        healthPacket= {
+        healthPacket: {
           safetyMode: 2
           safetyParam: 0
           heartbeatLost: 0
@@ -69,7 +69,7 @@ Feature: Health Packet Retrieval
     Then control data should be:
       """
       : {
-        healthPacket= {
+        healthPacket: {
           safetyMode: 0
           safetyTxBlocked: 1
           safetyRxInvalid: 0

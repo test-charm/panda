@@ -2,6 +2,8 @@ package com.panda.e2e;
 
 import com.sun.jna.Library;
 import com.sun.jna.Native;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
 import org.springframework.stereotype.Component;
 import org.testcharm.dal.runtime.AdaptiveList;
 
@@ -16,15 +18,28 @@ import java.util.List;
 @Component
 public class PandaClient {
 
-    public record CanMessage(int address, int bus, byte[] data, boolean rejected) {
+    @AllArgsConstructor
+    @Getter
+    public static class CanMessage {
+        private final int address;
+        private final int bus;
+        private final byte[] data;
+        private final boolean rejected;
     }
 
-    public record RelayCall(boolean a, boolean b) {
+    @AllArgsConstructor
+    @Getter
+    public static class RelayCall {
+        private final boolean a;
+        private final boolean b;
     }
 
 
     // Simple wrapper needed for DAL-java to distinguish "not called" (null) from "called with value"
-    public record CanModeCall(int value) {
+    @AllArgsConstructor
+    @Getter
+    public static class CanModeCall {
+        private final int value;
     }
 
     public interface PandaLib extends Library {
@@ -362,19 +377,20 @@ public class PandaClient {
      * GFC:    Global Filter Configuration (0 = promiscuous mode)
      * ILE:    Interrupt Line Enable (INT0 + INT1)
      */
-    public record FdcanRegs(
-            List<Byte> cccr,
-            List<Byte> ie,
-            List<Byte> nbtp,
-            List<Byte> dbtp,
-            List<Byte> txbc,
-            List<Byte> rxf0c,
-            List<Byte> txesc,
-            List<Byte> rxesc,
-            List<Byte> gfc,
-            List<Byte> ile,
-            List<Byte> ir
-    ) {
+    @AllArgsConstructor
+    @Getter
+    public static class FdcanRegs {
+        private final List<Byte> cccr;
+        private final List<Byte> ie;
+        private final List<Byte> nbtp;
+        private final List<Byte> dbtp;
+        private final List<Byte> txbc;
+        private final List<Byte> rxf0c;
+        private final List<Byte> txesc;
+        private final List<Byte> rxesc;
+        private final List<Byte> gfc;
+        private final List<Byte> ile;
+        private final List<Byte> ir;
     }
 
     private static List<Byte> bytes(int val, int count) {
@@ -413,12 +429,13 @@ public class PandaClient {
     }
 
     // ---- Heartbeat state ----
-    public record Heartbeat(
-            int counter,
-            int lost,
-            int disabled,
-            int engaged
-    ) {
+    @AllArgsConstructor
+    @Getter
+    public static class Heartbeat {
+        private final int counter;
+        private final int lost;
+        private final int disabled;
+        private final int engaged;
     }
 
     public Heartbeat getHeartbeat() {
@@ -444,18 +461,19 @@ public class PandaClient {
 
     // ---- Power-save hardware call tracking ----
 
-    public record PowerSaveTracking(
-            int irqEnableCount,
-            int irqDisableCount,
-            int lastIrqEnabledBus,
-            boolean irqDisabledBus0,
-            boolean irqDisabledBus1,
-            boolean irqDisabledBus2,
-            boolean canTransceiversEnabled,
-            int canTransceiversCallCount,
-            int irPowerValue,
-            int irPowerCallCount
-    ) {
+    @AllArgsConstructor
+    @Getter
+    public static class PowerSaveTracking {
+        private final int irqEnableCount;
+        private final int irqDisableCount;
+        private final int lastIrqEnabledBus;
+        private final boolean irqDisabledBus0;
+        private final boolean irqDisabledBus1;
+        private final boolean irqDisabledBus2;
+        private final boolean canTransceiversEnabled;
+        private final int canTransceiversCallCount;
+        private final int irPowerValue;
+        private final int irPowerCallCount;
     }
 
     public PowerSaveTracking getPowerSaveTracking() {
@@ -475,12 +493,13 @@ public class PandaClient {
 
     // ---- CAN comms buffer state ----
 
-    public record CanCommsBuffers(
-            int readBufferPtr,
-            int readBufferTail,
-            int writeBufferPtr,
-            int writeBufferTail
-    ) {
+    @AllArgsConstructor
+    @Getter
+    public static class CanCommsBuffers {
+        private final int readBufferPtr;
+        private final int readBufferTail;
+        private final int writeBufferPtr;
+        private final int writeBufferTail;
     }
 
     public CanCommsBuffers getCanCommsBuffers() {
@@ -496,7 +515,11 @@ public class PandaClient {
         return lib.jna_get_gitversion();
     }
 
-    public record PacketVersions(int healthVersion, int canVersionHash) {
+    @AllArgsConstructor
+    @Getter
+    public static class PacketVersions {
+        private final int healthVersion;
+        private final int canVersionHash;
     }
 
     public PacketVersions getPacketVersions() {
@@ -512,23 +535,24 @@ public class PandaClient {
 
     // ---- CAN FD bus_config ----
 
-    public record CanFdConfig(
-            boolean canfdAuto0,
-            boolean canfdAuto1,
-            boolean canfdAuto2,
-            boolean canfdNonIso0,
-            boolean canfdNonIso1,
-            boolean canfdNonIso2,
-            boolean canfdEnabled0,
-            boolean canfdEnabled1,
-            boolean canfdEnabled2,
-            boolean brsEnabled0,
-            boolean brsEnabled1,
-            boolean brsEnabled2,
-            int canDataSpeed0,
-            int canDataSpeed1,
-            int canDataSpeed2
-    ) {
+    @AllArgsConstructor
+    @Getter
+    public static class CanFdConfig {
+        private final boolean canfdAuto0;
+        private final boolean canfdAuto1;
+        private final boolean canfdAuto2;
+        private final boolean canfdNonIso0;
+        private final boolean canfdNonIso1;
+        private final boolean canfdNonIso2;
+        private final boolean canfdEnabled0;
+        private final boolean canfdEnabled1;
+        private final boolean canfdEnabled2;
+        private final boolean brsEnabled0;
+        private final boolean brsEnabled1;
+        private final boolean brsEnabled2;
+        private final int canDataSpeed0;
+        private final int canDataSpeed1;
+        private final int canDataSpeed2;
     }
 
     public CanFdConfig getCanFdConfig() {
@@ -551,7 +575,14 @@ public class PandaClient {
         );
     }
 
-    public record ClockSource(int ccr1, int ccr2, int ccr3, int arr, int ccr4) {
+    @AllArgsConstructor
+    @Getter
+    public static class ClockSource {
+        private final int ccr1;
+        private final int ccr2;
+        private final int ccr3;
+        private final int arr;
+        private final int ccr4;
     }
 
     public ClockSource getClockSource() {
@@ -602,25 +633,26 @@ public class PandaClient {
 
     // ---- CAN health inspection ----
 
-    public record CanHealth(
-            int canSpeed,
-            int canDataSpeed,
-            boolean canfdEnabled,
-            boolean brsEnabled,
-            boolean canfdNonIso,
-            int lastError,
-            int lastDataError,
-            int receiveErrorCnt,
-            int transmitErrorCnt,
-            int errorWarning,
-            int errorPassive,
-            int busOffCnt,
-            int totalErrorCnt,
-            int totalRxLostCnt,
-            int canCoreResetCnt,
-            int irq0CallRate,
-            int irq1CallRate
-    ) {
+    @AllArgsConstructor
+    @Getter
+    public static class CanHealth {
+        private final int canSpeed;
+        private final int canDataSpeed;
+        private final boolean canfdEnabled;
+        private final boolean brsEnabled;
+        private final boolean canfdNonIso;
+        private final int lastError;
+        private final int lastDataError;
+        private final int receiveErrorCnt;
+        private final int transmitErrorCnt;
+        private final int errorWarning;
+        private final int errorPassive;
+        private final int busOffCnt;
+        private final int totalErrorCnt;
+        private final int totalRxLostCnt;
+        private final int canCoreResetCnt;
+        private final int irq0CallRate;
+        private final int irq1CallRate;
     }
 
     public CanHealth getCanHealth(int bus) {
@@ -661,7 +693,11 @@ public class PandaClient {
         lib.jna_set_fdcan_ecr(bus, val);
     }
 
-    public record RespBuffer(AdaptiveList<Byte> bytes, int len) {
+    @AllArgsConstructor
+    @Getter
+    public static class RespBuffer {
+        private final AdaptiveList<Byte> bytes;
+        private final int len;
     }
 
     public RespBuffer getRespBuffer() {
@@ -688,16 +724,17 @@ public class PandaClient {
 
     // ---- Health packet inspection ----
 
-    public record HealthPacket(
-            int uptime,
-            int voltage,
-            int current,
-            int safetyTxBlocked,
-            int safetyRxInvalid,
-            int safetyMode,
-            int safetyParam,
-            int heartbeatLost
-    ) {
+    @AllArgsConstructor
+    @Getter
+    public static class HealthPacket {
+        private final int uptime;
+        private final int voltage;
+        private final int current;
+        private final int safetyTxBlocked;
+        private final int safetyRxInvalid;
+        private final int safetyMode;
+        private final int safetyParam;
+        private final int heartbeatLost;
     }
 
     public HealthPacket getHealthPacket() {

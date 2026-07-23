@@ -72,7 +72,7 @@ Feature: Heartbeat Mechanism
     Then control data should be:
       """
       : {
-        heartbeat= {
+        heartbeat: {
           disabled: 1
         }
       }
@@ -119,7 +119,7 @@ Feature: Heartbeat Mechanism
     Then control data should be:
       """
       : {
-        heartbeat= {
+        heartbeat: {
           disabled: 0
         }
       }

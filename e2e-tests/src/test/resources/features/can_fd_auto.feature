@@ -13,7 +13,7 @@ Feature: CAN FD Auto Switching
     Then control data should be:
       """
       : {
-        canFdConfig= {
+        canFdConfig: {
           canfdAuto0: false
           canfdAuto1: false
           canfdAuto2: false
@@ -32,7 +32,7 @@ Feature: CAN FD Auto Switching
     Then control data should be:
       """
       : {
-        canFdConfig= {
+        canFdConfig: {
           canfdAuto0: true
           canfdAuto1: false
           canfdAuto2: false
@@ -51,7 +51,7 @@ Feature: CAN FD Auto Switching
     Then control data should be:
       """
       : {
-        canFdConfig= {
+        canFdConfig: {
           canfdAuto1: true
         }
       }

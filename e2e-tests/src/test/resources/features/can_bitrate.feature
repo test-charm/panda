@@ -13,7 +13,7 @@ Feature: CAN Bitrate Configuration
     Then control data should be:
       """
       : {
-        fdcanRegs[0]= {
+        fdcanRegs[0]: {
           cccr: [ 0b0010_0000y, 0b0101_0011y ]
           ie: [ 0b0000_1001y, 0b0000_1000y, -128y, 0b0001_1010y ]
           nbtp: *
@@ -39,7 +39,7 @@ Feature: CAN Bitrate Configuration
     Then control data should be:
       """
       : {
-        fdcanRegs[0]= {
+        fdcanRegs[0]: {
           cccr: [ 0b0010_0000y, 0b0101_0011y ]
           ie: [ 0b0000_1001y, 0b0000_1000y, -128y, 0b0001_1010y ]
           nbtp: [ 0b0000_1111y, 0b0011_1110y, 0b0000_0001y, 0b0001_1110y ]
@@ -59,7 +59,7 @@ Feature: CAN Bitrate Configuration
     Then control data should be:
       """
       : {
-        fdcanRegs[0]= {
+        fdcanRegs[0]: {
           cccr: [ 0b0010_0000y, 0b0101_0011y ]
           ie: [ 0b0000_1001y, 0b0000_1000y, -128y, 0b0001_1010y ]
           nbtp: [ 0b0000_1111y, 0b0011_1110y, 0b0000_0001y, 0b0001_1110y ]

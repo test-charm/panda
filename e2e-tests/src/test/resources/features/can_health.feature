@@ -13,7 +13,7 @@ Feature: CAN Health Statistics
     Then control data should be:
       """
       : {
-        canHealth0= {
+        canHealth0: {
           canSpeed: 500       # 5000 / 10
           canDataSpeed: 2000  # 20000 / 10
           canfdEnabled: false
@@ -40,7 +40,7 @@ Feature: CAN Health Statistics
     Then control data should be:
       """
       : {
-        canHealth0= {
+        canHealth0: {
           lastError: 2               # PSR LEC = CAN_ACK_ERROR
           receiveErrorCnt: 0         # ECR REC = 0
           transmitErrorCnt: 128      # ECR TEC = 128
@@ -59,7 +59,7 @@ Feature: CAN Health Statistics
     Then control data should be:
       """
       : {
-        canHealth0= {
+        canHealth0: {
           canSpeed: 0
           canDataSpeed: 0
           canfdEnabled: false
@@ -80,7 +80,7 @@ Feature: CAN Health Statistics
     Then control data should be:
       """
       : {
-        canHealth0= {
+        canHealth0: {
           busOffCnt: 1        # bus_off=1 → bus_off_cnt incremented
           errorWarning: 1     # PSR bit 6
           errorPassive: 1     # PSR bit 5
@@ -102,7 +102,7 @@ Feature: CAN Health Statistics
     Then control data should be:
       """
       : {
-        canHealth0= {
+        canHealth0: {
           lastError: 2               # LEC extraction
           transmitErrorCnt: 128      # ECR TEC
           totalErrorCnt: 1           # ir_reg≠0 → incremented
@@ -132,7 +132,7 @@ Feature: CAN Health Statistics
     Then control data should be:
       """
       : {
-        canHealth0= {
+        canHealth0: {
           totalErrorCnt: 1
           totalRxLostCnt: 1   # ir_reg has RF0L
         }

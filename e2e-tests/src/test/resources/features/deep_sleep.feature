@@ -19,7 +19,7 @@ Feature: Deep Sleep Request
         }                      # set_safety_mode(SILENT) sets relay off
         powerSaveEnabled: true # set_power_save_state(true)
         stopModeRequested: true
-        powerSaveTracking= {
+        powerSaveTracking: {
           irqDisableCount: 2   # disable bus 2 + bus 1
         }
       }

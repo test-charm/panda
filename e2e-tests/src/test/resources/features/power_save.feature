@@ -14,7 +14,7 @@ Feature: Power Save State Control
       """
       : {
         powerSaveEnabled: false
-        powerSaveTracking= {
+        powerSaveTracking: {
           irqDisableCount: 0
           irqEnableCount: 0
           canTransceiversCallCount: 0
@@ -60,7 +60,7 @@ Feature: Power Save State Control
       """
       : {
         powerSaveEnabled: true
-        powerSaveTracking= {
+        powerSaveTracking: {
           irqDisableCount: 2
         }
       }
@@ -83,7 +83,7 @@ Feature: Power Save State Control
       """
       : {
         powerSaveEnabled: true
-        powerSaveTracking= {
+        powerSaveTracking: {
           irqDisableCount: 2
           canTransceiversCallCount: 1
           irPowerCallCount: 1
@@ -108,7 +108,7 @@ Feature: Power Save State Control
       """
       : {
         powerSaveEnabled: false
-        powerSaveTracking= {
+        powerSaveTracking: {
           irqDisableCount: 0
           irqEnableCount: 0
           canTransceiversCallCount: 0
@@ -134,7 +134,7 @@ Feature: Power Save State Control
       """
       : {
         powerSaveEnabled: false
-        powerSaveTracking= {
+        powerSaveTracking: {
           irqEnableCount: 2
           lastIrqEnabledBus: 1
           canTransceiversEnabled: true
