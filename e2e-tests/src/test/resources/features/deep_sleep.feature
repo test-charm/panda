@@ -150,6 +150,7 @@ Feature: Deep Sleep Request
       }
       """
 
+  @cuatro
   Scenario: Entering stop mode drives bootkick, amp, and CAN transceiver GPIO outputs
     Given exists data:
       """

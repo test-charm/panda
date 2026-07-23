@@ -43,8 +43,9 @@ public class PandaClient {
     }
 
     public interface PandaLib extends Library {
-        PandaLib INSTANCE = Native.load(
-                System.getProperty("user.dir") + "/src/test/c/libpanda.dylib", PandaLib.class);
+        String board = System.getProperty("panda.board", "cuatro");
+        String libPath = System.getProperty("user.dir") + "/src/test/c/libpanda_" + board + ".dylib";
+        PandaLib INSTANCE = Native.load(libPath, PandaLib.class);
 
         void jna_control_write(byte request, short param1, short param2);
 

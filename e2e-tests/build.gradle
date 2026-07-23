@@ -51,13 +51,13 @@ dependencies {
 tasks.register('buildNativeLib', Exec) {
     workingDir file('src/test/c')
     environment COVERAGE: '0'
-    commandLine 'bash', 'build.sh'
+    commandLine 'bash', 'build.sh', project.hasProperty('board') ? project.board : 'cuatro'
 }
 
 tasks.register('buildNativeLibCoverage', Exec) {
     workingDir file('src/test/c')
     environment COVERAGE: '1'
-    commandLine 'bash', 'build.sh'
+    commandLine 'bash', 'build.sh', project.hasProperty('board') ? project.board : 'cuatro'
 }
 
 tasks.register('cucumber', JavaExec) {
@@ -65,6 +65,7 @@ tasks.register('cucumber', JavaExec) {
     mainClass = "io.cucumber.core.cli.Main"
     classpath = configurations.cucumberRuntime + sourceSets.main.output + sourceSets.test.output
     jvmArgs "-Dfile.encoding=UTF-8", "-Dsun.jnu.encoding=utf-8"
+    def boardName = project.hasProperty('board') ? project.board : 'cuatro'
     args = ['--plugin', 'pretty',
             '--plugin', 'html:build/reports/cucumber/cucumber-html.html',
             '--glue', 'com.panda.e2e',
@@ -72,6 +73,7 @@ tasks.register('cucumber', JavaExec) {
             project.hasProperty('file') ? project.file : 'src/test/resources/features']
     systemProperty 'java.library.path',
             file('src/test/c').absolutePath
+    systemProperty 'panda.board', boardName
 }
 
 tasks.register('cucumberCoverage', JavaExec) {
@@ -79,6 +81,7 @@ tasks.register('cucumberCoverage', JavaExec) {
     mainClass = "io.cucumber.core.cli.Main"
     classpath = configurations.cucumberRuntime + sourceSets.main.output + sourceSets.test.output
     jvmArgs "-Dfile.encoding=UTF-8", "-Dsun.jnu.encoding=utf-8"
+    def boardName = project.hasProperty('board') ? project.board : 'cuatro'
     args = ['--plugin', 'pretty',
             '--plugin', 'html:build/reports/cucumber/cucumber-html.html',
             '--glue', 'com.panda.e2e',
@@ -86,6 +89,7 @@ tasks.register('cucumberCoverage', JavaExec) {
             project.hasProperty('file') ? project.file : 'src/test/resources/features']
     systemProperty 'java.library.path',
             file('src/test/c').absolutePath
+    systemProperty 'panda.board', boardName
     environment 'LLVM_PROFILE_FILE',
             file('build/coverage/default.profraw').absolutePath
     doFirst {
@@ -94,6 +98,7 @@ tasks.register('cucumberCoverage', JavaExec) {
     doLast {
         exec {
             workingDir file('build/coverage')
+            environment BOARD: boardName
             commandLine 'bash', file('scripts/coverage-report.sh').absolutePath
         }
     }

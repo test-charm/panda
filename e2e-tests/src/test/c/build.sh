@@ -3,13 +3,17 @@
 # Compiles the FULL board/main.c (not just extracted functions).
 # All hardware dependencies are stubbed via include-path overrides.
 #
-# Usage: ./build.sh
-# Output: libpanda.dylib
+# Usage: ./build.sh [BOARD]
+#   BOARD: cuatro (default) | tres | red
+#   Output: libpanda_${BOARD}.dylib
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../../.." && pwd)"
+
+BOARD="${1:-cuatro}"
+BOARD_UPPER="$(echo "$BOARD" | tr '[:lower:]' '[:upper:]')"
 
 OPENDBC_INCLUDE="$PROJECT_ROOT/.venv/lib/python3.12/site-packages"
 
@@ -21,6 +25,7 @@ CFLAGS="-std=gnu11 -fPIC -shared -O0 -g \
   -I$OPENDBC_INCLUDE \
   -Dmain=panda_main \
   -DALLOW_DEBUG \
+  -DE2E_BOARD_$BOARD_UPPER \
   -Wno-unused-function \
   -Wno-unused-variable \
   -Wno-int-conversion \
@@ -35,7 +40,7 @@ if [ "${COVERAGE:-}" = "1" ]; then
     echo "[build] Coverage instrumentation enabled"
 fi
 
-OUTPUT="$SCRIPT_DIR/libpanda.dylib"
+OUTPUT="$SCRIPT_DIR/libpanda_${BOARD}.dylib"
 
 # Skip rebuild if output is newer than all sources (only in non-coverage mode)
 if [ "${COVERAGE:-}" != "1" ] && [ -f "$OUTPUT" ] \
@@ -46,8 +51,9 @@ if [ "${COVERAGE:-}" != "1" ] && [ -f "$OUTPUT" ] \
     && [ "$OUTPUT" -nt "$PROJECT_ROOT/board/sys/power_saving.h" ] \
     && [ "$OUTPUT" -nt "$SCRIPT_DIR/generate_fdcan_stubs.py" ] \
     && [ "$OUTPUT" -nt "$SCRIPT_DIR/generate_power_save_stubs.py" ] \
-    && [ "$OUTPUT" -nt "$SCRIPT_DIR/generate_enter_stop_mode_stubs.py" ]; then
-    echo "[build] libpanda.dylib is up to date"
+    && [ "$OUTPUT" -nt "$SCRIPT_DIR/generate_enter_stop_mode_stubs.py" ] \
+    && [ "$OUTPUT" -nt "$SCRIPT_DIR/generate_board_stubs.py" ]; then
+    echo "[build] libpanda_${BOARD}.dylib is up to date"
     ls -la "$OUTPUT"
     exit 0
 fi
@@ -71,7 +77,10 @@ python3 "$SCRIPT_DIR/generate_fan_stubs.py" > "$SCRIPT_DIR/fan_e2e.gen.c"
 echo "[build] Generating enter_stop_mode_e2e.gen.c ..."
 python3 "$SCRIPT_DIR/generate_enter_stop_mode_stubs.py" > "$SCRIPT_DIR/enter_stop_mode_e2e.gen.c"
 
-echo "[build] Compiling full board/main.c → libpanda.dylib ..."
+echo "[build] Generating board_stubs_e2e.gen.c ..."
+python3 "$SCRIPT_DIR/generate_board_stubs.py" > "$SCRIPT_DIR/board_stubs_e2e.gen.c"
+
+echo "[build] Compiling full board/main.c → libpanda_${BOARD}.dylib ..."
 $CC $CFLAGS -o "$OUTPUT" "$SCRIPT_DIR/libpanda.c"
 
 echo "[build] Done: $OUTPUT"

@@ -18,7 +18,8 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 E2E_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 PROJECT_ROOT="$(cd "$E2E_DIR/.." && pwd)"
 COVERAGE_DIR="$E2E_DIR/build/coverage"
-DYLIB="$E2E_DIR/src/test/c/libpanda.dylib"
+BOARD="${BOARD:-cuatro}"
+DYLIB="$E2E_DIR/src/test/c/libpanda_${BOARD}.dylib"
 PROFRAW="$COVERAGE_DIR/default.profraw"
 PROFDATA="$COVERAGE_DIR/coverage.profdata"
 
@@ -56,12 +57,12 @@ echo ""
 # Show per-file coverage: regions, functions, lines
 xcrun llvm-cov report "$DYLIB" \
     -instr-profile="$PROFDATA" \
-    -ignore-filename-regex='\.venv/|fake_stm\.h|libpanda\.c|enter_stop_mode_e2e\.gen\.c|fdcan_e2e\.gen\.c|power_save_e2e\.gen\.c|clock_source_e2e\.gen\.c|can_health_e2e\.gen\.c|fan_e2e\.gen\.c|stm32h7_config\.h|harness\.h|interrupts\.h|uart\.h|gpio\.h' \
+    -ignore-filename-regex='\.venv/|fake_stm\.h|libpanda\.c|board_stubs_e2e\.gen\.c|enter_stop_mode_e2e\.gen\.c|fdcan_e2e\.gen\.c|power_save_e2e\.gen\.c|clock_source_e2e\.gen\.c|can_health_e2e\.gen\.c|fan_e2e\.gen\.c|stm32h7_config\.h|harness\.h|interrupts\.h|uart\.h|gpio\.h' \
     | grep -v '^---' | grep -v '^Files' | grep -v '^TOTAL' || true
 
 TOTAL_LINE=$(xcrun llvm-cov report "$DYLIB" \
     -instr-profile="$PROFDATA" \
-    -ignore-filename-regex='\.venv/|fake_stm\.h|libpanda\.c|enter_stop_mode_e2e\.gen\.c|fdcan_e2e\.gen\.c|power_save_e2e\.gen\.c|clock_source_e2e\.gen\.c|can_health_e2e\.gen\.c|fan_e2e\.gen\.c|stm32h7_config\.h|harness\.h|interrupts\.h|uart\.h|gpio\.h' \
+    -ignore-filename-regex='\.venv/|fake_stm\.h|libpanda\.c|board_stubs_e2e\.gen\.c|enter_stop_mode_e2e\.gen\.c|fdcan_e2e\.gen\.c|power_save_e2e\.gen\.c|clock_source_e2e\.gen\.c|can_health_e2e\.gen\.c|fan_e2e\.gen\.c|stm32h7_config\.h|harness\.h|interrupts\.h|uart\.h|gpio\.h' \
     | grep '^TOTAL' || echo "TOTAL (no data)")
 
 echo ""
@@ -75,7 +76,7 @@ echo -e "${YELLOW}[coverage] Exporting LCOV trace...${NC}"
 xcrun llvm-cov export "$DYLIB" \
     -instr-profile="$PROFDATA" \
     -format=lcov \
-    -ignore-filename-regex='\.venv/|fake_stm\.h|libpanda\.c|enter_stop_mode_e2e\.gen\.c|fdcan_e2e\.gen\.c|power_save_e2e\.gen\.c|clock_source_e2e\.gen\.c|can_health_e2e\.gen\.c|fan_e2e\.gen\.c|stm32h7_config\.h|harness\.h|interrupts\.h|uart\.h|gpio\.h' \
+    -ignore-filename-regex='\.venv/|fake_stm\.h|libpanda\.c|board_stubs_e2e\.gen\.c|enter_stop_mode_e2e\.gen\.c|fdcan_e2e\.gen\.c|power_save_e2e\.gen\.c|clock_source_e2e\.gen\.c|can_health_e2e\.gen\.c|fan_e2e\.gen\.c|stm32h7_config\.h|harness\.h|interrupts\.h|uart\.h|gpio\.h' \
     > "$COVERAGE_DIR/coverage.lcov"
 
 # ---- HTML report ----
@@ -86,14 +87,14 @@ xcrun llvm-cov show "$DYLIB" \
     -format=html \
     -output-dir="$HTML_DIR" \
     -project-title='Panda Firmware E2E Coverage' \
-    -ignore-filename-regex='\.venv/|fake_stm\.h|libpanda\.c|enter_stop_mode_e2e\.gen\.c|fdcan_e2e\.gen\.c|power_save_e2e\.gen\.c|clock_source_e2e\.gen\.c|can_health_e2e\.gen\.c|fan_e2e\.gen\.c|stm32h7_config\.h|harness\.h|interrupts\.h|uart\.h|gpio\.h'
+    -ignore-filename-regex='\.venv/|fake_stm\.h|libpanda\.c|board_stubs_e2e\.gen\.c|enter_stop_mode_e2e\.gen\.c|fdcan_e2e\.gen\.c|power_save_e2e\.gen\.c|clock_source_e2e\.gen\.c|can_health_e2e\.gen\.c|fan_e2e\.gen\.c|stm32h7_config\.h|harness\.h|interrupts\.h|uart\.h|gpio\.h'
 
 # ---- JSON export (for programmatic consumption) ----
 echo -e "${YELLOW}[coverage] Exporting JSON...${NC}"
 xcrun llvm-cov export "$DYLIB" \
     -instr-profile="$PROFDATA" \
     -format=text \
-    -ignore-filename-regex='\.venv/|fake_stm\.h|libpanda\.c|enter_stop_mode_e2e\.gen\.c|fdcan_e2e\.gen\.c|power_save_e2e\.gen\.c|clock_source_e2e\.gen\.c|can_health_e2e\.gen\.c|fan_e2e\.gen\.c|stm32h7_config\.h|harness\.h|interrupts\.h|uart\.h|gpio\.h' \
+    -ignore-filename-regex='\.venv/|fake_stm\.h|libpanda\.c|board_stubs_e2e\.gen\.c|enter_stop_mode_e2e\.gen\.c|fdcan_e2e\.gen\.c|power_save_e2e\.gen\.c|clock_source_e2e\.gen\.c|can_health_e2e\.gen\.c|fan_e2e\.gen\.c|stm32h7_config\.h|harness\.h|interrupts\.h|uart\.h|gpio\.h' \
     > "$COVERAGE_DIR/coverage.json"
 
 echo ""

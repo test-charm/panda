@@ -173,13 +173,13 @@ uart_ring *get_ring_by_number(int a) {
 
 #include "boards/board_declarations.h"
 
+// Board selection fallback
+#if !defined(E2E_BOARD_CUATRO) && !defined(E2E_BOARD_TRES) && !defined(E2E_BOARD_RED)
+#define E2E_BOARD_CUATRO
+#endif
+
 // ---- enter_stop_mode tracking ----
 static int enter_stop_mode_call_count;
-static BootState last_bootkick_state;
-static int bootkick_call_count;
-static bool last_amp_enabled = true;
-static int amp_enabled_call_count;
-static int can_transceiver_disable_count;
 static bool adc1_deep_powerdown;
 static bool adc2_deep_powerdown;
 static bool hsi48_disabled;
@@ -217,10 +217,14 @@ void board_set_ir_power_stub(uint8_t p) {
 }
 void board_set_fan_enabled_stub(bool en) { (void)en; }
 void board_set_siren_stub(bool en) { siren_enabled = en; }
-// Forward decls — implementations after macro overrides (need GPIOA/B/C/D)
-void board_set_bootkick_stub(uint8_t s);
-void board_set_amp_enabled_stub(bool en);
-void board_enable_can_transceiver_stub(uint8_t transceiver, bool enabled);
+static void stub_unused_set_amp_enabled(bool en) { (void)en; }
+// Forward declarations — defined in board_stubs_e2e.gen.c (included after macro overrides)
+void cuatro_set_bootkick(BootState state);
+void cuatro_set_amp_enabled(bool enabled);
+void cuatro_enable_can_transceiver(uint8_t transceiver, bool enabled);
+void tres_set_bootkick(BootState state);
+void tres_enable_can_transceiver(uint8_t transceiver, bool enabled);
+void red_enable_can_transceiver(uint8_t transceiver, bool enabled);
 bool board_read_som_gpio_stub(void) { return som_gpio_value; }
 
 struct harness_configuration harness_config_stub = {
@@ -240,10 +244,20 @@ struct board board_stub = {
     .set_ir_power = board_set_ir_power_stub,
     .set_fan_enabled = board_set_fan_enabled_stub,
     .set_siren = board_set_siren_stub,
-    .set_bootkick = board_set_bootkick_stub,
+#if defined(E2E_BOARD_TRES)
+    .set_bootkick = tres_set_bootkick,
+    .set_amp_enabled = stub_unused_set_amp_enabled,
+    .enable_can_transceiver = tres_enable_can_transceiver,
+#elif defined(E2E_BOARD_RED)
+    .set_bootkick = stub_unused_set_amp_enabled,
+    .set_amp_enabled = stub_unused_set_amp_enabled,
+    .enable_can_transceiver = red_enable_can_transceiver,
+#else
+    .set_bootkick = cuatro_set_bootkick,
+    .set_amp_enabled = cuatro_set_amp_enabled,
+    .enable_can_transceiver = cuatro_enable_can_transceiver,
+#endif
     .read_som_gpio = board_read_som_gpio_stub,
-    .set_amp_enabled = board_set_amp_enabled_stub,
-    .enable_can_transceiver = board_enable_can_transceiver_stub,
 };
 const struct board *current_board = &board_stub;
 
@@ -468,6 +482,10 @@ void __WFI(void) {}
 #define PWR_CR1_SVOS_0        (0x1UL << 14U)
 #define PWR_CR1_FLPS          (0x1UL << 9U)
 #define MODE_INPUT 0U
+#define MODE_OUTPUT 1U
+#define MODE_ANALOG 3U
+#define PULL_NONE 0U
+#define OUTPUT_TYPE_OPEN_DRAIN 1U
 #define EXTI1_IRQn        7
 #define EXTI4_IRQn        10
 #define EXTI9_5_IRQn      23
@@ -480,6 +498,10 @@ void register_clear_bits(volatile uint32_t *addr, uint32_t mask);
 void register_set_bits(volatile uint32_t *addr, uint32_t val);
 void set_gpio_mode(GPIO_TypeDef *gpio, uint8_t pin, uint8_t mode);
 
+// ---- Production board stubs (auto-generated from board/boards/*.h) ----
+// Regenerate: python3 generate_board_stubs.py > board_stubs_e2e.gen.c
+#include "board_stubs_e2e.gen.c"
+
 // ---- REAL enter_stop_mode (auto-generated from board/sys/power_saving.h) ----
 // Regenerate: python3 generate_enter_stop_mode_stubs.py > enter_stop_mode_e2e.gen.c
 #include "enter_stop_mode_e2e.gen.c"
@@ -489,30 +511,6 @@ void jna_process_stop_mode(void) {
     if (stop_mode_requested) {
         enter_stop_mode();
     }
-}
-
-// Board stub implementations (after GPIO macro overrides so GPIOA/B/C/D work)
-void board_set_bootkick_stub(uint8_t s) {
-    BootState state = (BootState)s;
-    set_gpio_output(GPIOA, 0, state != BOOT_BOOTKICK);
-    set_gpio_output(GPIOC, 11, state != BOOT_BOOTKICK);
-    last_bootkick_state = state;
-    bootkick_call_count++;
-}
-void board_set_amp_enabled_stub(bool en) {
-    set_gpio_output(GPIOB, 0, en);
-    last_amp_enabled = en;
-    amp_enabled_call_count++;
-}
-void board_enable_can_transceiver_stub(uint8_t transceiver, bool enabled) {
-    switch (transceiver) {
-        case 1U: set_gpio_output(GPIOB, 7, !enabled); break;
-        case 2U: set_gpio_output(GPIOB, 10, !enabled); break;
-        case 3U: set_gpio_output(GPIOD, 8, !enabled); break;
-        case 4U: set_gpio_output(GPIOB, 11, !enabled); break;
-        default: break;
-    }
-    if (!enabled) can_transceiver_disable_count++;
 }
 
 // ---- Faithful can_init: writes to fake FDCAN_GlobalTypeDef registers ----
