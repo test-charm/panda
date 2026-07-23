@@ -213,6 +213,8 @@ public class PandaClient {
 
         int jna_get_nvic_reset_count();
 
+        int jna_get_stop_mode_requested();
+
         // CAN health inspection
         int jna_get_can_health_speed(int bus);
 
@@ -592,6 +594,10 @@ public class PandaClient {
 
     public int getNvicResetCount() {
         return lib.jna_get_nvic_reset_count();
+    }
+
+    public boolean isStopModeRequested() {
+        return lib.jna_get_stop_mode_requested() != 0;
     }
 
     // ---- CAN health inspection ----

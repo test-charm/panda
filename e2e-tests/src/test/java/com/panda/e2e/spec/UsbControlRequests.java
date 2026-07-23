@@ -219,4 +219,12 @@ public class UsbControlRequests {
             property("param2").defaultValue((short) 0);
         }
     }
+
+    public static class RequestDeepSleep extends UsbControlRequest {
+        @Override
+        public void main() {
+            property("request").defaultValue((byte) -75);       // 0xb5
+            property("param2").defaultValue((short) 0);
+        }
+    }
 }

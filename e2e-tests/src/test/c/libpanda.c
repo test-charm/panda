@@ -243,6 +243,8 @@ void NVIC_SystemReset(void) { nvic_reset_call_count++; }
 
 int jna_get_nvic_reset_count(void) { return nvic_reset_call_count; }
 
+int jna_get_stop_mode_requested(void) { return stop_mode_requested ? 1 : 0; }
+
 // Stubs for can_comms functions (real can_comms.h calls these)
 void can_tx_comms_resume_usb(void) {}
 void can_tx_comms_resume_spi(void) {}
