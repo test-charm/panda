@@ -228,4 +228,13 @@ public class UsbControlRequests {
             property("param2").defaultValue((short) 0);
         }
     }
+
+    public static class MicrosecondTimmer extends UsbControlRequest {
+        @Override
+        public void main() {
+            property("request").defaultValue((byte) -88);       // 0xa8
+            property("param1").defaultValue((short) 0);
+            property("param2").defaultValue((short) 0);
+        }
+    }
 }

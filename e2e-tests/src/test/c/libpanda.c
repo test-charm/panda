@@ -922,6 +922,7 @@ void jna_reset_TIM_regs(void) {
 
 // ---- JNA API: Setup + response buffer inspection ----
 void jna_set_microsecond_timer(uint32_t val) { MICROSECOND_TIMER->CNT = val; }
+void jna_reset_microsecond_timer(void) { MICROSECOND_TIMER->CNT = 0; }
 void jna_set_fan_rpm(uint16_t val) { fan_state.rpm = val; }
 uint32_t jna_get_resp_len(void) { return jna_resp_len; }
 uint8_t jna_get_resp_byte(int index) {

@@ -174,6 +174,8 @@ public class PandaClient {
         // Microsecond timer and fan RPM
         void jna_set_microsecond_timer(int val);
 
+        void jna_reset_microsecond_timer();
+
         void jna_set_fan_rpm(int val);
 
         int jna_get_resp_len();
@@ -374,6 +376,7 @@ public class PandaClient {
         lib.jna_reset_nvic_count();
         lib.jna_reset_TIM_regs();
         lib.jna_reset_can_health();
+        lib.jna_reset_microsecond_timer();
     }
 
     // ---- FDCAN register inspection ----
