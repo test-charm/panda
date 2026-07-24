@@ -23,6 +23,8 @@ public class ControlSetups {
             property("mcuUidBytes").defaultValue(null);
             property("interruptIndex").defaultValue(0);
             property("interruptCallRate").defaultValue(-1);
+            property("serialBytes").defaultValue(null);
+            property("provisionBytes").defaultValue(null);
         }
     }
 

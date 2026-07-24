@@ -93,14 +93,19 @@ static char gitversion[64] = "00000000";
 static const uint32_t speeds[] = {0};
 static const uint32_t data_speeds[] = {20000};
 
-// ---- Fake UID ----
+// ---- Fake UID / Serial / Provision ----
 static uint8_t fake_uid[12];
 #undef UID_BASE
 #define UID_BASE ((void *)fake_uid)
 
+static uint8_t fake_serial[16];
+#undef DEVICE_SERIAL_NUMBER_ADDRESS
+#define DEVICE_SERIAL_NUMBER_ADDRESS ((void *)fake_serial)
+
+static uint8_t fake_provision[32];
+
 // ---- Macros needed by main_comms.h ----
 #define NUM_INTERRUPTS 16
-#define DEVICE_SERIAL_NUMBER_ADDRESS ((void *)0x1FFF7A10UL)
 
 // ---- Fake FDCAN hardware state ----
 // Synthetic FDCAN peripheral instances — register writes go here instead of MMIO.
@@ -304,7 +309,7 @@ void early_initialization(void) {}
 void clock_init(void) {}
 void peripherals_init(void) {}
 void detect_board_type(void) {}
-void get_provision_chunk(uint8_t *out) { if (out) out[0] = 0; }
+void get_provision_chunk(uint8_t *out) { if (out) { for (int i = 0; i < 32; i++) out[i] = fake_provision[i]; } }
 
 // Tracking stub: records last enable_can_transceivers call AND drives real GPIO
 static bool last_can_transceivers_enabled;
@@ -939,6 +944,14 @@ void jna_set_interrupt_call_rate(uint8_t index, uint32_t val) {
 void jna_reset_interrupts(void) {
     for (uint8_t i = 0U; i < NUM_INTERRUPTS; i++) { interrupts[i].call_rate = 0U; }
 }
+void jna_set_serial(const char *hex, size_t hex_len) {
+    for (size_t i = 0U; (i < 16U) && (i < hex_len); i++) { fake_serial[i] = (uint8_t)hex[i]; }
+}
+void jna_reset_serial(void) { for (size_t i = 0U; i < 16U; i++) { fake_serial[i] = 0U; } }
+void jna_set_provision(const char *hex, size_t hex_len) {
+    for (size_t i = 0U; (i < 32U) && (i < hex_len); i++) { fake_provision[i] = (uint8_t)hex[i]; }
+}
+void jna_reset_provision(void) { for (size_t i = 0U; i < 32U; i++) { fake_provision[i] = 0U; } }
 void jna_set_fan_rpm(uint16_t val) { fan_state.rpm = val; }
 uint32_t jna_get_resp_len(void) { return jna_resp_len; }
 uint8_t jna_get_resp_byte(int index) {

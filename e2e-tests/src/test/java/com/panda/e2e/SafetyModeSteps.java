@@ -86,5 +86,7 @@ public class SafetyModeSteps {
         public String mcuUidBytes;
         public int interruptIndex;
         public int interruptCallRate;
+        public String serialBytes;
+        public String provisionBytes;
     }
 }

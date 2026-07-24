@@ -23,6 +23,14 @@ public class Factories {
         return jFactory;
     }
 
+    private static byte[] hexToBytes(String hex) {
+        byte[] bytes = new byte[hex.length() / 2];
+        for (int i = 0; i < bytes.length; i++) {
+            bytes[i] = (byte) Integer.parseInt(hex.substring(i * 2, i * 2 + 2), 16);
+        }
+        return bytes;
+    }
+
     public static class UsbControlRequestDataRepository extends MemoryDataRepository {
 
         private final PandaClient client;
@@ -96,11 +104,13 @@ public class Factories {
                 client.setHeartbeatDisabled(setup.heartbeatDisabled);
             }
             if (setup.mcuUidBytes != null) {
-                byte[] uid = new byte[setup.mcuUidBytes.length() / 2];
-                for (int i = 0; i < uid.length; i++) {
-                    uid[i] = (byte) Integer.parseInt(setup.mcuUidBytes.substring(i * 2, i * 2 + 2), 16);
-                }
-                client.setMcuUid(uid);
+                client.setMcuUid(hexToBytes(setup.mcuUidBytes));
+            }
+            if (setup.serialBytes != null) {
+                client.setSerial(hexToBytes(setup.serialBytes));
+            }
+            if (setup.provisionBytes != null) {
+                client.setProvision(hexToBytes(setup.provisionBytes));
             }
             if (setup.interruptCallRate != -1) {
                 client.setInterruptCallRate(setup.interruptIndex, setup.interruptCallRate);
