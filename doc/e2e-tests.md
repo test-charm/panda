@@ -70,6 +70,12 @@ Cucumber BDD 断言: gpioAModer: 0xFFFFFFF1, rccCr: 0x0, ...
 |------|-----------|
 | `jna_process_stop_mode()` | 主循环检查 `stop_mode_requested` → `enter_stop_mode()` |
 | `jna_tick_siren()` | tick handler 读 `siren_enabled` → `current_board->set_siren()` |
+| `jna_set_microsecond_timer()` | 预设微秒定时器值 |
+| `jna_set_mcu_uid()` / `jna_set_serial()` / `jna_set_provision()` | 预设 OTP 内存区域 |
+| `jna_set_interrupt_call_rate()` | 预设中断调用率 |
+| `jna_set_signature_chunk()` / `jna_set_app_code_len()` | 预设固件签名数据 |
+| `jna_uart_push()` | 向 UART debug ring 推送字符 |
+| `jna_reset_*` 系列 (15+) | 每次 `@Before` 中重置所有假状态 |
 
 ## 目录结构
 
@@ -88,10 +94,12 @@ e2e-tests/
 │   ├── java/com/panda/e2e/
 │   │   ├── PandaClient.java         # JNA 接口 + StopModeRegs DTO
 │   │   ├── SafetyModeSteps.java     # BDD 步骤定义 + ControlSetup
-│   │   ├── Factories.java           # ControlSetup → client 自动装配
-│   │   └── spec/UsbControlRequests.java
+│   │   ├── Factories.java           # ControlSetup → client 自动装配 + hexToBytes
+│   │   └── spec/
+│   │       ├── UsbControlRequests.java  # 33 个 USB 控制请求 spec
+│   │       └── ControlSetups.java       # 前置数据 spec
 │   └── resources/
-│       ├── features/                # 26 个 feature 文件
+│       ├── features/                # 34 个 feature 文件
 │       └── test-design/             # 测试设计文档
 ```
 
@@ -125,6 +133,13 @@ e2e-tests/
 | 深度休眠 | `deep_sleep.feature` | 13 | stopModeRegs (25+ 假寄存器: GPIO/ADC/RCC/SYSCFG/EXTI/PWR/SCB/NVIC) |
 | SOM GPIO | `som_gpio.feature` | 1 | respBuffer |
 | CAN 健康 | `can_health.feature` | 6 | canHealth0 (PSR/ECR 提取) |
+| 微秒定时器 | `microsecond_timer.feature` | 2 | respBuffer (4-byte LE) |
+| MCU UID | `mcu_uid.feature` | 2 | respBuffer (12 bytes) |
+| 中断调用率 | `interrupt_rate.feature` | 3 | respBuffer (4-byte LE / 空) |
+| 序列号/Provision | `serial.feature` | 2 | respBuffer (16/32 bytes) |
+| 固件签名 | `signature.feature` | 2 | respBuffer (64 bytes 分块) |
+| Bootloader 模式 | `bootloader.feature` | 3 | nvicResetCount, enterBootloaderMode |
+| UART 读取 | `uart_read.feature` | 3 | respBuffer (字符读取 / 空) |
 
 ## 设计原则
 
