@@ -29,8 +29,8 @@ Feature: Health Packet Retrieval
   Scenario: Health packet reflects safety mode change to TOYOTA
     Given exists data:
       """
-      SetSafetyMode: {
-        param1: 2
+      ControlSetup: {
+        safetyMode: 2
       }
       """
     When control write:

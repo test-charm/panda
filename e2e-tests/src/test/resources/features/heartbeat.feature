@@ -106,8 +106,8 @@ Feature: Heartbeat Mechanism
   Scenario: Cannot disable heartbeat in car safety mode (TOYOTA)
     Given exists data:
       """
-      SetSafetyMode: {
-        param1: 2
+      ControlSetup: {
+        safetyMode: 2
       }
       """
     When control write:

@@ -6,6 +6,21 @@ import org.testcharm.jfactory.Spec;
 public class ControlSetups {
 
     public static class ControlSetup extends Spec<SafetyModeSteps.ControlSetup> {
+        @Override
+        public void main() {
+            property("timerValue").defaultValue(0);
+            property("fanRpm").defaultValue(0);
+            property("hwType").defaultValue(0);
+            property("somGpio").defaultValue(0);
+            property("fdcanPsr").defaultValue(0);
+            property("fdcanEcr").defaultValue(0);
+            property("irReg").defaultValue(0);
+            property("voltageMV").defaultValue(0);
+            property("currentMA").defaultValue(0);
+            property("safetyMode").defaultValue(0);
+            property("alternativeExperience").defaultValue(0);
+            property("heartbeatDisabled").defaultValue(0);
+        }
     }
 
 }

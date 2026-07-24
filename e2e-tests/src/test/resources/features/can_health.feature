@@ -44,7 +44,7 @@ Feature: CAN Health Statistics
           lastError: 2               # PSR LEC = CAN_ACK_ERROR
           receiveErrorCnt: 0         # ECR REC = 0
           transmitErrorCnt: 128      # ECR TEC = 128
-          canCoreResetCnt: 1         # from safety init path (set_safety_mode → ...)
+          canCoreResetCnt: 0
         }
       }
       """
