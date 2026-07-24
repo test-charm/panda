@@ -35,17 +35,16 @@ set_can_mode(CAN_MODE_NORMAL)           [value=0]
 | `stopModeRegs.gpioBModer` | GPIOB MODER (pin alternate function) | board-dependent bit patterns |
 | `stopModeRegs.gpioBOdr` | GPIOB ODR (CAN transceiver enable) | board-dependent |
 | `stopModeRegs.gpioBPupdr` | GPIOB pull-up/down | 0 (no pull) |
-| `canModeCall.value` | The mode passed to `set_can_mode()` (仅无寄存器操作的场景使用) | 0 (NORMAL), 1 (OBD_CAN2) |
 
-> 设计原则: 寄存器验证 (`stopModeRegs`) 已覆盖 `set_can_mode()` 行为时，不再重复验证 `canModeCall`。仅当场景无寄存器操作时（如 `param1=2` 不触发 GPIO 配置）才保留 `canModeCall` 验证。
+> 设计原则: `set_can_mode()` 的所有路径均通过寄存器验证 (`stopModeRegs`)，包括 `param1=2` 场景 —— 该场景虽不触发 GPIO 模式变化（已在 NORMAL 模式），但寄存器值仍可证明函数被正确调用。
 
 ## Test cases
 
-| # | Case name | param1 | canModeCall.value | 寄存器验证 | Notes |
-|---|-----------|--------|--------------------|------------|-------|
-| 1 | NORMAL mode with param1=0 | 0 | — | gpioBModer/gpioBOdr/gpioBPupdr | Default value; register verification covers set_can_mode() |
-| 2 | OBD_CAN2 mode with param1=1 | 1 | — | gpioBModer/gpioBOdr | Only param1=1 triggers OBD_CAN2; register verification covers |
-| 3 | NORMAL mode with param1=2 | 2 | 0 | (none) | Non-1 value falls back to NORMAL, no GPIO reconfiguration |
+| # | Case name | param1 | 寄存器验证 | Notes |
+|---|-----------|--------|------------|-------|
+| 1 | NORMAL mode with param1=0 | 0 | gpioBModer/gpioBOdr/gpioBPupdr | Default value; register verification covers set_can_mode() |
+| 2 | OBD_CAN2 mode with param1=1 | 1 | gpioBModer/gpioBOdr | Only param1=1 triggers OBD_CAN2; register verification covers |
+| 3 | NORMAL mode with param1=2 | 2 | gpioBModer/gpioBOdr/gpioBPupdr | Non-1 value falls back to NORMAL; registers prove set_can_mode(0) called |
 
 ## Coverage verification
 

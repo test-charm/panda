@@ -103,8 +103,10 @@ Feature: OBD CAN Multiplexing Mode
     Then control data should be:
       """
       : {
-        canModeCall= {
-          value: 0
+        stopModeRegs: {
+          gpioBModer: 256911360L    # same as param1=0: PB5/6→alt(2), PB10/11→out(1), PB12/13→analog(3)
+          gpioBPupdr: 0L
+          gpioBOdr: 2048L          # PB11 CAN4 disabled, PB10 CAN2 re-enabled
         }
       }
       """

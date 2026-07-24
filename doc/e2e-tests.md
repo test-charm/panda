@@ -103,7 +103,7 @@ e2e-tests/
 | CAN 回环 | `can_loopback.feature` | 4 | FDCAN TEST/MON |
 | 心跳 | `heartbeat.feature` | 6 | heartbeat_* 变量 |
 | 健康数据包 | `health.feature` | 5 | healthPacket + 可设 voltage/current |
-| CAN 模式 | `can_mode.feature` | 6 | stopModeRegs (gpioBModer/gpioBOdr/gpioBPupdr) + canModeCall |
+| CAN 模式 | `can_mode.feature` | 6 | stopModeRegs (gpioBModer/gpioBOdr/gpioBPupdr) |
 | 继电器 | `relay.feature` | 6 | stopModeRegs.gpioAOdr (PA3/PA9) |
 | 省电模式 | `power_save.feature` | 12 | powerSaveTracking + stopModeRegs (gpioBOdr/gpioDOdr/gpioGOdr) |
 | 替代体验 | `alternative_experience.feature` | 5 | alternativeExperience |
@@ -132,11 +132,11 @@ e2e-tests/
 寄存器验证已覆盖函数行为时，不再重复验证调用计数。例如：
 
 * `deep_sleep.feature`：`stopModeRegs.gpio*Moder` 寄存器直接证明 `enter_stop_mode()` 正确配置了 GPIO，无需 `enterStopModeCallCount`
-* `can_mode.feature`：`stopModeRegs.gpioBModer/gpioBOdr` 寄存器直接证明 `set_can_mode()` 切换了 CAN 引脚，无需 `canModeCall`
-* `safety_mode.feature`：`fdcanRegs[N].cccr` 寄存器直接证明 `can_init_all()` 初始化了 CAN 硬件，无需 `canModeCall`
-* `relay.feature`：`stopModeRegs.gpioAOdr` 寄存器直接证明 `set_intercept_relay()` 设置了 GPIO，无需 relay 状态跟踪
+* `can_mode.feature`：`stopModeRegs.gpioBModer/gpioBOdr` 寄存器直接证明 `set_can_mode()` 切换了 CAN 引脚
+* `safety_mode.feature`：`fdcanRegs[N].cccr` 寄存器直接证明 `can_init_all()` 初始化了 CAN 硬件
+* `relay.feature`：`stopModeRegs.gpioAOdr` 寄存器直接证明 `set_intercept_relay()` 设置了 GPIO
 
-仅在无法通过寄存器验证时才保留函数调用计数或参数验证（如 `can_mode.feature` 中无寄存器操作的 `param1=2` 场景）。
+所有功能均已通过寄存器级别验证覆盖，无需函数调用计数或参数追踪。
 
 ## C 代码编译
 

@@ -27,13 +27,6 @@ public class PandaClient {
         private final boolean rejected;
     }
 
-    // Simple wrapper needed for DAL-java to distinguish "not called" (null) from "called with value"
-    @AllArgsConstructor
-    @Getter
-    public static class CanModeCall {
-        private final int value;
-    }
-
     public interface PandaLib extends Library {
         String board = System.getProperty("panda.board", "cuatro");
         String libPath = System.getProperty("user.dir") + "/src/test/c/libpanda_" + board + ".dylib";
@@ -50,12 +43,6 @@ public class PandaClient {
         boolean jna_can_pop_tx(int queueIdx, int[] outAddr, byte[] outData, byte[] outLen);
 
         void jna_can_clear_all();
-
-        int jna_get_can_mode_call_count();
-
-        int jna_get_can_mode();
-
-        void jna_clear_can_mode_calls();
 
         // FDCAN register inspection
         void jna_reset_fdcan();
@@ -362,15 +349,6 @@ public class PandaClient {
         lib.jna_can_clear_all();
     }
 
-    public CanModeCall canModeCall() {
-        int count = lib.jna_get_can_mode_call_count();
-        return (count == 0) ? null : new CanModeCall(lib.jna_get_can_mode());
-    }
-
-    public void clearCanModeCalls() {
-        lib.jna_clear_can_mode_calls();
-    }
-
     public void controlWrite(byte request, short param1, short param2) {
         lib.jna_control_write(request, param1, param2);
     }
@@ -381,7 +359,6 @@ public class PandaClient {
 
     public void clearAll() {
         clearCanQueues();
-        clearCanModeCalls();
         lib.jna_reset_fdcan();
         lib.jna_reset_heartbeat();
         lib.jna_reset_safety();

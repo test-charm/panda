@@ -199,8 +199,6 @@ static bool sleepdeep_set;
 
 GPIO_TypeDef dummy_gpio;
 
-static uint8_t can_mode_last;
-static int can_mode_call_count;
 static uint32_t e2e_voltage_mV = 12000;
 static uint32_t e2e_current_mA = 0;
 void board_set_can_mode_stub(uint8_t mode);
@@ -236,8 +234,6 @@ void red_set_can_mode(uint8_t mode);
 bool board_read_som_gpio_stub(void);
 
 void board_set_can_mode_stub(uint8_t mode) {
-    can_mode_last = mode;
-    can_mode_call_count++;
 #if defined(E2E_BOARD_RED)
     red_set_can_mode(mode);
 #else
@@ -697,18 +693,6 @@ void jna_can_clear_all(void) {
         can_queues[i]->w_ptr = 0U;
         can_queues[i]->r_ptr = 0U;
     }
-}
-
-// Query last set_can_mode call
-int jna_get_can_mode_call_count(void) {
-    return can_mode_call_count;
-}
-int jna_get_can_mode(void) {
-    return (int)can_mode_last;
-}
-void jna_clear_can_mode_calls(void) {
-    can_mode_call_count = 0;
-    can_mode_last = 0U;
 }
 
 // ---- JNA API: FDCAN register inspection ----
