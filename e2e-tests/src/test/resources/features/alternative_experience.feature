@@ -40,11 +40,9 @@ Feature: Alternative Experience Mode
   Scenario: Previous value preserved when blocked in car safety mode
     Given exists data:
       """
-      SetAlternativeExperience: {
-        param1: 42
-      }
-      SetSafetyMode: {
-        param1: 2
+      ControlSetup: {
+        alternativeExperience: 42
+        safetyMode: 2
       }
       """
     When control write:

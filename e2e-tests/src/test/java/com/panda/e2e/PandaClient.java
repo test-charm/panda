@@ -189,6 +189,11 @@ public class PandaClient {
         void jna_set_voltage_mV(int val);
         void jna_set_current_mA(int val);
 
+        // Direct state setters (bypass firmware pipeline)
+        void jna_set_current_safety_mode(int val);
+        void jna_set_alternative_experience(int val);
+        void jna_set_heartbeat_disabled(int val);
+
         int jna_get_nvic_reset_count();
 
         void jna_reset_nvic_count();
@@ -620,6 +625,19 @@ public class PandaClient {
 
     public void setCurrentMA(int val) {
         lib.jna_set_current_mA(val);
+    }
+
+    // Direct state setters (bypass firmware pipeline)
+    public void setCurrentSafetyMode(int val) {
+        lib.jna_set_current_safety_mode(val);
+    }
+
+    public void setAlternativeExperience(int val) {
+        lib.jna_set_alternative_experience(val);
+    }
+
+    public void setHeartbeatDisabled(int val) {
+        lib.jna_set_heartbeat_disabled(val);
     }
 
     public int getNvicResetCount() {

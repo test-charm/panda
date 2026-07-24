@@ -81,8 +81,8 @@ Feature: Heartbeat Mechanism
   Scenario: Heartbeat clears disabled flag
     Given exists data:
       """
-      DisableHeartbeat: {
-        param1: 0
+      ControlSetup: {
+        heartbeatDisabled: 1
       }
       """
     When control write:

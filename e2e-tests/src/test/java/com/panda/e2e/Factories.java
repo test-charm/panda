@@ -86,6 +86,15 @@ public class Factories {
             if (setup.currentMA != 0) {
                 client.setCurrentMA(setup.currentMA);
             }
+            if (setup.safetyMode != 0) {
+                client.setCurrentSafetyMode(setup.safetyMode);
+            }
+            if (setup.alternativeExperience != 0) {
+                client.setAlternativeExperience(setup.alternativeExperience);
+            }
+            if (setup.heartbeatDisabled != 0) {
+                client.setHeartbeatDisabled(setup.heartbeatDisabled);
+            }
             if (setup.fdcanPsr != 0) {
                 client.setFdcanPsr(0, setup.fdcanPsr);
             }

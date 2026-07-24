@@ -949,6 +949,11 @@ void jna_set_som_gpio(int val) {
 #endif
 }
 
+// ---- JNA API: Direct state setters (bypass firmware pipeline) ----
+void jna_set_current_safety_mode(int val) { current_safety_mode = (uint16_t)val; }
+void jna_set_alternative_experience(int val) { alternative_experience = val; }
+void jna_set_heartbeat_disabled(int val) { heartbeat_disabled = (val != 0); }
+
 // ---- JNA API: CAN health inspection ----
 int jna_get_can_health_speed(int bus) {
     if ((bus < 0) || (bus >= PANDA_CAN_CNT)) return -1;

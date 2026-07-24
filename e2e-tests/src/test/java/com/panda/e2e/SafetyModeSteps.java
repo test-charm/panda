@@ -80,5 +80,8 @@ public class SafetyModeSteps {
         public int irReg;
         public int voltageMV;
         public int currentMA;
+        public int safetyMode;
+        public int alternativeExperience;
+        public int heartbeatDisabled;
     }
 }
