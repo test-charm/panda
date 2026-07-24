@@ -84,5 +84,7 @@ public class SafetyModeSteps {
         public int alternativeExperience;
         public int heartbeatDisabled;
         public String mcuUidBytes;
+        public int interruptIndex;
+        public int interruptCallRate;
     }
 }

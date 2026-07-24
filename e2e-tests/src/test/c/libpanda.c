@@ -88,7 +88,7 @@ uint16_t spi_error_count;
 // _app_start used by main_comms.h header
 int _app_start[0xC000];
 
-struct { uint32_t call_rate; } interrupts[0];
+struct { uint32_t call_rate; } interrupts[16];
 static char gitversion[64] = "00000000";
 static const uint32_t speeds[] = {0};
 static const uint32_t data_speeds[] = {20000};
@@ -99,7 +99,7 @@ static uint8_t fake_uid[12];
 #define UID_BASE ((void *)fake_uid)
 
 // ---- Macros needed by main_comms.h ----
-#define NUM_INTERRUPTS 0
+#define NUM_INTERRUPTS 16
 #define DEVICE_SERIAL_NUMBER_ADDRESS ((void *)0x1FFF7A10UL)
 
 // ---- Fake FDCAN hardware state ----
@@ -933,6 +933,12 @@ void jna_set_mcu_uid(const char *hex, size_t hex_len) {
     }
 }
 void jna_reset_mcu_uid(void) { for (size_t i = 0U; i < 12U; i++) { fake_uid[i] = 0U; } }
+void jna_set_interrupt_call_rate(uint8_t index, uint32_t val) {
+    if (index < NUM_INTERRUPTS) { interrupts[index].call_rate = val; }
+}
+void jna_reset_interrupts(void) {
+    for (uint8_t i = 0U; i < NUM_INTERRUPTS; i++) { interrupts[i].call_rate = 0U; }
+}
 void jna_set_fan_rpm(uint16_t val) { fan_state.rpm = val; }
 uint32_t jna_get_resp_len(void) { return jna_resp_len; }
 uint8_t jna_get_resp_byte(int index) {

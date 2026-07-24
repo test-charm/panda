@@ -102,6 +102,9 @@ public class Factories {
                 }
                 client.setMcuUid(uid);
             }
+            if (setup.interruptCallRate != -1) {
+                client.setInterruptCallRate(setup.interruptIndex, setup.interruptCallRate);
+            }
             if (setup.fdcanPsr != 0) {
                 client.setFdcanPsr(0, setup.fdcanPsr);
             }

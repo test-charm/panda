@@ -238,6 +238,14 @@ public class UsbControlRequests {
         }
     }
 
+    public static class GetInterruptRate extends UsbControlRequest {
+        @Override
+        public void main() {
+            property("request").defaultValue((byte) -60);       // 0xc4
+            property("param2").defaultValue((short) 0);
+        }
+    }
+
     public static class MicrosecondTimmer extends UsbControlRequest {
         @Override
         public void main() {
