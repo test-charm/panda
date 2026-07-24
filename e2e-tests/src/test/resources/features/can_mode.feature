@@ -93,6 +93,7 @@ Feature: OBD CAN Multiplexing Mode
       }
       """
 
+  @cuatro
   Scenario: Setting NORMAL mode with non-1 param1 value
     When control write:
       """
