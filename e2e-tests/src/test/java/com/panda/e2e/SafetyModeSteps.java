@@ -53,6 +53,11 @@ public class SafetyModeSteps {
         client.tickSiren();
     }
 
+    @When("tick handler:")
+    public void tickHandler() {
+        client.tickBootkick();
+    }
+
     @Then("control data should be:")
     public void controlDataShould(String expression) {
         expect(client).should(expression);
@@ -93,5 +98,8 @@ public class SafetyModeSteps {
         public String signatureChunk0;
         public String signatureChunk1;
         public String uartData;
+        public int harnessStatus;
+        public int somUartWptr;
+        public int ignitionLine;
     }
 }

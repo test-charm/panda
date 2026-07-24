@@ -294,9 +294,12 @@ const struct board *current_board = &board_stub;
 // Recording stub: captures last set_intercept_relay call for test verification
 void set_intercept_relay(bool a, bool b);
 void harness_init(void) {}
-void harness_tick(void) {}
-bool harness_check_ignition(void) { return false; }
 uint8_t harness_detect_orientation(void) { return 1; }
+
+// ---- harness check_ignition control ----
+static bool e2e_ignition_line;
+bool harness_check_ignition(void) { return e2e_ignition_line; }
+void harness_tick(void) {}
 void fake_siren_set(bool en) { siren_enabled = en; }
 // can_init is defined in fdcan_e2e.gen.c (generated from real firmware source)
 void can_rx(uint8_t n) { (void)n; }
@@ -310,7 +313,6 @@ void pwm_set(uint8_t ch, uint8_t d) { (void)ch; (void)d; }
 void usb_irqhandler(void) {}
 void usb_init(void) {}
 void spi_init(void) {}
-void bootkick_tick(bool ign, bool hb) { (void)ign; (void)hb; }
 void early_initialization(void) {}
 void clock_init(void) {}
 void peripherals_init(void) {}
@@ -468,6 +470,16 @@ void __WFI(void) { wfi_entered = true; }
 
 // ---- FULL board/main.c ----
 #include "board/main.c"
+
+// ---- AUTO-GENERATED bootkick stub ----
+// Extracted & transformed from board/drivers/bootkick.h and board/main.c.
+// Regenerate: python3 generate_bootkick_stubs.py > bootkick_e2e.gen.c
+#include "bootkick_e2e.gen.c"
+
+// ---- Harness control (e2e-specific, not in generated code) ----
+void jna_set_ignition_line(uint8_t val)  { e2e_ignition_line = (val != 0U); }
+void jna_set_harness_status(uint8_t val) { harness.status = val; }
+void jna_set_som_uart_wptr(uint16_t val) { uart_ring_som_debug.w_ptr_tx = val; }
 
 // ---- Override hardware registers for e2e testing ----
 // Must come AFTER board/main.c (which may define its own macros)

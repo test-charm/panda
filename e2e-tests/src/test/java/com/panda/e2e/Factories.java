@@ -136,6 +136,15 @@ public class Factories {
             if (setup.fdcanPsr != 0 || setup.fdcanEcr != 0 || setup.irReg != 0) {
                 client.callUpdateCanHealthPkt(0, setup.irReg);
             }
+            if (setup.harnessStatus != 0) {
+                client.setHarnessStatus(setup.harnessStatus);
+            }
+            if (setup.somUartWptr != 0) {
+                client.setSomUartWptr(setup.somUartWptr);
+            }
+            if (setup.ignitionLine != 0) {
+                client.setIgnitionLine(setup.ignitionLine != 0);
+            }
         }
     }
 }

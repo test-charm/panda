@@ -29,6 +29,9 @@ public class ControlSetups {
             property("signatureChunk0").defaultValue(null);
             property("signatureChunk1").defaultValue(null);
             property("uartData").defaultValue(null);
+            property("harnessStatus").defaultValue(0);
+            property("somUartWptr").defaultValue(0);
+            property("ignitionLine").defaultValue(0);
         }
     }
 

@@ -237,6 +237,17 @@ public class PandaClient {
 
         void jna_reset_stop_mode_tracking();
 
+        // Bootkick FSM inspection and control
+        void jna_tick_handler();
+        int jna_get_bootkick_state();
+        int jna_get_bootkick_reset_triggered();
+        int jna_get_bootkick_waiting_countdown();
+        int jna_get_bootkick_reset_countdown();
+        void jna_reset_bootkick();
+        void jna_set_ignition_line(byte val);
+        void jna_set_harness_status(byte val);
+        void jna_set_som_uart_wptr(short val);
+
         // Fake register value accessors
         long jna_get_reg_GPIOA_MODER();
 
@@ -414,7 +425,23 @@ public class PandaClient {
         lib.jna_reset_signature();
         lib.jna_reset_enter_bootloader_mode();
         lib.jna_reset_uart();
+        lib.jna_reset_bootkick();
     }
+
+    // ---- Bootkick FSM ----
+
+    public void tickBootkick() {
+        lib.jna_tick_handler();
+    }
+
+    public int getBootkickState()           { return lib.jna_get_bootkick_state(); }
+    public int getBootkickResetTriggered()   { return lib.jna_get_bootkick_reset_triggered(); }
+    public int getBootkickWaitingCountdown() { return lib.jna_get_bootkick_waiting_countdown(); }
+    public int getBootkickResetCountdown()   { return lib.jna_get_bootkick_reset_countdown(); }
+
+    public void setIgnitionLine(boolean val) { lib.jna_set_ignition_line((byte) (val ? 1 : 0)); }
+    public void setHarnessStatus(int val)    { lib.jna_set_harness_status((byte) val); }
+    public void setSomUartWptr(int val)      { lib.jna_set_som_uart_wptr((short) val); }
 
     // ---- FDCAN register inspection ----
 

@@ -52,7 +52,9 @@ if [ "${COVERAGE:-}" != "1" ] && [ -f "$OUTPUT" ] \
     && [ "$OUTPUT" -nt "$SCRIPT_DIR/generate_fdcan_stubs.py" ] \
     && [ "$OUTPUT" -nt "$SCRIPT_DIR/generate_power_save_stubs.py" ] \
     && [ "$OUTPUT" -nt "$SCRIPT_DIR/generate_enter_stop_mode_stubs.py" ] \
-    && [ "$OUTPUT" -nt "$SCRIPT_DIR/generate_board_stubs.py" ]; then
+    && [ "$OUTPUT" -nt "$SCRIPT_DIR/generate_board_stubs.py" ] \
+    && [ "$OUTPUT" -nt "$SCRIPT_DIR/generate_bootkick_stubs.py" ] \
+    && [ "$OUTPUT" -nt "$PROJECT_ROOT/board/drivers/bootkick.h" ]; then
     echo "[build] libpanda_${BOARD}.dylib is up to date"
     ls -la "$OUTPUT"
     exit 0
@@ -79,6 +81,9 @@ python3 "$SCRIPT_DIR/generate_enter_stop_mode_stubs.py" > "$SCRIPT_DIR/enter_sto
 
 echo "[build] Generating board_stubs_e2e.gen.c ..."
 python3 "$SCRIPT_DIR/generate_board_stubs.py" > "$SCRIPT_DIR/board_stubs_e2e.gen.c"
+
+echo "[build] Generating bootkick_e2e.gen.c ..."
+python3 "$SCRIPT_DIR/generate_bootkick_stubs.py" > "$SCRIPT_DIR/bootkick_e2e.gen.c"
 
 echo "[build] Compiling full board/main.c → libpanda_${BOARD}.dylib ..."
 $CC $CFLAGS -o "$OUTPUT" "$SCRIPT_DIR/libpanda.c"
