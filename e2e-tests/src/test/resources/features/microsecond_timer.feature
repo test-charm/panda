@@ -21,10 +21,10 @@ Feature: Microsecond Timer Retrieval
       : {
         respBuffer= {
           len: 4
-          bytes[0]: 120y    # 0x78, LSB
-          bytes[1]: 86y     # 0x56
-          bytes[2]: 52y     # 0x34
-          bytes[3]: 18y     # 0x12, MSB
+          bytes[0]: 0x78     # LSB
+          bytes[1]: 0x56
+          bytes[2]: 0x34
+          bytes[3]: 0x12     # MSB
         }
       }
       """

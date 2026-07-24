@@ -39,7 +39,7 @@ Feature: Custom Clock Source Configuration
           ccr2: 0
           ccr3: 0
           arr: 65535     # ((0 & 0xFF) * 10) - 1, masked to 0xFFFF
-          ccr4: 32768    # (65535 + 1) / 2
+          ccr4: (65535 + 1) / 2
         }
       }
       """
@@ -60,8 +60,8 @@ Feature: Custom Clock Source Configuration
           ccr1: 1270     # ((0x7FFF & 0xFF00) >> 8) * 10 = 127 * 10
           ccr2: 2550     # (0x7FFF & 0xFF) * 10 = 255 * 10
           ccr3: 1270     # same as ccr1
-          arr: 2549      # (255 * 10) - 1
-          ccr4: 1275     # (2549 + 1) / 2
+          arr: (255 * 10) - 1
+          ccr4: (2549 + 1) / 2
         }
       }
       """

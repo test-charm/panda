@@ -14,8 +14,8 @@ Feature: CAN Health Statistics
       """
       : {
         canHealth0: {
-          canSpeed: 500       # 5000 / 10
-          canDataSpeed: 2000  # 20000 / 10
+          canSpeed: 5000 / 10
+          canDataSpeed: 20000 / 10
           canfdEnabled: false
           brsEnabled: false
           canfdNonIso: false
