@@ -112,6 +112,15 @@ public class Factories {
             if (setup.provisionBytes != null) {
                 client.setProvision(hexToBytes(setup.provisionBytes));
             }
+            if (setup.codeLen != 0) {
+                client.setAppCodeLen(setup.codeLen);
+            }
+            if (setup.signatureChunk0 != null) {
+                client.setSignatureChunk(0, hexToBytes(setup.signatureChunk0));
+            }
+            if (setup.signatureChunk1 != null) {
+                client.setSignatureChunk(1, hexToBytes(setup.signatureChunk1));
+            }
             if (setup.interruptCallRate != -1) {
                 client.setInterruptCallRate(setup.interruptIndex, setup.interruptCallRate);
             }

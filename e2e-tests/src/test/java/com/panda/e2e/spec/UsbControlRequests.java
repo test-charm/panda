@@ -254,6 +254,24 @@ public class UsbControlRequests {
         }
     }
 
+    public static class GetSignature0 extends UsbControlRequest {
+        @Override
+        public void main() {
+            property("request").defaultValue((byte) -45);       // 0xd3
+            property("param1").defaultValue((short) 0);
+            property("param2").defaultValue((short) 0);
+        }
+    }
+
+    public static class GetSignature1 extends UsbControlRequest {
+        @Override
+        public void main() {
+            property("request").defaultValue((byte) -44);       // 0xd4
+            property("param1").defaultValue((short) 0);
+            property("param2").defaultValue((short) 0);
+        }
+    }
+
     public static class MicrosecondTimmer extends UsbControlRequest {
         @Override
         public void main() {

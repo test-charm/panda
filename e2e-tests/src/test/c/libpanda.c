@@ -952,6 +952,12 @@ void jna_set_provision(const char *hex, size_t hex_len) {
     for (size_t i = 0U; (i < 32U) && (i < hex_len); i++) { fake_provision[i] = (uint8_t)hex[i]; }
 }
 void jna_reset_provision(void) { for (size_t i = 0U; i < 32U; i++) { fake_provision[i] = 0U; } }
+void jna_set_app_code_len(int len) { _app_start[0] = len; }
+void jna_set_signature_chunk(int chunk, const char *hex, size_t hex_len) {
+    uint8_t *sig = (uint8_t*)_app_start + _app_start[0] + (size_t)chunk * 64U;
+    for (size_t i = 0U; (i < 64U) && (i < hex_len); i++) { sig[i] = (uint8_t)hex[i]; }
+}
+void jna_reset_signature(void) { _app_start[0] = 0; }
 void jna_set_fan_rpm(uint16_t val) { fan_state.rpm = val; }
 uint32_t jna_get_resp_len(void) { return jna_resp_len; }
 uint8_t jna_get_resp_byte(int index) {

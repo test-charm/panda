@@ -192,6 +192,12 @@ public class PandaClient {
 
         void jna_reset_provision();
 
+        void jna_set_app_code_len(int len);
+
+        void jna_set_signature_chunk(int chunk, byte[] hex, int hexLen);
+
+        void jna_reset_signature();
+
         void jna_set_fan_rpm(int val);
 
         int jna_get_resp_len();
@@ -397,6 +403,7 @@ public class PandaClient {
         lib.jna_reset_interrupts();
         lib.jna_reset_serial();
         lib.jna_reset_provision();
+        lib.jna_reset_signature();
     }
 
     // ---- FDCAN register inspection ----
@@ -640,6 +647,14 @@ public class PandaClient {
 
     public void setProvision(byte[] hex) {
         lib.jna_set_provision(hex, hex.length);
+    }
+
+    public void setAppCodeLen(int len) {
+        lib.jna_set_app_code_len(len);
+    }
+
+    public void setSignatureChunk(int chunk, byte[] hex) {
+        lib.jna_set_signature_chunk(chunk, hex, hex.length);
     }
 
     public void setFanRpm(int val) {

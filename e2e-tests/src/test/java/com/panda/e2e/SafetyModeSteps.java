@@ -88,5 +88,8 @@ public class SafetyModeSteps {
         public int interruptCallRate;
         public String serialBytes;
         public String provisionBytes;
+        public int codeLen;
+        public String signatureChunk0;
+        public String signatureChunk1;
     }
 }

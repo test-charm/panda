@@ -25,6 +25,9 @@ public class ControlSetups {
             property("interruptCallRate").defaultValue(-1);
             property("serialBytes").defaultValue(null);
             property("provisionBytes").defaultValue(null);
+            property("codeLen").defaultValue(0);
+            property("signatureChunk0").defaultValue(null);
+            property("signatureChunk1").defaultValue(null);
         }
     }
 
