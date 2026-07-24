@@ -198,6 +198,10 @@ public class PandaClient {
 
         void jna_reset_signature();
 
+        int jna_get_enter_bootloader_mode();
+
+        void jna_reset_enter_bootloader_mode();
+
         void jna_set_fan_rpm(int val);
 
         int jna_get_resp_len();
@@ -404,6 +408,7 @@ public class PandaClient {
         lib.jna_reset_serial();
         lib.jna_reset_provision();
         lib.jna_reset_signature();
+        lib.jna_reset_enter_bootloader_mode();
     }
 
     // ---- FDCAN register inspection ----
@@ -696,6 +701,10 @@ public class PandaClient {
 
     public int getNvicResetCount() {
         return lib.jna_get_nvic_reset_count();
+    }
+
+    public int getEnterBootloaderMode() {
+        return lib.jna_get_enter_bootloader_mode();
     }
 
     public boolean isStopModeRequested() {

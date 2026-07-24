@@ -158,8 +158,8 @@ void llcan_irq_disable(const FDCAN_GlobalTypeDef *x) {
 
 // ---- Macros needed by main_comms.h ----
 #define PROVISION_CHUNK_LEN 0x20
-#define ENTER_BOOTLOADER_MAGIC 0x0
-#define ENTER_SOFTLOADER_MAGIC 0x0
+#define ENTER_BOOTLOADER_MAGIC 0x1U
+#define ENTER_SOFTLOADER_MAGIC 0x2U
 #define CAN_PACKET_VERSION_HASH 0
 #define HEALTH_PACKET_VERSION 0
 #define CAN_NUM_FROM_BUS_NUM(b) (b)
@@ -958,6 +958,8 @@ void jna_set_signature_chunk(int chunk, const char *hex, size_t hex_len) {
     for (size_t i = 0U; (i < 64U) && (i < hex_len); i++) { sig[i] = (uint8_t)hex[i]; }
 }
 void jna_reset_signature(void) { _app_start[0] = 0; }
+uint32_t jna_get_enter_bootloader_mode(void) { return enter_bootloader_mode; }
+void jna_reset_enter_bootloader_mode(void) { enter_bootloader_mode = 0U; }
 void jna_set_fan_rpm(uint16_t val) { fan_state.rpm = val; }
 uint32_t jna_get_resp_len(void) { return jna_resp_len; }
 uint8_t jna_get_resp_byte(int index) {
