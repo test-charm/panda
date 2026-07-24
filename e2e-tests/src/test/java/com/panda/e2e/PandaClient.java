@@ -32,7 +32,7 @@ public class PandaClient {
         String libPath = System.getProperty("user.dir") + "/src/test/c/libpanda_" + board + ".dylib";
         PandaLib INSTANCE = Native.load(libPath, PandaLib.class);
 
-        void jna_control_write(byte request, short param1, short param2);
+        void jna_control_write(byte request, short param1, short param2, short length);
 
         int jna_can_send(int addr, byte bus, byte[] data, byte len);
 
@@ -201,6 +201,10 @@ public class PandaClient {
         int jna_get_enter_bootloader_mode();
 
         void jna_reset_enter_bootloader_mode();
+
+        void jna_uart_push(byte[] data, int len);
+
+        void jna_reset_uart();
 
         void jna_set_fan_rpm(int val);
 
@@ -382,8 +386,8 @@ public class PandaClient {
         lib.jna_can_clear_all();
     }
 
-    public void controlWrite(byte request, short param1, short param2) {
-        lib.jna_control_write(request, param1, param2);
+    public void controlWrite(byte request, short param1, short param2, short length) {
+        lib.jna_control_write(request, param1, param2, length);
     }
 
     public int canSend(int address, byte[] data, byte bus) {
@@ -409,6 +413,7 @@ public class PandaClient {
         lib.jna_reset_provision();
         lib.jna_reset_signature();
         lib.jna_reset_enter_bootloader_mode();
+        lib.jna_reset_uart();
     }
 
     // ---- FDCAN register inspection ----
@@ -660,6 +665,10 @@ public class PandaClient {
 
     public void setSignatureChunk(int chunk, byte[] hex) {
         lib.jna_set_signature_chunk(chunk, hex, hex.length);
+    }
+
+    public void uartPush(byte[] data) {
+        lib.jna_uart_push(data, data.length);
     }
 
     public void setFanRpm(int val) {

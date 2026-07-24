@@ -28,6 +28,7 @@ public class ControlSetups {
             property("codeLen").defaultValue(0);
             property("signatureChunk0").defaultValue(null);
             property("signatureChunk1").defaultValue(null);
+            property("uartData").defaultValue(null);
         }
     }
 

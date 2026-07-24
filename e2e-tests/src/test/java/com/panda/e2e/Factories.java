@@ -43,7 +43,7 @@ public class Factories {
         public void save(Object object) {
             super.save(object);
             var request = (SafetyModeSteps.UsbControlRequest) object;
-            client.controlWrite(request.request, request.param1, request.param2);
+            client.controlWrite(request.request, request.param1, request.param2, request.length);
         }
     }
 
@@ -120,6 +120,9 @@ public class Factories {
             }
             if (setup.signatureChunk1 != null) {
                 client.setSignatureChunk(1, hexToBytes(setup.signatureChunk1));
+            }
+            if (setup.uartData != null) {
+                client.uartPush(setup.uartData.getBytes());
             }
             if (setup.interruptCallRate != -1) {
                 client.setInterruptCallRate(setup.interruptIndex, setup.interruptCallRate);

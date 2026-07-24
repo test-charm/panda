@@ -24,7 +24,7 @@ public class SafetyModeSteps {
         var jFactory = createJFactoryWithSpec(UsbControlRequests.UsbControlRequest.class);
         jFactory.useDAL().createAll(expression);
         var request = jFactory.type(UsbControlRequest.class).query();
-        client.controlWrite(request.request, request.param1, request.param2);
+        client.controlWrite(request.request, request.param1, request.param2, request.length);
     }
 
     @When("can send with result {int}:")
@@ -61,6 +61,7 @@ public class SafetyModeSteps {
     public static class UsbControlRequest {
         public byte request;
         public short param1, param2;
+        public short length;
     }
 
     public static class CanSendRequest {
@@ -91,5 +92,6 @@ public class SafetyModeSteps {
         public int codeLen;
         public String signatureChunk0;
         public String signatureChunk1;
+        public String uartData;
     }
 }

@@ -174,8 +174,14 @@ struct harness_t harness;
 #include "board/drivers/uart.h"
 uart_ring uart_ring_debug = {0};
 uart_ring uart_ring_som_debug = {0};
+static char uart_debug_buf[256];
 uart_ring *get_ring_by_number(int a) {
-    return (a == 0) ? &uart_ring_debug : &uart_ring_som_debug;
+    if (a == 0) {
+        uart_ring_debug.elems_rx = (uint8_t *)uart_debug_buf;
+        uart_ring_debug.rx_fifo_size = 256;
+        return &uart_ring_debug;
+    }
+    return (a == 4) ? &uart_ring_som_debug : NULL;
 }
 
 #include "boards/board_declarations.h"
@@ -436,7 +442,12 @@ void register_clear_bits(volatile uint32_t *addr, uint32_t mask);
 #define SCB_SCR_SLEEPONEXIT_Msk 0x2U
 
 // UART helpers
-bool get_char(uart_ring *q, char *elem) { (void)q; (void)elem; return false; }
+bool get_char(uart_ring *q, char *elem) {
+    if ((q == NULL) || (q->w_ptr_rx == q->r_ptr_rx)) return false;
+    if (elem != NULL) *elem = (char)q->elems_rx[q->r_ptr_rx];
+    q->r_ptr_rx = (q->r_ptr_rx + 1U) % q->rx_fifo_size;
+    return true;
+}
 int put_char(uart_ring *q, char c) { (void)q; (void)c; return 0; }
 
 // ---- Real firmware headers ----
@@ -627,8 +638,8 @@ static int jna_resp_len;
 extern "C" {
 #endif
 
-void jna_control_write(uint8_t request, uint16_t param1, uint16_t param2) {
-    ControlPacket_t req = { .request = request, .param1 = param1, .param2 = param2, .length = 0 };
+void jna_control_write(uint8_t request, uint16_t param1, uint16_t param2, uint16_t length) {
+    ControlPacket_t req = { .request = request, .param1 = param1, .param2 = param2, .length = length };
     jna_resp_len = comms_control_handler(&req, jna_resp);
 }
 
@@ -960,6 +971,17 @@ void jna_set_signature_chunk(int chunk, const char *hex, size_t hex_len) {
 void jna_reset_signature(void) { _app_start[0] = 0; }
 uint32_t jna_get_enter_bootloader_mode(void) { return enter_bootloader_mode; }
 void jna_reset_enter_bootloader_mode(void) { enter_bootloader_mode = 0U; }
+void jna_uart_push(const char *data, size_t len) {
+    for (size_t i = 0U; (i < len) && (i < 256U); i++) {
+        uart_ring_debug.elems_rx[i] = (uint8_t)data[i];
+    }
+    uart_ring_debug.w_ptr_rx = (len > 256U) ? 256U : (uint16_t)len;
+    uart_ring_debug.r_ptr_rx = 0U;
+}
+void jna_reset_uart(void) {
+    uart_ring_debug.w_ptr_rx = 0U;
+    uart_ring_debug.r_ptr_rx = 0U;
+}
 void jna_set_fan_rpm(uint16_t val) { fan_state.rpm = val; }
 uint32_t jna_get_resp_len(void) { return jna_resp_len; }
 uint8_t jna_get_resp_byte(int index) {

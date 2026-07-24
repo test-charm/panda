@@ -6,6 +6,10 @@ import org.testcharm.jfactory.Spec;
 public class UsbControlRequests {
 
     public static class UsbControlRequest extends Spec<SafetyModeSteps.UsbControlRequest> {
+        @Override
+        public void main() {
+            property("length").defaultValue((short) 0);
+        }
     }
 
     public static class SetSafetyMode extends UsbControlRequest {
@@ -277,6 +281,15 @@ public class UsbControlRequests {
         public void main() {
             property("request").defaultValue((byte) -47);       // 0xd1
             property("param2").defaultValue((short) 0);
+        }
+    }
+
+    public static class UartRead extends UsbControlRequest {
+        @Override
+        public void main() {
+            property("request").defaultValue((byte) -32);       // 0xe0
+            property("param2").defaultValue((short) 0);
+            property("length").defaultValue((short) 0);
         }
     }
 
