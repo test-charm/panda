@@ -229,6 +229,15 @@ public class UsbControlRequests {
         }
     }
 
+    public static class GetMcuUid extends UsbControlRequest {
+        @Override
+        public void main() {
+            property("request").defaultValue((byte) -61);       // 0xc3
+            property("param1").defaultValue((short) 0);
+            property("param2").defaultValue((short) 0);
+        }
+    }
+
     public static class MicrosecondTimmer extends UsbControlRequest {
         @Override
         public void main() {

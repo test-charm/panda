@@ -176,6 +176,10 @@ public class PandaClient {
 
         void jna_reset_microsecond_timer();
 
+        void jna_set_mcu_uid(byte[] hex, int hexLen);
+
+        void jna_reset_mcu_uid();
+
         void jna_set_fan_rpm(int val);
 
         int jna_get_resp_len();
@@ -377,6 +381,7 @@ public class PandaClient {
         lib.jna_reset_TIM_regs();
         lib.jna_reset_can_health();
         lib.jna_reset_microsecond_timer();
+        lib.jna_reset_mcu_uid();
     }
 
     // ---- FDCAN register inspection ----
@@ -604,6 +609,10 @@ public class PandaClient {
 
     public void setMicrosecondTimer(int val) {
         lib.jna_set_microsecond_timer(val);
+    }
+
+    public void setMcuUid(byte[] hex) {
+        lib.jna_set_mcu_uid(hex, hex.length);
     }
 
     public void setFanRpm(int val) {

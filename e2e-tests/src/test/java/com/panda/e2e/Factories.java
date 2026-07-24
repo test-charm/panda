@@ -95,6 +95,13 @@ public class Factories {
             if (setup.heartbeatDisabled != 0) {
                 client.setHeartbeatDisabled(setup.heartbeatDisabled);
             }
+            if (setup.mcuUidBytes != null) {
+                byte[] uid = new byte[setup.mcuUidBytes.length() / 2];
+                for (int i = 0; i < uid.length; i++) {
+                    uid[i] = (byte) Integer.parseInt(setup.mcuUidBytes.substring(i * 2, i * 2 + 2), 16);
+                }
+                client.setMcuUid(uid);
+            }
             if (setup.fdcanPsr != 0) {
                 client.setFdcanPsr(0, setup.fdcanPsr);
             }

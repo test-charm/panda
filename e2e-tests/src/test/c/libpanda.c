@@ -93,8 +93,12 @@ static char gitversion[64] = "00000000";
 static const uint32_t speeds[] = {0};
 static const uint32_t data_speeds[] = {20000};
 
+// ---- Fake UID ----
+static uint8_t fake_uid[12];
+#undef UID_BASE
+#define UID_BASE ((void *)fake_uid)
+
 // ---- Macros needed by main_comms.h ----
-#define UID_BASE ((void *)0x1FFF7A10UL)
 #define NUM_INTERRUPTS 0
 #define DEVICE_SERIAL_NUMBER_ADDRESS ((void *)0x1FFF7A10UL)
 
@@ -923,6 +927,12 @@ void jna_reset_TIM_regs(void) {
 // ---- JNA API: Setup + response buffer inspection ----
 void jna_set_microsecond_timer(uint32_t val) { MICROSECOND_TIMER->CNT = val; }
 void jna_reset_microsecond_timer(void) { MICROSECOND_TIMER->CNT = 0; }
+void jna_set_mcu_uid(const char *hex, size_t hex_len) {
+    for (size_t i = 0U; (i < 12U) && (i < hex_len); i++) {
+        fake_uid[i] = (uint8_t)hex[i];
+    }
+}
+void jna_reset_mcu_uid(void) { for (size_t i = 0U; i < 12U; i++) { fake_uid[i] = 0U; } }
 void jna_set_fan_rpm(uint16_t val) { fan_state.rpm = val; }
 uint32_t jna_get_resp_len(void) { return jna_resp_len; }
 uint8_t jna_get_resp_byte(int index) {

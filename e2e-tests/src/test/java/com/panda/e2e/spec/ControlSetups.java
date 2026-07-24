@@ -20,6 +20,7 @@ public class ControlSetups {
             property("safetyMode").defaultValue(0);
             property("alternativeExperience").defaultValue(0);
             property("heartbeatDisabled").defaultValue(0);
+            property("mcuUidBytes").defaultValue(null);
         }
     }
 
