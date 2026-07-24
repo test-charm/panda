@@ -207,9 +207,13 @@ public class PandaClient {
         void jna_reset_uart();
 
         int jna_get_relay_malfunction();
+
         void jna_set_relay_malfunction(int val);
+
         int jna_get_faults();
+
         void jna_reset_faults();
+
         void jna_call_tick_handler();
 
         void jna_set_fan_rpm(int val);
@@ -224,12 +228,16 @@ public class PandaClient {
         void jna_set_gitversion(String val);
 
         void jna_set_som_gpio(int val);
+
         void jna_set_voltage_mV(int val);
+
         void jna_set_current_mA(int val);
 
         // Direct state setters (bypass firmware pipeline)
         void jna_set_current_safety_mode(int val);
+
         void jna_set_alternative_experience(int val);
+
         void jna_set_heartbeat_disabled(int val);
 
         int jna_get_nvic_reset_count();
@@ -239,9 +247,29 @@ public class PandaClient {
         int jna_get_stop_mode_requested();
 
         void jna_process_stop_mode();
+
         void jna_tick_siren();
 
         void jna_reset_stop_mode_tracking();
+
+        // Bootkick FSM inspection and control
+        void jna_tick_handler();
+
+        int jna_get_bootkick_state();
+
+        int jna_get_bootkick_reset_triggered();
+
+        int jna_get_bootkick_waiting_countdown();
+
+        int jna_get_bootkick_reset_countdown();
+
+        void jna_reset_bootkick();
+
+        void jna_set_ignition_line(byte val);
+
+        void jna_set_harness_status(byte val);
+
+        void jna_set_som_uart_wptr(short val);
 
         // Fake register value accessors
         long jna_get_reg_GPIOA_MODER();
@@ -257,13 +285,21 @@ public class PandaClient {
         long jna_get_reg_GPIOF_MODER();
 
         long jna_get_reg_GPIOG_MODER();
+
         long jna_get_reg_GPIOA_ODR();
+
         long jna_get_reg_GPIOB_ODR();
+
         long jna_get_reg_GPIOC_ODR();
+
         long jna_get_reg_GPIOD_ODR();
+
         long jna_get_reg_GPIOB_PUPDR();
+
         long jna_get_reg_GPIOE_ODR();
+
         long jna_get_reg_GPIOF_ODR();
+
         long jna_get_reg_GPIOG_ODR();
 
         long jna_get_reg_ADC1_CR();
@@ -301,12 +337,19 @@ public class PandaClient {
         long jna_get_reg_SCB_SCR();
 
         long jna_get_reg_NVIC_ICER0();
+
         long jna_get_reg_NVIC_ICER7();
+
         long jna_get_reg_NVIC_ICPR0();
+
         long jna_get_reg_NVIC_ICPR7();
+
         int jna_get_irq_disabled();
+
         int jna_get_dsb_called();
+
         int jna_get_isb_called();
+
         int jna_get_wfi_entered();
 
         // CAN health inspection
@@ -421,6 +464,41 @@ public class PandaClient {
         lib.jna_reset_enter_bootloader_mode();
         lib.jna_reset_uart();
         lib.jna_reset_faults();
+        lib.jna_reset_bootkick();
+    }
+
+    // ---- Bootkick FSM ----
+
+    public void tickBootkick() {
+        lib.jna_tick_handler();
+    }
+
+    public int getBootkickState() {
+        return lib.jna_get_bootkick_state();
+    }
+
+    public int getBootkickResetTriggered() {
+        return lib.jna_get_bootkick_reset_triggered();
+    }
+
+    public int getBootkickWaitingCountdown() {
+        return lib.jna_get_bootkick_waiting_countdown();
+    }
+
+    public int getBootkickResetCountdown() {
+        return lib.jna_get_bootkick_reset_countdown();
+    }
+
+    public void setIgnitionLine(boolean val) {
+        lib.jna_set_ignition_line((byte) (val ? 1 : 0));
+    }
+
+    public void setHarnessStatus(int val) {
+        lib.jna_set_harness_status((byte) val);
+    }
+
+    public void setSomUartWptr(int val) {
+        lib.jna_set_som_uart_wptr((short) val);
     }
 
     // ---- FDCAN register inspection ----
@@ -678,10 +756,21 @@ public class PandaClient {
         lib.jna_uart_push(data, data.length);
     }
 
-    public int getRelayMalfunction() { return lib.jna_get_relay_malfunction(); }
-    public void setRelayMalfunction(int val) { lib.jna_set_relay_malfunction(val); }
-    public int readFaults() { return lib.jna_get_faults(); }
-    public void callTickHandler() { lib.jna_call_tick_handler(); }
+    public int getRelayMalfunction() {
+        return lib.jna_get_relay_malfunction();
+    }
+
+    public void setRelayMalfunction(int val) {
+        lib.jna_set_relay_malfunction(val);
+    }
+
+    public int readFaults() {
+        return lib.jna_get_faults();
+    }
+
+    public void callTickHandler() {
+        lib.jna_call_tick_handler();
+    }
 
     public void setFanRpm(int val) {
         lib.jna_set_fan_rpm(val);

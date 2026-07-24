@@ -30,6 +30,9 @@ public class ControlSetups {
             property("signatureChunk1").defaultValue(null);
             property("uartData").defaultValue(null);
             property("relayMalfunctionVal").defaultValue(-1);
+            property("harnessStatus").defaultValue(0);
+            property("somUartWptr").defaultValue(0);
+            property("ignitionLine").defaultValue(0);
         }
     }
 
