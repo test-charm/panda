@@ -58,6 +58,11 @@ public class SafetyModeSteps {
         expect(client).should(expression);
     }
 
+    @When("tick handler")
+    public void callTickHandler() {
+        client.callTickHandler();
+    }
+
     public static class UsbControlRequest {
         public byte request;
         public short param1, param2;
@@ -93,5 +98,6 @@ public class SafetyModeSteps {
         public String signatureChunk0;
         public String signatureChunk1;
         public String uartData;
+        public int relayMalfunctionVal;
     }
 }

@@ -124,6 +124,9 @@ public class Factories {
             if (setup.uartData != null) {
                 client.uartPush(setup.uartData.getBytes());
             }
+            if (setup.relayMalfunctionVal != -1) {
+                client.setRelayMalfunction(setup.relayMalfunctionVal);
+            }
             if (setup.interruptCallRate != -1) {
                 client.setInterruptCallRate(setup.interruptIndex, setup.interruptCallRate);
             }

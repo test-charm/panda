@@ -206,6 +206,12 @@ public class PandaClient {
 
         void jna_reset_uart();
 
+        int jna_get_relay_malfunction();
+        void jna_set_relay_malfunction(int val);
+        int jna_get_faults();
+        void jna_reset_faults();
+        void jna_call_tick_handler();
+
         void jna_set_fan_rpm(int val);
 
         int jna_get_resp_len();
@@ -414,6 +420,7 @@ public class PandaClient {
         lib.jna_reset_signature();
         lib.jna_reset_enter_bootloader_mode();
         lib.jna_reset_uart();
+        lib.jna_reset_faults();
     }
 
     // ---- FDCAN register inspection ----
@@ -670,6 +677,11 @@ public class PandaClient {
     public void uartPush(byte[] data) {
         lib.jna_uart_push(data, data.length);
     }
+
+    public int getRelayMalfunction() { return lib.jna_get_relay_malfunction(); }
+    public void setRelayMalfunction(int val) { lib.jna_set_relay_malfunction(val); }
+    public int readFaults() { return lib.jna_get_faults(); }
+    public void callTickHandler() { lib.jna_call_tick_handler(); }
 
     public void setFanRpm(int val) {
         lib.jna_set_fan_rpm(val);

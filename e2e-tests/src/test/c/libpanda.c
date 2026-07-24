@@ -634,6 +634,13 @@ void register_clear_bits(volatile uint32_t *addr, uint32_t mask) {
 static uint8_t jna_resp[0x40];
 static int jna_resp_len;
 
+bool relay_malfunction;
+void jna_set_relay_malfunction(int val) { relay_malfunction = (val != 0); }
+int jna_get_relay_malfunction(void) { return (int)relay_malfunction; }
+uint32_t jna_get_faults(void) { return faults; }
+void jna_reset_faults(void) { faults = 0U; }
+void jna_call_tick_handler(void) { TICK_TIMER->SR = 1U; tick_handler(); }
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -1127,6 +1134,3 @@ uint8_t jna_get_health_heartbeat_lost(void) {
     return jna_health.heartbeat_lost_pkt;
 }
 
-#ifdef __cplusplus
-}
-#endif

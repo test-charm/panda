@@ -29,6 +29,7 @@ public class ControlSetups {
             property("signatureChunk0").defaultValue(null);
             property("signatureChunk1").defaultValue(null);
             property("uartData").defaultValue(null);
+            property("relayMalfunctionVal").defaultValue(-1);
         }
     }
 
