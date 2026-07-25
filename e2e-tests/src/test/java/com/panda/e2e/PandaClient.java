@@ -7,6 +7,10 @@ import lombok.Getter;
 import org.springframework.stereotype.Component;
 import org.testcharm.dal.runtime.AdaptiveList;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -391,9 +395,26 @@ public class PandaClient {
         void jna_set_fdcan_psr(int bus, int val);
 
         void jna_set_fdcan_ecr(int bus, int val);
+
+        // Full firmware init — sets hardware to post-hardware-reset defaults
+        void jna_panda_init();
     }
 
-    private final PandaLib lib = PandaLib.INSTANCE;
+    private static final String ORIGINAL_LIB_PATH = PandaLib.libPath;
+    private PandaLib lib = PandaLib.INSTANCE;
+
+    private void reloadLibrary() {
+        try {
+            Path original = Path.of(ORIGINAL_LIB_PATH);
+            Path temp = Files.createTempFile("libpanda_", ".dylib");
+            Files.copy(original, temp, StandardCopyOption.REPLACE_EXISTING);
+            temp.toFile().deleteOnExit();
+            lib = Native.load(temp.toAbsolutePath().toString(), PandaLib.class);
+            lib.jna_panda_init();
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to reload native library", e);
+        }
+    }
 
     public int getSafetyTxBlocked() {
         return lib.jna_get_safety_tx_blocked();
@@ -444,27 +465,7 @@ public class PandaClient {
     }
 
     public void clearAll() {
-        clearCanQueues();
-        lib.jna_reset_fdcan();
-        lib.jna_reset_heartbeat();
-        lib.jna_reset_safety();
-        lib.jna_reset_alternative_experience();
-        lib.jna_reset_siren();
-        lib.jna_reset_power_save_tracking();
-        lib.jna_reset_stop_mode_tracking();
-        lib.jna_reset_nvic_count();
-        lib.jna_reset_TIM_regs();
-        lib.jna_reset_can_health();
-        lib.jna_reset_microsecond_timer();
-        lib.jna_reset_mcu_uid();
-        lib.jna_reset_interrupts();
-        lib.jna_reset_serial();
-        lib.jna_reset_provision();
-        lib.jna_reset_signature();
-        lib.jna_reset_enter_bootloader_mode();
-        lib.jna_reset_uart();
-        lib.jna_reset_faults();
-        lib.jna_reset_bootkick();
+        reloadLibrary();
     }
 
     // ---- Bootkick FSM ----

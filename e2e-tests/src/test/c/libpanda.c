@@ -767,7 +767,6 @@ void jna_reset_fdcan(void) {
     bus_config[2].brs_enabled = false;
 }
 
-// Reset heartbeat state between scenarios
 void jna_reset_heartbeat(void) {
     heartbeat_counter = 0U;
     heartbeat_lost = false;
@@ -991,6 +990,10 @@ void jna_reset_signature(void) { _app_start[0] = 0; }
 uint32_t jna_get_enter_bootloader_mode(void) { return enter_bootloader_mode; }
 void jna_reset_enter_bootloader_mode(void) { enter_bootloader_mode = 0U; }
 void jna_uart_push(const char *data, size_t len) {
+    if (uart_ring_debug.elems_rx == NULL) {
+        uart_ring_debug.elems_rx = (uint8_t *)uart_debug_buf;
+        uart_ring_debug.rx_fifo_size = 256;
+    }
     for (size_t i = 0U; (i < len) && (i < 256U); i++) {
         uart_ring_debug.elems_rx[i] = (uint8_t)data[i];
     }
@@ -1146,3 +1149,31 @@ uint8_t jna_get_health_heartbeat_lost(void) {
     return jna_health.heartbeat_lost_pkt;
 }
 
+// Full panda init — called once after library load to set hardware to post-reset defaults.
+void jna_panda_init(void) {
+    can_loopback = false;
+    can_silent = true;
+    can_init(0);
+    can_init(1);
+    can_init(2);
+    jna_can_clear_all();
+    jna_reset_heartbeat();
+    jna_reset_safety();
+    jna_reset_alternative_experience();
+    jna_reset_siren();
+    jna_reset_power_save_tracking();
+    jna_reset_stop_mode_tracking();
+    jna_reset_nvic_count();
+    jna_reset_TIM_regs();
+    jna_reset_can_health();
+    jna_reset_microsecond_timer();
+    jna_reset_mcu_uid();
+    jna_reset_interrupts();
+    jna_reset_serial();
+    jna_reset_provision();
+    jna_reset_signature();
+    jna_reset_enter_bootloader_mode();
+    jna_reset_uart();
+    jna_reset_faults();
+    jna_reset_bootkick();
+}
