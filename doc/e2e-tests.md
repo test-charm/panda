@@ -41,6 +41,8 @@ Cucumber BDD 断言: gpioAModer: 0xFFFFFFF1, rccCr: 0x0, ...
 | `board_stubs_e2e.gen.c` | `board/boards/cuatro/tres/red.h` | `set_bootkick`, `set_amp_enabled`, `enable_can_transceiver` |
 | `power_save_e2e.gen.c` | `board/sys/power_saving.h` | `set_power_save_state()` |
 | `fdcan_e2e.gen.c` | `board/drivers/fdcan.h` | FDCAN 初始化代码 |
+| `can_health_e2e.gen.c` | `board/drivers/can_common.h` | CAN 健康统计提取 |
+| `bootkick_e2e.gen.c` | `board/drivers/bootkick.h` | `bootkick_tick()` FSM |
 
 覆盖率报告排除全部 `.gen.c` 文件。
 
@@ -88,7 +90,7 @@ e2e-tests/
 │   │   ├── build.sh                 # 编译（支持 BOARD 参数）
 │   │   ├── fake_stm.h               # GPIO_TypeDef 完整结构体
 │   │   ├── libpanda.c               # 假寄存器实例 + JNA 访问器
-│   │   ├── generate_*.py            # 自动生成脚本（5 个）
+│   │   ├── generate_*.py            # 自动生成脚本（4 个）
 │   │   ├── *_e2e.gen.c              # 自动生成文件（6 个，不纳入版本管理）
 │   │   └── board/drivers/           # 仅保留 harness.h 测试桩
 │   ├── java/com/panda/e2e/
@@ -99,7 +101,7 @@ e2e-tests/
 │   │       ├── UsbControlRequests.java  # 33 个 USB 控制请求 spec
 │   │       └── ControlSetups.java       # 前置数据 spec
 │   └── resources/
-│       ├── features/                # 34 个 feature 文件
+│       ├── features/                # 35 个 feature 文件
 │       └── test-design/             # 测试设计文档
 ```
 
@@ -140,6 +142,29 @@ e2e-tests/
 | 固件签名 | `signature.feature` | 2 | respBuffer (64 bytes 分块) |
 | Bootloader 模式 | `bootloader.feature` | 3 | nvicResetCount, enterBootloaderMode |
 | UART 读取 | `uart_read.feature` | 3 | respBuffer (字符读取 / 空) |
+| Bootkick SOM 复位 | `bootkick.feature` | 14 | tick_handler FSM (state/waitingCountdown/resetCountdown/resetTriggered) + stopModeRegs (gpioAOdr/gpioCOdr) |
+| 继电器故障 | `relay_malfunction.feature` | 3 | readFaults (FAULT_RELAY_MALFUNCTION 边沿检测) |
+
+## C 代码覆盖率
+
+> 数据来源: `e2e-tests/run_all_coverage.sh` 合并报告 (cuatro + tres + red)
+> 生成时间: 2026-07-25
+
+| 源文件 | 行覆盖 | 函数覆盖 | 说明 |
+|--------|--------|---------|------|
+| `board/main_comms.h` | **93.3%** (251/269) | 2/3 (66.7%) | USB 命令处理 (33/34 已覆盖) |
+| `board/main.c` | **46.9%** (106/226) | 4/7 (57.1%) | 主循环 + 初始化 |
+| `board/drivers/can_common.h` | **86.8%** (92/106) | 10/12 (83.3%) | CAN 通用操作 |
+| `board/drivers/gpio.h` | **72.1%** (44/61) | 5/7 (71.4%) | GPIO 控制 |
+| `board/sys/faults.h` | **78.9%** (15/19) | 2/2 (100%) | 故障设置 |
+| `board/libc.h` | **60.7%** (37/61) | 3/5 (60.0%) | 最小化 libc 替代 |
+| `board/drivers/fan.h` | **37.0%** (10/27) | 2/3 (66.7%) | 风扇 PWM + 冷却 |
+| `board/can_comms.h` | **18.4%** (14/76) | 2/4 (50.0%) | CAN 通信处理 |
+| `board/drivers/clock_source.h` | **18.4%** (7/38) | 1/2 (50.0%) | 时钟源选择 |
+| `board/utils.h` | **0.0%** (0/3) | 0/1 (0%) | 工具函数 (仅初始化) |
+| **合计** | **65.1%** (575/884) | **30/46** (65.2%) | |
+
+> ⚠️ `main.c` 中未覆盖的 3 个函数: 主循环 tick 路径（心跳丢失、controls_allowed_countdown、ignition_can_cnt）、`check_registers()` 寄存器校验、`__WFI()` 空闲路径。详见 `e2e-tests/src/test/resources/test-design/uncovered-features.md`。
 
 ## 设计原则
 
@@ -178,8 +203,11 @@ cd e2e-tests
 # 指定板卡
 ./gradlew cucumber -Pboard=tres
 
-# 覆盖率
+# 覆盖率 (单板)
 COVERAGE=1 ./gradlew cucumberCoverage
+
+# 全量测试 + 合并覆盖率 (所有 feature，所有板卡)
+./run_all_coverage.sh
 
 # 重建 C 库
 cd src/test/c && ./build.sh cuatro

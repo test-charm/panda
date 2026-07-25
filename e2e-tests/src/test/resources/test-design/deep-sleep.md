@@ -145,3 +145,16 @@ request deep sleep (0xb5):
 `enter_stop_mode()` 从 `board/sys/power_saving.h` 逐字提取（`generate_enter_stop_mode_stubs.py`），直接操作假硬件寄存器实例（`e2e_GPIOA.MODER`、`e2e_RCC.CR` 等）。`register_set` / `register_clear_bits` / `register_set_bits` 将真实固件的寄存器写入重定向到这些假实例上，测试通过 JNA 读取寄存器值进行验证。
 
 覆盖率报告 (`coverage-report.sh`) 已将 `enter_stop_mode_e2e.gen.c` 排除，避免自动生成代码影响覆盖率统计。
+
+## 覆盖率
+
+> 数据来源: `run_all_coverage.sh` 合并报告 (cuatro + tres + red)
+> 综合行覆盖率: **65.1%** (全量), 本功能涉及以下源文件:
+
+| 源文件 | 行覆盖 | 说明 |
+|--------|--------|------|
+| `main_comms.h` | 93.3% (251/269) | USB 命令处理 |
+| `main.c` | 46.9% (106/226) | 主循环 + 初始化 |
+| `gpio.h` | 69.1% (47/68) | GPIO 控制 |
+| `sys.h` | 60.0% (3/5) | 系统初始化 |
+

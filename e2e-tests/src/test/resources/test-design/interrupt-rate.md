@@ -67,3 +67,13 @@ get interrupt call rate (0xc4):
 | interruptCallRate = 0 | — | — | ✅ |
 
 ✅ 所有代码路径已覆盖。所有条件分支判断点已覆盖。
+
+## 覆盖率
+
+> 数据来源: `run_all_coverage.sh` 合并报告 (cuatro + tres + red)
+> 综合行覆盖率: **65.1%** (全量), 本功能涉及以下源文件:
+
+| 源文件 | 行覆盖 | 说明 |
+|--------|--------|------|
+| `main_comms.h` | 93.3% (251/269) | USB 命令处理 |
+

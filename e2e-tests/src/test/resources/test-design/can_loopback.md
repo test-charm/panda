@@ -87,3 +87,14 @@ e2e 测试环境中 `process_can()` 被 stub，FDCAN 硬件不存在，因此：
 - **修复**：在 `SafetyModeSteps.controlWriteWithExpression()` 开始时调用 `jFactory.clear()`。
 - feature 文件中使用显式 `UsbControlRequest: { request: -27y, param1: 1, param2: 0 }` 形式，不依赖 Spec 别名，确保 request 字段值明确。
 - Java signed byte 的限制：`0xA0`（160）超出 signed byte 范围（-128~127），需使用 `-96y`（signed 表示）而非 `0b1010_0000y` 或 `0xA0y`。
+
+## 覆盖率
+
+> 数据来源: `run_all_coverage.sh` 合并报告 (cuatro + tres + red)
+> 综合行覆盖率: **65.1%** (全量), 本功能涉及以下源文件:
+
+| 源文件 | 行覆盖 | 说明 |
+|--------|--------|------|
+| `main_comms.h` | 93.3% (251/269) | USB 命令处理 |
+| `can_common.h` | 86.9% (93/107) | CAN 通用操作 |
+

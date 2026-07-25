@@ -99,15 +99,13 @@ USB 控制请求 `0xd2` (get_health) — 调用 `get_health_pkt()` 函数，将�
 |----------|:---------------:|:---------------------:|:---------------------:|
 | SILENT + 阻断CAN | 0 (SILENT) | ≥1 | ≥1 |
 
-## 覆盖率检查
+## 覆盖率
 
-- ✅ 所有代码路径：函数只有一条直线路径（无分支）
-- ✅ 每个输入取值在至少一个用例中用到
-- ✅ 每个输出字段的关键状态都被验证
+> 数据来源: `run_all_coverage.sh` 合并报告 (cuatro + tres + red)
+> 综合行覆盖率: **65.1%** (全量), 本功能涉及以下源文件:
 
-## 实现说明
+| 源文件 | 行覆盖 | 说明 |
+|--------|--------|------|
+| `main_comms.h` | 93.3% (251/269) | USB 命令处理 |
+| `main.c` | 46.9% (106/226) | 主循环 + 初始化 |
 
-- 新增 JNA 函数 `jna_read_health_pkt()`：直接调用 `get_health_pkt()` 并将结果存储在静态 `health_t` 中
-- 新增 JNA 字段访问函数：`jna_get_health_*` 系列
-- `PandaClient.java` 新增 `readHealthPkt()` 方法和健康字段 getter
-- `UsbControlRequests.java` 新增 `GetHealth` spec（默认 request=0xd2）

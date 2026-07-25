@@ -53,3 +53,15 @@ set_can_mode(CAN_MODE_NORMAL)           [value=0]
 | All code paths covered | ✅ Both branches of `param1 == 1U` |
 | Each input value in ≥1 case | ✅ 0, 1, 2 all present |
 | Each branch condition covered | ✅ True: case 2, False: cases 1 & 3 |
+
+## 覆盖率
+
+> 数据来源: `run_all_coverage.sh` 合并报告 (cuatro + tres + red)
+> 综合行覆盖率: **65.1%** (全量), 本功能涉及以下源文件:
+
+| 源文件 | 行覆盖 | 说明 |
+|--------|--------|------|
+| `main_comms.h` | 93.3% (251/269) | USB 命令处理 |
+| `gpio.h` | 69.1% (47/68) | GPIO 控制 |
+| `board_declarations.h` | 50.0% (2/4) | 板级声明 |
+

@@ -68,3 +68,14 @@ e2e 环境: `data_speeds={0}`, `can_speed=5000`，仅 `param2=0` 有效。
 | is_speed_valid = false | — | — | ✅ |
 
 ✅ 所有条件分支已覆盖。
+
+## 覆盖率
+
+> 数据来源: `run_all_coverage.sh` 合并报告 (cuatro + tres + red)
+> 综合行覆盖率: **65.1%** (全量), 本功能涉及以下源文件:
+
+| 源文件 | 行覆盖 | 说明 |
+|--------|--------|------|
+| `main_comms.h` | 93.3% (251/269) | USB 命令处理 |
+| `can_common.h` | 86.9% (93/107) | CAN 通用操作 |
+

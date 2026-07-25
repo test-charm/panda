@@ -62,3 +62,14 @@ set CAN FD non-ISO (0xfc):
 | NISO bit = 1 (non-ISO mode) | — | ✅ | — |
 
 ✅ 所有条件分支和 FDCAN 寄存器变化已覆盖。
+
+## 覆盖率
+
+> 数据来源: `run_all_coverage.sh` 合并报告 (cuatro + tres + red)
+> 综合行覆盖率: **65.1%** (全量), 本功能涉及以下源文件:
+
+| 源文件 | 行覆盖 | 说明 |
+|--------|--------|------|
+| `main_comms.h` | 93.3% (251/269) | USB 命令处理 |
+| `can_common.h` | 86.9% (93/107) | CAN 通用操作 |
+
