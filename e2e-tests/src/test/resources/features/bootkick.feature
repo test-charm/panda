@@ -17,11 +17,11 @@ Feature: Bootkick SOM Reset FSM
     When tick handler:
     Then control data should be:
       """
-      : {
-        bootkickState: 1
-        bootkickResetTriggered: 0
-        bootkickWaitingCountdown: 0
-        bootkickResetCountdown: 0
+      bootkick: {
+        state: 1
+        resetTriggered: 0
+        waitingCountdown: 0
+        resetCountdown: 0
       }
       """
 
@@ -29,10 +29,10 @@ Feature: Bootkick SOM Reset FSM
     When tick handler:
     Then control data should be:
       """
-      : {
-        bootkickState: 0
-        bootkickResetTriggered: 0
-        bootkickWaitingCountdown: 0
+      bootkick: {
+        state: 0
+        resetTriggered: 0
+        waitingCountdown: 0
       }
       """
 
@@ -49,11 +49,11 @@ Feature: Bootkick SOM Reset FSM
     When tick handler:
     Then control data should be:
       """
-      : {
-        bootkickState: 1
-        bootkickResetTriggered: 0
-        bootkickWaitingCountdown: 19
-        bootkickResetCountdown: 0
+      bootkick: {
+        state: 1
+        resetTriggered: 0
+        waitingCountdown: 19
+        resetCountdown: 0
       }
       """
 
@@ -66,33 +66,13 @@ Feature: Bootkick SOM Reset FSM
       }
       """
     # 21 more tick_handler calls: 1 rising edge tick + 20 countdown ticks
-    When tick handler:
-    When tick handler:
-    When tick handler:
-    When tick handler:
-    When tick handler:
-    When tick handler:
-    When tick handler:
-    When tick handler:
-    When tick handler:
-    When tick handler:
-    When tick handler:
-    When tick handler:
-    When tick handler:
-    When tick handler:
-    When tick handler:
-    When tick handler:
-    When tick handler:
-    When tick handler:
-    When tick handler:
-    When tick handler:
-    When tick handler:
+    When tick handler 21 times
     Then control data should be:
       """
-      : {
-        bootkickState: 2
-        bootkickResetTriggered: 1
-        bootkickResetCountdown: 3
+      bootkick: {
+        state: 2
+        resetTriggered: 1
+        resetCountdown: 3
       }
       """
 
@@ -104,73 +84,31 @@ Feature: Bootkick SOM Reset FSM
         ignitionLine: 1
       }
       """
-    When tick handler:
-    When tick handler:
-    When tick handler:
-    When tick handler:
-    When tick handler:
-    When tick handler:
-    When tick handler:
-    When tick handler:
-    When tick handler:
-    When tick handler:
-    When tick handler:
-    When tick handler:
-    When tick handler:
-    When tick handler:
-    When tick handler:
-    When tick handler:
-    When tick handler:
-    When tick handler:
-    When tick handler:
-    When tick handler:
-    When tick handler:
-    When tick handler:
-    When tick handler:
-    When tick handler:
-    When tick handler:
-    When tick handler:
-    When tick handler:
+    When tick handler 25 times
     Then control data should be:
       """
-      : {
-        bootkickState: 1
-        bootkickResetTriggered: 1
-        bootkickResetCountdown: 0
+      bootkick: {
+        state: 1
+        resetTriggered: 1
+        resetCountdown: 0
       }
       """
 
   Scenario: Serial activity aborts waiting countdown
-    When tick handler:
     Given exists data:
       """
       ControlSetup: {
         ignitionLine: 1
-      }
-      """
-    When tick handler:
-    When tick handler:
-    When tick handler:
-    When tick handler:
-    When tick handler:
-    When tick handler:
-    When tick handler:
-    When tick handler:
-    When tick handler:
-    # Simulate UART activity
-    Given exists data:
-      """
-      ControlSetup: {
         somUartWptr: 42
       }
       """
     When tick handler:
     Then control data should be:
       """
-      : {
-        bootkickState: 1
-        bootkickWaitingCountdown: 0
-        bootkickResetTriggered: 0
+      bootkick: {
+        state: 1
+        waitingCountdown: 0
+        resetTriggered: 0
       }
       """
 
@@ -182,34 +120,7 @@ Feature: Bootkick SOM Reset FSM
         ignitionLine: 1
       }
       """
-    When tick handler:
-    When tick handler:
-    When tick handler:
-    When tick handler:
-    When tick handler:
-    When tick handler:
-    When tick handler:
-    When tick handler:
-    When tick handler:
-    When tick handler:
-    When tick handler:
-    When tick handler:
-    When tick handler:
-    When tick handler:
-    When tick handler:
-    When tick handler:
-    When tick handler:
-    When tick handler:
-    When tick handler:
-    When tick handler:
-    When tick handler:
-    When tick handler:
-    When tick handler:
-    When tick handler:
-    When tick handler:
-    When tick handler:
-    When tick handler:
-    When tick handler:
+    When tick handler 23 times
     # Toggle ignition to create STANDBY→BOOTKICK edge
     Given exists data:
       """
@@ -227,10 +138,10 @@ Feature: Bootkick SOM Reset FSM
     When tick handler:
     Then control data should be:
       """
-      : {
-        bootkickState: 1
-        bootkickResetTriggered: 1
-        bootkickWaitingCountdown: 0
+      bootkick: {
+        state: 1
+        resetTriggered: 1
+        waitingCountdown: 0
       }
       """
 
@@ -245,8 +156,8 @@ Feature: Bootkick SOM Reset FSM
     When tick handler:
     Then control data should be:
       """
-      : {
-        bootkickState: 1
-        bootkickResetTriggered: 0
+      bootkick: {
+        state: 1
+        resetTriggered: 0
       }
       """

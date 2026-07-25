@@ -1,11 +1,11 @@
 package com.panda.e2e.spec;
 
-import com.panda.e2e.SafetyModeSteps;
+import com.panda.e2e.PandaSteps;
 import org.testcharm.jfactory.Spec;
 
 public class ControlSetups {
 
-    public static class ControlSetup extends Spec<SafetyModeSteps.ControlSetup> {
+    public static class ControlSetup extends Spec<PandaSteps.ControlSetup> {
         @Override
         public void main() {
             property("timerValue").defaultValue(0);

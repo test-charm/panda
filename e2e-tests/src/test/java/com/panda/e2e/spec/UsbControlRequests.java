@@ -1,11 +1,11 @@
 package com.panda.e2e.spec;
 
-import com.panda.e2e.SafetyModeSteps;
+import com.panda.e2e.PandaSteps;
 import org.testcharm.jfactory.Spec;
 
 public class UsbControlRequests {
 
-    public static class UsbControlRequest extends Spec<SafetyModeSteps.UsbControlRequest> {
+    public static class UsbControlRequest extends Spec<PandaSteps.UsbControlRequest> {
         @Override
         public void main() {
             property("length").defaultValue((short) 0);

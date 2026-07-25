@@ -14,9 +14,9 @@ public class Factories {
     @Bean
     public JFactory createJFactory(PandaClient client) {
         var jFactory = new JFactory(new CompositeDataRepository(new MemoryDataRepository())
-                .registerByType(SafetyModeSteps.UsbControlRequest.class, new UsbControlRequestDataRepository(client))
-                .registerByType(SafetyModeSteps.CanSendRequest.class, new CanSendRequestDataRepository(client))
-                .registerByType(SafetyModeSteps.ControlSetup.class, new ControlSetupDataRepository(client))
+                .registerByType(PandaSteps.UsbControlRequest.class, new UsbControlRequestDataRepository(client))
+                .registerByType(PandaSteps.CanSendRequest.class, new CanSendRequestDataRepository(client))
+                .registerByType(PandaSteps.ControlSetup.class, new ControlSetupDataRepository(client))
         );
         Classes.subTypesOf(Spec.class, "com.panda.e2e.spec")
                 .forEach(spec -> jFactory.register((Class) spec));
@@ -42,7 +42,7 @@ public class Factories {
         @Override
         public void save(Object object) {
             super.save(object);
-            var request = (SafetyModeSteps.UsbControlRequest) object;
+            var request = (PandaSteps.UsbControlRequest) object;
             client.controlWrite(request.request, request.param1, request.param2, request.length);
         }
     }
@@ -57,7 +57,7 @@ public class Factories {
         @Override
         public void save(Object object) {
             super.save(object);
-            var request = (SafetyModeSteps.CanSendRequest) object;
+            var request = (PandaSteps.CanSendRequest) object;
             client.canSend(request.address, request.data.getBytes(), request.bus);
         }
     }
@@ -72,7 +72,7 @@ public class Factories {
         @Override
         public void save(Object object) {
             super.save(object);
-            var setup = (SafetyModeSteps.ControlSetup) object;
+            var setup = (PandaSteps.ControlSetup) object;
             if (setup.timerValue != 0) {
                 client.setMicrosecondTimer(setup.timerValue);
             }

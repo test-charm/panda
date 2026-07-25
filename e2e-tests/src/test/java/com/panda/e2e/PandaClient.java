@@ -470,24 +470,26 @@ public class PandaClient {
 
     // ---- Bootkick FSM ----
 
-    public void tickBootkick() {
+    @AllArgsConstructor
+    @Getter
+    public static class Bootkick {
+        private final int state;
+        private final int resetTriggered;
+        private final int waitingCountdown;
+        private final int resetCountdown;
+    }
+
+    public void tickHandler() {
         lib.jna_tick_handler();
     }
 
-    public int getBootkickState() {
-        return lib.jna_get_bootkick_state();
-    }
-
-    public int getBootkickResetTriggered() {
-        return lib.jna_get_bootkick_reset_triggered();
-    }
-
-    public int getBootkickWaitingCountdown() {
-        return lib.jna_get_bootkick_waiting_countdown();
-    }
-
-    public int getBootkickResetCountdown() {
-        return lib.jna_get_bootkick_reset_countdown();
+    public Bootkick getBootkick() {
+        return new Bootkick(
+                lib.jna_get_bootkick_state(),
+                lib.jna_get_bootkick_reset_triggered(),
+                lib.jna_get_bootkick_waiting_countdown(),
+                lib.jna_get_bootkick_reset_countdown()
+        );
     }
 
     public void setIgnitionLine(boolean val) {

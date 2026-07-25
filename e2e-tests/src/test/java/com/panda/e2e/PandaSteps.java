@@ -14,7 +14,7 @@ import java.nio.charset.StandardCharsets;
 
 import static org.testcharm.dal.Assertions.expect;
 
-public class SafetyModeSteps {
+public class PandaSteps {
 
     @Autowired
     private PandaClient client;
@@ -55,7 +55,7 @@ public class SafetyModeSteps {
 
     @When("tick handler:")
     public void tickHandler() {
-        client.tickBootkick();
+        client.tickHandler();
     }
 
     @Then("control data should be:")
@@ -66,6 +66,13 @@ public class SafetyModeSteps {
     @When("tick handler")
     public void callTickHandler() {
         client.callTickHandler();
+    }
+
+    @When("tick handler {int} times")
+    public void tickHandlerTimes(int times) {
+        for (var i = 0; i < times; i++) {
+            client.tickHandler();
+        }
     }
 
     public static class UsbControlRequest {
