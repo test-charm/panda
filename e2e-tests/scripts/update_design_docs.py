@@ -81,6 +81,9 @@ FEATURE_FILES = {
     "fan-power":                ["board/main_comms.h", "board/drivers/fan.h"],
     "timer-fan":                ["board/main_comms.h", "board/drivers/fan.h"],
     "ir-power":                 ["board/main_comms.h", "board/drivers/fan.h"],
+    # Main loop tick behaviors
+    "bootkick":                 ["board/main.c", "board/drivers/gpio.h"],
+    "relay-malfunction":        ["board/main.c"],
 }
 
 # Legacy names (snake_case in design dir)
