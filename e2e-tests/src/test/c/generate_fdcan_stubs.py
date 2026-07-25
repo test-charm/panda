@@ -173,18 +173,18 @@ def transform_lines(lines, func_name):
     # Convert FDCAN_START_ADDRESS-based flush to use fake_fdcan_sram offsets.
     text = "\n".join(pass1)
     text = re.sub(
-        r"uint32_t RxFIFO0SA = FDCAN_START_ADDRESS \+ \(can_number \* FDCAN_OFFSET\);\n"
+        r"uint32_t RxFIFO0SA = FDCAN_START_ADDRESS \+ \(can_number \* FDCAN_OFFSET\);\n" +
         r"\s*uint32_t TxFIFOSA = RxFIFO0SA \+ \(FDCAN_RX_FIFO_0_EL_CNT \* FDCAN_RX_FIFO_0_EL_SIZE\);",
-        r"uint32_t start_offset = can_number * FDCAN_OFFSET;\n"
+        r"uint32_t start_offset = can_number * FDCAN_OFFSET;\n" +
         r"    uint32_t end_offset = start_offset + (FDCAN_RX_FIFO_0_EL_CNT * FDCAN_RX_FIFO_0_EL_SIZE);",
         text,
     )
     text = re.sub(
-        r"uint32_t EndAddress = TxFIFOSA \+ \(FDCAN_TX_FIFO_EL_CNT \* FDCAN_TX_FIFO_EL_SIZE\);\n"
-        r"(\s*)for \(uint32_t RAMcounter = RxFIFO0SA; RAMcounter < EndAddress; RAMcounter \+= 4U\) \{\n"
+        r"uint32_t EndAddress = TxFIFOSA \+ \(FDCAN_TX_FIFO_EL_CNT \* FDCAN_TX_FIFO_EL_SIZE\);\n" +
+        r"(\s*)for \(uint32_t RAMcounter = RxFIFO0SA; RAMcounter < EndAddress; RAMcounter \+= 4U\) \{\n" +
         r"\s*\*\(uint32_t \*\)\(RAMcounter\) = 0x00000000;\n",
-        r"end_offset += (FDCAN_TX_FIFO_EL_CNT * FDCAN_TX_FIFO_EL_SIZE);\n"
-        r"\1for (uint32_t RAMcounter = start_offset; RAMcounter < end_offset; RAMcounter += 4U) {\n"
+        r"end_offset += (FDCAN_TX_FIFO_EL_CNT * FDCAN_TX_FIFO_EL_SIZE);\n" +
+        r"\1for (uint32_t RAMcounter = start_offset; RAMcounter < end_offset; RAMcounter += 4U) {\n" +
         r"\1    *(uint32_t *)(fake_fdcan_sram + RAMcounter) = 0x00000000;\n",
         text,
     )

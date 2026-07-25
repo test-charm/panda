@@ -11,7 +11,6 @@ Usage: python3 generate_board_stubs.py > board_stubs_e2e.gen.c
 """
 
 import re
-import sys
 
 PROJECT_ROOT = "/Users/joseph/Documents/opensource_workspace/panda"
 BOARDS = {
