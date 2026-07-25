@@ -306,8 +306,6 @@ void fake_siren_set(bool en) { siren_enabled = en; }
 // can_init is defined in fdcan_e2e.gen.c (generated from real firmware source)
 void can_rx(uint8_t n) { (void)n; }
 void process_can(uint8_t n) { (void)n; }
-void simple_watchdog_init(uint32_t a, uint32_t b) { (void)a; (void)b; }
-void simple_watchdog_kick(void) {}
 void led_init(void) {}
 void led_set(uint8_t led, bool en) { (void)led; (void)en; }
 void pwm_init(void) {}
@@ -458,6 +456,10 @@ int put_char(uart_ring *q, char c) { (void)q; (void)c; return 0; }
 // ---- Real firmware headers ----
 #include "board/health.h"
 #include "board/sys/faults.h"
+
+// ---- Watchdog (real production code from board/drivers/simple_watchdog.h) ----
+#include "board/drivers/simple_watchdog.h"
+
 #include "board/libc.h"
 #include "board/drivers/interrupts.h"
 
@@ -1155,4 +1157,5 @@ void jna_panda_init(void) {
     jna_reset_siren();
     jna_reset_heartbeat();
     jna_reset_bootkick();
+    simple_watchdog_init(FAULT_HEARTBEAT_LOOP_WATCHDOG, (3U * 1000000U / 8U));
 }

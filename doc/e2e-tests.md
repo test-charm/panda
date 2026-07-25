@@ -146,6 +146,7 @@ e2e-tests/
 | UART 读取 | `uart_read.feature` | 3 | respBuffer (字符读取 / 空) |
 | Bootkick SOM 复位 | `bootkick.feature` | 14 | tick_handler FSM (state/waitingCountdown/resetCountdown/resetTriggered) + stopModeRegs (gpioAOdr/gpioCOdr) 通过 jna_call_tick_handler |
 | 继电器故障 | `relay_malfunction.feature` | 3 | readFaults (FAULT_RELAY_MALFUNCTION 边沿检测) |
+| 看门狗 | `watchdog.feature` | 3 | readFaults (FAULT_HEARTBEAT_LOOP_WATCHDOG, 直接 include 生产代码 `simple_watchdog.h`) |
 
 ## C 代码覆盖率
 
@@ -158,7 +159,7 @@ e2e-tests/
 | `board/main.c` | **46.9%** (106/226) | 4/7 (57.1%) | 主循环 + 初始化 |
 | `board/drivers/can_common.h` | **86.8%** (92/106) | 10/12 (83.3%) | CAN 通用操作 |
 | `board/drivers/gpio.h` | **72.1%** (44/61) | 5/7 (71.4%) | GPIO 控制 |
-| `board/sys/faults.h` | **78.9%** (15/19) | 2/2 (100%) | 故障设置 |
+| `board/sys/faults.h` | **78.9%** (15/19) | 2/2 (100%) | 故障设置 (Temporary fault 路径已由 watchdog 覆盖) |
 | `board/libc.h` | **60.7%** (37/61) | 3/5 (60.0%) | 最小化 libc 替代 |
 | `board/drivers/fan.h` | **37.0%** (10/27) | 2/3 (66.7%) | 风扇 PWM + 冷却 |
 | `board/can_comms.h` | **18.4%** (14/76) | 2/4 (50.0%) | CAN 通信处理 |

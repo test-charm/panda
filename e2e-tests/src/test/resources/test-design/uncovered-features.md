@@ -1,7 +1,7 @@
 # 端到端测试未覆盖功能清单
 
 > 生成时间: 2026-07-25
-> 基准 e2e 场景数: 139（覆盖 `board/main.c` → 34 个 USB 命令中 33 个）
+> 基准 e2e 场景数: 142（覆盖 `board/main.c` → 34 个 USB 命令中 33 个）
 > 综合行覆盖率: **65.1%** (575/884 lines), 函数覆盖率: **65.2%** (30/46 functions)
 > 数据来源: `e2e-tests/run_all_coverage.sh` (cuatro + tres + red 合并)
 
@@ -15,7 +15,7 @@
 | `board/main.c` | 46.9% | 4/7 | 主循环 tick 路径 (ignition_can_cnt), check_registers, WFI 空闲 |
 | `board/drivers/can_common.h` | 86.8% | 10/12 | can_clear_rx 未遍历路径, can_set_speed 未遍历比特率 |
 | `board/drivers/gpio.h` | 72.1% | 5/7 | set_gpio_analog, restore_gpio 仅 deep_sleep 覆盖 |
-| `board/sys/faults.h` | 78.9% | 2/2 | fault_occurred 未触发路径 |
+| `board/sys/faults.h` | 78.9% | 2/2 | `fault_occurred` Temporary fault 路径已由 watchdog 覆盖 |
 | `board/libc.h` | 60.7% | 3/5 | memset/memcpy 大量路径 |
 | `board/drivers/fan.h` | 37.0% | 2/3 | fan cooldown 逻辑 (P8) |
 | `board/can_comms.h` | 18.4% | 2/4 | CAN 接收/发送内层路径 |
@@ -152,11 +152,13 @@ BOOT_BOOTKICK → BOOT_STANDBY → (STANDBY→BOOTKICK edge) → 20 tick 等待 
 #### P3 — `simple_watchdog_kick()` 看门狗
 
 ```
-文件: board/main.c:318
+文件: board/drivers/simple_watchdog.h
+调用: main.c:131 (8Hz tick_handler)
 ```
 
-- 375ms 超时阈值 → `FAULT_HEARTBEAT_LOOP_WATCHDOG`
-- **状态：** ❌ 无测试
+- 375ms 超时阈值 (`3*1000000/8` μs) → `FAULT_HEARTBEAT_LOOP_WATCHDOG` (bit 26)
+- 测试通过 `timerValue` 控制微秒定时器，在 tick 之间推进时间
+- **状态：** ✅ `watchdog.feature` (3 场景)，直接 include 真实 `board/drivers/simple_watchdog.h` 生产代码
 
 #### P4 — `relay_malfunction` 故障边沿检测
 
@@ -246,7 +248,7 @@ BOOT_BOOTKICK → BOOT_STANDBY → (STANDBY→BOOTKICK edge) → 20 tick 等待 
 |--------|------|---------|----------|-----------|
 | **P1** | `bootkick_tick()` FSM | `board/drivers/bootkick.h` | ✅ feature 已有 (`bootkick.feature`，14 场景) + 设计文档 (`bootkick.md`)，全部通过，通过 `jna_tick_handler` 调用真实代码 | — |
 | **P2** | 心跳丢失自动行为 | `board/main.c:185-244` | ✅ `heartbeat_loss.feature` (9 场景)，全部通过，通过 `jna_call_tick_handler` 调用真实生产代码 | — |
-| **P3** | `simple_watchdog` 看门狗 | `board/main.c:318` | ❌ 无测试 | 中 |
+| **P3** | `simple_watchdog` 看门狗 | `board/drivers/simple_watchdog.h` | ✅ `watchdog.feature` (3 场景)，直接 include 生产代码 | — |
 | **P4** | `relay_malfunction` 故障检测 | `board/main.c:134-141` | ✅ feature 已有 (`relay_malfunction.feature`，3 场景) + 设计文档 (`relay-malfunction.md`) | — |
 | **P5** | `check_registers()` | `board/drivers/registers.h` | ❌ 无测试 | 小 |
 | **P6** | WFI 空闲路径 | `board/main.c:377-385` | ❌ 未覆盖 | 小 |
@@ -270,6 +272,7 @@ BOOT_BOOTKICK → BOOT_STANDBY → (STANDBY→BOOTKICK edge) → 20 tick 等待 
 |------|------|--------|
 | `bootkick.feature` | ✅ 14 场景全部通过 | 14 |
 | `relay_malfunction.feature` | ✅ 3 场景 | 3 |
+| `watchdog.feature` | ✅ 3 场景全部通过 | 3 |
 | `heartbeat_loss.feature` | ✅ 9 场景全部通过 | 9 |
 
 8 次 `jna_call_tick_handler()` 调用 = 1 次 1Hz tick（`loop_counter` 每 8 次归零）。
