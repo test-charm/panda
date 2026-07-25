@@ -103,7 +103,7 @@ e2e-tests/
 │   │       ├── UsbControlRequests.java  # 33 个 USB 控制请求 spec
 │   │       └── ControlSetups.java       # 前置数据 spec
 │   └── resources/
-│       ├── features/                # 35 个 feature 文件
+│       ├── features/                # 40 个 feature 文件
 │       └── test-design/             # 测试设计文档
 ```
 
@@ -150,6 +150,7 @@ e2e-tests/
 | 看门狗 | `watchdog.feature` | 3 | readFaults (FAULT_HEARTBEAT_LOOP_WATCHDOG, 直接 include 生产代码 `simple_watchdog.h`) |
 | 寄存器发散 | `register_divergence.feature` | 3 | readFaults (FAULT_REGISTER_DIVERGENT, 真实 `registers.h` + `jna_set_register_divergent` 注入) |
 | WFI 空闲路径 | `wfi_idle.feature` | 3 | stopModeRegs (wfiEntered + scbScr, 通过 `jna_process_wfi_idle`) |
+| ignition_can 自动复位 | `ignition_can.feature` | 2 | ignitionCan (通过 `jna_set_ignition_can` + `jna_call_tick_handler`) |
 
 ## C 代码覆盖率
 
@@ -170,7 +171,7 @@ e2e-tests/
 | `board/utils.h` | **0.0%** (0/3) | 0/1 (0%) | 工具函数 (仅初始化) |
 | **合计** | **65.1%** (575/884) | **30/46** (65.2%) | |
 
-> ⚠️ `main.c` 中未覆盖的函数：`tick_handler` 的 `ignition_can_cnt` 路径、`fan_state.cooldown`、`sound_tick`、`safety_mode_cnt`。P1-P6 已全部覆盖。详见 `e2e-tests/src/test/resources/test-design/uncovered-features.md`。
+> ⚠️ `main.c` 中未覆盖的函数：`fan_state.cooldown`、`sound_tick`、`safety_mode_cnt`。P1-P7 已全部覆盖。详见 `e2e-tests/src/test/resources/test-design/uncovered-features.md`。
 
 ## 设计原则
 

@@ -482,6 +482,8 @@ void __WFI(void) { wfi_entered = true; }
 
 // ---- Harness control (e2e-specific, not in generated code) ----
 void jna_set_ignition_line(uint8_t val)  { e2e_ignition_line = (val != 0U); }
+uint8_t jna_get_ignition_can(void)       { return ignition_can ? 1U : 0U; }
+void jna_set_ignition_can(uint8_t val)   { ignition_can = (val != 0U); ignition_can_cnt = 0U; }
 void jna_set_harness_status(uint8_t val) { harness.status = val; }
 void jna_set_som_uart_wptr(uint16_t val) { uart_ring_som_debug.w_ptr_tx = val; }
 

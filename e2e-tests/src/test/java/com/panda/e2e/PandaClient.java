@@ -288,6 +288,10 @@ public class PandaClient {
 
         void jna_set_ignition_line(byte val);
 
+        int jna_get_ignition_can();
+
+        void jna_set_ignition_can(byte val);
+
         void jna_set_harness_status(byte val);
 
         void jna_set_som_uart_wptr(short val);
@@ -507,6 +511,14 @@ public class PandaClient {
 
     public void setIgnitionLine(boolean val) {
         lib.jna_set_ignition_line((byte) (val ? 1 : 0));
+    }
+
+    public int getIgnitionCan() {
+        return lib.jna_get_ignition_can();
+    }
+
+    public void setIgnitionCan(boolean val) {
+        lib.jna_set_ignition_can((byte) (val ? 1 : 0));
     }
 
     public void setHarnessStatus(int val) {

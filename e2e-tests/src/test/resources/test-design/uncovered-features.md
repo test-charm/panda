@@ -1,7 +1,7 @@
 # 端到端测试未覆盖功能清单
 
 > 生成时间: 2026-07-25
-> 基准 e2e 场景数: 145（覆盖 `board/main.c` → 34 个 USB 命令中 33 个）
+> 基准 e2e 场景数: 148（覆盖 `board/main.c` → 34 个 USB 命令中 33 个）
 > 综合行覆盖率: **65.1%** (575/884 lines), 函数覆盖率: **67.4%** (31/46 functions)
 > 数据来源: `e2e-tests/run_all_coverage.sh` (cuatro + tres + red 合并)
 
@@ -12,7 +12,7 @@
 | 源文件 | 行覆盖 | 函数覆盖 | 未覆盖原因 |
 |--------|--------|---------|-----------|
 | `board/main_comms.h` | 93.3% | 2/3 | `spi_cmd` 函数 (SPI 通道, 非 USB 路径) |
-| `board/main.c` | 46.9% | 4/7 | 主循环 tick 路径 (ignition_can_cnt), check_registers, WFI 空闲 |
+| `board/main.c` | 46.9% | 4/7 | 主循环 tick 路径 (fan cooldown, sound_tick, safety_mode_cnt) |
 | `board/drivers/can_common.h` | 86.8% | 10/12 | can_clear_rx 未遍历路径, can_set_speed 未遍历比特率 |
 | `board/drivers/gpio.h` | 72.1% | 5/7 | set_gpio_analog, restore_gpio 仅 deep_sleep 覆盖 |
 | `board/sys/faults.h` | 78.9% | 2/2 | `fault_occurred` Temporary fault 路径已由 watchdog 覆盖 |
@@ -198,8 +198,9 @@ BOOT_BOOTKICK → BOOT_STANDBY → (STANDBY→BOOTKICK edge) → 20 tick 等待 
 文件: board/main.c:251-253
 ```
 
-- CAN 流量停止 2 秒后 `ignition_can = false`
-- **状态：** ❌ 无测试
+- CAN 流量停止后 `ignition_can_cnt` 递增，超过 2 后 `ignition_can = false`
+- 测试通过 `jna_set_ignition_can` 设置初始状态 + `jna_call_tick_handler` 驱动 tick 累积验证
+- **状态：** ✅ `ignition_can.feature` (2 场景)，全部通过
 
 #### P8 — `fan_state.cooldown_counter` 冷却保持
 
@@ -249,12 +250,12 @@ BOOT_BOOTKICK → BOOT_STANDBY → (STANDBY→BOOTKICK edge) → 20 tick 等待 
 | 优先级 | 项目 | 代码文件 | 覆盖状态 | 工作量估算 |
 |--------|------|---------|----------|-----------|
 | **P1** | `bootkick_tick()` FSM | `board/drivers/bootkick.h` | ✅ feature 已有 (`bootkick.feature`，14 场景) + 设计文档 (`bootkick.md`)，全部通过，通过 `jna_tick_handler` 调用真实代码 | — |
-| **P2** | 心跳丢失自动行为 | `board/main.c:185-244` | ✅ `heartbeat_loss.feature` (9 场景)，全部通过，通过 `jna_call_tick_handler` 调用真实生产代码 | — |
-| **P3** | `simple_watchdog` 看门狗 | `board/drivers/simple_watchdog.h` | ✅ `watchdog.feature` (3 场景)，直接 include 生产代码 | — |
+| **P2** | 心跳丢失自动行为 | `board/main.c:185-244` | ✅ `heartbeat_loss.feature` (9 场景) + 设计文档 (`heartbeat-loss.md`)，全部通过，通过 `jna_call_tick_handler` 调用真实生产代码 | — |
+| **P3** | `simple_watchdog` 看门狗 | `board/drivers/simple_watchdog.h` | ✅ `watchdog.feature` (3 场景) + 设计文档 (`watchdog.md`)，直接 include 生产代码 | — |
 | **P4** | `relay_malfunction` 故障检测 | `board/main.c:134-141` | ✅ feature 已有 (`relay_malfunction.feature`，3 场景) + 设计文档 (`relay-malfunction.md`) | — |
-| **P5** | `check_registers()` | `board/drivers/registers.h` | ✅ `register_divergence.feature` (3 场景)，通过 `jna_set_register_divergent` 注入 + `init_registers` 在 init 末尾清噪音 | 小 |
-| **P6** | WFI 空闲路径 | `board/main.c:377-385` | ✅ 已覆盖 (`wfi_idle.feature`, 3 场景) | 小 |
-| **P7** | `ignition_can_cnt` 复位 | `board/main.c:251-253` | ❌ 未覆盖 (lines 189-195) | 小 |
+| **P5** | `check_registers()` | `board/drivers/registers.h` | ✅ `register_divergence.feature` (3 场景) + 设计文档 (`register-divergence.md`)，通过 `jna_set_register_divergent` 注入 + `init_registers` 在 init 末尾清噪音 | 小 |
+| **P6** | WFI 空闲路径 | `board/main.c:377-385` | ✅ 已覆盖 (`wfi_idle.feature`, 3 场景) + 设计文档 (`wfi-idle.md`) | 小 |
+| **P7** | `ignition_can_cnt` 复位 | `board/main.c:251-253` | ✅ `ignition_can.feature` (2 场景) + 设计文档 (`ignition-can.md`) | 小 |
 | **P8** | `fan_state.cooldown` | `board/drivers/fan.h` | ❌ fan.h 仅 37.0% 覆盖 | 小 |
 | **P9** | `harness_detect_orientation` | `board/drivers/harness.h:52-88` | ⚠️ implicit（其他测试依赖 `harness.status`，但未直接测试翻转检测路径） | 小 |
 | **P10** | LED 行为 | `board/main.c:166-375` | ❌ 不需要 | — |
@@ -277,6 +278,7 @@ BOOT_BOOTKICK → BOOT_STANDBY → (STANDBY→BOOTKICK edge) → 20 tick 等待 
 | `watchdog.feature` | ✅ 3 场景全部通过 | 3 |
 | `heartbeat_loss.feature` | ✅ 9 场景全部通过 | 9 |
 | `register_divergence.feature` | ✅ 3 场景全部通过 | 3 |
+| `ignition_can.feature` | ✅ 2 场景全部通过 | 2 |
 
 8 次 `jna_call_tick_handler()` 调用 = 1 次 1Hz tick（`loop_counter` 每 8 次归零）。
 使用 `When call tick handler {int} times` 批量触发多个 tick。

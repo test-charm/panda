@@ -148,6 +148,9 @@ public class Factories {
             if (setup.ignitionLine != 0) {
                 client.setIgnitionLine(setup.ignitionLine != 0);
             }
+            if (setup.ignitionCan != -1) {
+                client.setIgnitionCan(setup.ignitionCan != 0);
+            }
             if (setup.controlsAllowed != -1) {
                 client.setControlsAllowed(setup.controlsAllowed);
             }

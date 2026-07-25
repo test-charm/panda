@@ -114,6 +114,7 @@ public class PandaSteps {
         public int harnessStatus;
         public int somUartWptr;
         public int ignitionLine;
+        public int ignitionCan;
         public int controlsAllowed;
         public int registerDivergent;
     }
