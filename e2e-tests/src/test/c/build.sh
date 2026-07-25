@@ -50,8 +50,6 @@ if [ "${COVERAGE:-}" != "1" ] && [ -f "$OUTPUT" ] \
     && [ "$OUTPUT" -nt "$PROJECT_ROOT/board/drivers/fdcan.h" ] \
     && [ "$OUTPUT" -nt "$PROJECT_ROOT/board/sys/power_saving.h" ] \
     && [ "$OUTPUT" -nt "$SCRIPT_DIR/generate_fdcan_stubs.py" ] \
-    && [ "$OUTPUT" -nt "$SCRIPT_DIR/generate_power_save_stubs.py" ] \
-    && [ "$OUTPUT" -nt "$SCRIPT_DIR/generate_enter_stop_mode_stubs.py" ] \
     && [ "$OUTPUT" -nt "$SCRIPT_DIR/generate_board_stubs.py" ] \
     && [ "$OUTPUT" -nt "$SCRIPT_DIR/generate_bootkick_stubs.py" ] \
     && [ "$OUTPUT" -nt "$PROJECT_ROOT/board/drivers/bootkick.h" ]; then
@@ -64,20 +62,8 @@ fi
 echo "[build] Generating fdcan_e2e.gen.c ..."
 python3 "$SCRIPT_DIR/generate_fdcan_stubs.py" > "$SCRIPT_DIR/fdcan_e2e.gen.c"
 
-echo "[build] Generating power_save_e2e.gen.c ..."
-python3 "$SCRIPT_DIR/generate_power_save_stubs.py" > "$SCRIPT_DIR/power_save_e2e.gen.c"
-
-echo "[build] Generating clock_source_e2e.gen.c ..."
-python3 "$SCRIPT_DIR/generate_clock_source_stubs.py" > "$SCRIPT_DIR/clock_source_e2e.gen.c"
-
 echo "[build] Generating can_health_e2e.gen.c ..."
 python3 "$SCRIPT_DIR/generate_can_health_stubs.py" > "$SCRIPT_DIR/can_health_e2e.gen.c"
-
-echo "[build] Generating fan_e2e.gen.c ..."
-python3 "$SCRIPT_DIR/generate_fan_stubs.py" > "$SCRIPT_DIR/fan_e2e.gen.c"
-
-echo "[build] Generating enter_stop_mode_e2e.gen.c ..."
-python3 "$SCRIPT_DIR/generate_enter_stop_mode_stubs.py" > "$SCRIPT_DIR/enter_stop_mode_e2e.gen.c"
 
 echo "[build] Generating board_stubs_e2e.gen.c ..."
 python3 "$SCRIPT_DIR/generate_board_stubs.py" > "$SCRIPT_DIR/board_stubs_e2e.gen.c"

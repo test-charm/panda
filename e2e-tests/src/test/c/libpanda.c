@@ -40,6 +40,8 @@ bool heartbeat_lost;
 bool heartbeat_disabled;
 uint32_t uptime_cnt;
 uint8_t hw_type;
+// power_save_enabled and stop_mode_requested are also defined in board/sys/power_saving.h;
+// tentative definitions here are merged by -fcommon at link time.
 bool power_save_enabled;
 bool siren_enabled;
 uint32_t siren_countdown;
@@ -332,8 +334,7 @@ void enable_can_transceivers(bool en) {
     }
 }
 
-// ---- REAL set_power_save_state (auto-generated from board/sys/power_saving.h) ----
-// Regenerate: python3 generate_power_save_stubs.py > power_save_e2e.gen.c
+// Hand-maintained copy of set_power_save_state() from board/sys/power_saving.h.
 #include "power_save_e2e.gen.c"
 
 void sound_init(void) {}
