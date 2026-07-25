@@ -311,7 +311,7 @@ void simple_watchdog_kick(void) {}
 void led_init(void) {}
 void led_set(uint8_t led, bool en) { (void)led; (void)en; }
 void pwm_init(void) {}
-void pwm_set(uint8_t ch, uint8_t d) { (void)ch; (void)d; }
+void pwm_set(void *tim, uint8_t ch, uint8_t d) { (void)tim; (void)ch; (void)d; }
 void usb_irqhandler(void) {}
 void usb_init(void) {}
 void spi_init(void) {}
@@ -345,8 +345,6 @@ void tick_timer_init(void) {}
 void microsecond_timer_init(void) {}
 void interrupt_timer_init(void) {}
 void gpio_spi_init(void) {}
-void fan_init(void) {}
-void fan_tick(void) {}
 void check_registers(void) {}
 void disable_interrupts(void) {}
 void enable_interrupts(void) {}
@@ -425,8 +423,12 @@ void jna_reset_stop_mode_tracking(void) {
 void can_tx_comms_resume_usb(void) {}
 void can_tx_comms_resume_spi(void) {}
 
-// fan_state instance (type from drivers.h)
+// fan state + llfan_init stub (fan_init from board/drivers/fan.h calls this)
+void llfan_init(void) {}
 struct fan_state_t fan_state;
+TIM_TypeDef fake_TIM3;
+#define TIM3 (&fake_TIM3)
+#include "board/drivers/fan.h"
 
 // ADC
 typedef struct { uint32_t x; } ADC_TypeDef;
@@ -559,8 +561,7 @@ void register_set_bits(volatile uint32_t *addr, uint32_t val);
 // Regenerate: python3 generate_board_stubs.py > board_stubs_e2e.gen.c
 #include "board_stubs_e2e.gen.c"
 
-// ---- REAL enter_stop_mode (auto-generated from board/sys/power_saving.h) ----
-// Regenerate: python3 generate_enter_stop_mode_stubs.py > enter_stop_mode_e2e.gen.c
+// enter_stop_mode is a verbatim copy from board/sys/power_saving.h with 'static' stripped.
 #include "enter_stop_mode_e2e.gen.c"
 
 // Simulates the main loop's stop_mode_requested check.
@@ -631,17 +632,15 @@ void register_clear_bits(volatile uint32_t *addr, uint32_t mask) {
     register_set(addr, (~mask), mask);
 }
 
-// ---- REAL clock_source_set_timer_params (auto-generated from board/drivers/clock_source.h) ----
-// Regenerate: python3 generate_clock_source_stubs.py > clock_source_e2e.gen.c
-#include "clock_source_e2e.gen.c"
+// ---- clock_source_set_timer_params from board/drivers/clock_source.h ----
+// Uses fake TIM1/TIM8 instances defined above.
+#include "board/drivers/clock_source.h"
 
-// ---- REAL update_can_health_pkt (auto-generated from board/drivers/fdcan.h) ----
+// ---- update_can_health_pkt (auto-generated from board/drivers/fdcan.h) ----
 // Regenerate: python3 generate_can_health_stubs.py > can_health_e2e.gen.c
 #include "can_health_e2e.gen.c"
 
-// ---- REAL fan_set_power (auto-generated from board/drivers/fan.h) ----
-// Regenerate: python3 generate_fan_stubs.py > fan_e2e.gen.c
-#include "fan_e2e.gen.c"
+// ---- fan_set_power from board/drivers/fan.h (already included above) ----
 
 // ---- JNA API: goes through comms_control_handler → set_safety_mode() ----
 static uint8_t jna_resp[0x40];
