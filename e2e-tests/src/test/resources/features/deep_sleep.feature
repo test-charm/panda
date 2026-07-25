@@ -30,7 +30,7 @@ Feature: Deep Sleep Request
       """
       RequestDeepSleep: { ... }
       """
-    When process stop mode:
+    When process stop mode
     Then control data should be:
       """
       : {
@@ -52,7 +52,7 @@ Feature: Deep Sleep Request
       """
       RequestDeepSleep: { ... }
       """
-    When process stop mode:
+    When process stop mode
     Then control data should be:
       """
       : {
@@ -72,7 +72,7 @@ Feature: Deep Sleep Request
       """
       RequestDeepSleep: { ... }
       """
-    When process stop mode:
+    When process stop mode
     Then control data should be:
       """
       : {
@@ -93,7 +93,7 @@ Feature: Deep Sleep Request
       """
       RequestDeepSleep: { ... }
       """
-    When process stop mode:
+    When process stop mode
     Then control data should be:
       """
       : {
@@ -109,7 +109,7 @@ Feature: Deep Sleep Request
       """
       RequestDeepSleep: { ... }
       """
-    When process stop mode:
+    When process stop mode
     Then control data should be:
       """
       : {
@@ -124,7 +124,7 @@ Feature: Deep Sleep Request
       """
       RequestDeepSleep: { ... }
       """
-    When process stop mode:
+    When process stop mode
     Then control data should be:
       """
       : {
@@ -141,7 +141,7 @@ Feature: Deep Sleep Request
       """
       RequestDeepSleep: { ... }
       """
-    When process stop mode:
+    When process stop mode
     Then control data should be:
       """
       : {
@@ -163,7 +163,7 @@ Feature: Deep Sleep Request
       """
       RequestDeepSleep: { ... }
       """
-    When process stop mode:
+    When process stop mode
     Then control data should be:
       """
       : {
@@ -179,7 +179,7 @@ Feature: Deep Sleep Request
       """
       RequestDeepSleep: { ... }
       """
-    When process stop mode:
+    When process stop mode
     Then control data should be:
       """
       : {
@@ -203,7 +203,7 @@ Feature: Deep Sleep Request
       """
       RequestDeepSleep: { ... }
       """
-    When process stop mode:
+    When process stop mode
     Then control data should be:
       """
       : {
@@ -222,7 +222,7 @@ Feature: Deep Sleep Request
       """
       RequestDeepSleep: { ... }
       """
-    When process stop mode:
+    When process stop mode
     Then control data should be:
       """
       : {
@@ -242,7 +242,7 @@ Feature: Deep Sleep Request
       """
       RequestDeepSleep: { ... }
       """
-    When process stop mode:
+    When process stop mode
     Then control data should be:
       """
       : {

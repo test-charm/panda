@@ -43,12 +43,12 @@ public class PandaSteps {
         return jFactory;
     }
 
-    @When("process stop mode:")
+    @When("process stop mode")
     public void processStopMode() {
         client.processStopMode();
     }
 
-    @When("tick siren:")
+    @When("tick siren")
     public void tickSiren() {
         client.tickSiren();
     }

@@ -10,7 +10,7 @@ Feature: Siren Control
         param2: 0
       }
       """
-    When tick siren:
+    When tick siren
     Then control data should be:
       """
       : {
@@ -27,7 +27,7 @@ Feature: Siren Control
         param1: 1
       }
       """
-    When tick siren:
+    When tick siren
     Then control data should be:
       """
       : {
@@ -44,7 +44,7 @@ Feature: Siren Control
         param1: 255
       }
       """
-    When tick siren:
+    When tick siren
     Then control data should be:
       """
       : {
