@@ -214,7 +214,7 @@ BOOT_BOOTKICK → BOOT_STANDBY → (STANDBY→BOOTKICK edge) → 20 tick 等待 
 ```
 
 - SBU ADC 电压检测逻辑
-- **状态：** ⚠️ implicit（其他测试依赖 `harness.status`，但未直接测试翻转检测路径）
+- **状态：** ✅ `harness_detect.feature` (8 场景) + 设计文档 (`harness-detect.md`)，通过 `generate_harness_stubs.py` 逐字提取生产代码，`lladc.h` 桩拦截 `adc_get_mV()`
 
 ### 🟢 低优先级（仅初始化 / 调试）
 
@@ -257,7 +257,7 @@ BOOT_BOOTKICK → BOOT_STANDBY → (STANDBY→BOOTKICK edge) → 20 tick 等待 
 | **P6** | WFI 空闲路径 | `board/main.c:377-385` | ✅ 已覆盖 (`wfi_idle.feature`, 3 场景) + 设计文档 (`wfi-idle.md`) | 小 |
 | **P7** | `ignition_can_cnt` 复位 | `board/main.c:251-253` | ✅ `ignition_can.feature` (2 场景) + 设计文档 (`ignition-can.md`) | 小 |
 | **P8** | `fan_state.cooldown` | `board/drivers/fan.h` | ✅ `fan_cooldown.feature` (3 场景) + 设计文档 (`fan-cooldown.md`)，通过 `jna_call_tick_handler` 调用真实 `fan_tick()` 代码 | 小 |
-| **P9** | `harness_detect_orientation` | `board/drivers/harness.h:52-88` | ⚠️ implicit（其他测试依赖 `harness.status`，但未直接测试翻转检测路径） | 小 |
+| **P9** | `harness_detect_orientation` | `board/drivers/harness.h:52-88` | ✅ `harness_detect.feature` (8 场景) + 设计文档 (`harness-detect.md`)，通过 `generate_harness_stubs.py` 逐字提取生产代码，`lladc.h` 桩拦截 `adc_get_mV()` | 小 |
 | **P10** | LED 行为 | `board/main.c:166-375` | ❌ 不需要 | — |
 | **P11** | `sound_tick()` 音频 | `board/stm32h7/sound.h` | ❌ 不需要 | — |
 | **P12** | `safety_mode_cnt` | `board/main.c` | ❌ 不需要 | — |

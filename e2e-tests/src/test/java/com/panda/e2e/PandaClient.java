@@ -296,6 +296,16 @@ public class PandaClient {
 
         void jna_set_harness_status(byte val);
 
+        byte jna_get_harness_status();
+
+        void jna_detect_harness_orientation();
+
+        void jna_set_sbu1_voltage_mV(int val);
+
+        void jna_set_sbu2_voltage_mV(int val);
+
+        void jna_set_relay_driven(byte val);
+
         void jna_set_som_uart_wptr(short val);
 
         // Fake register value accessors
@@ -525,6 +535,26 @@ public class PandaClient {
 
     public void setHarnessStatus(int val) {
         lib.jna_set_harness_status((byte) val);
+    }
+
+    public int getHarnessStatus() {
+        return lib.jna_get_harness_status() & 0xFF;
+    }
+
+    public void detectHarnessOrientation() {
+        lib.jna_detect_harness_orientation();
+    }
+
+    public void setSbu1VoltageMV(int val) {
+        lib.jna_set_sbu1_voltage_mV(val);
+    }
+
+    public void setSbu2VoltageMV(int val) {
+        lib.jna_set_sbu2_voltage_mV(val);
+    }
+
+    public void setRelayDriven(int val) {
+        lib.jna_set_relay_driven((byte) (val != 0 ? 1 : 0));
     }
 
     public void setSomUartWptr(int val) {

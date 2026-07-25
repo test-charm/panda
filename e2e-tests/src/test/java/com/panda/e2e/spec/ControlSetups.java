@@ -31,6 +31,9 @@ public class ControlSetups {
             property("uartData").defaultValue(null);
             property("relayMalfunctionVal").defaultValue(-1);
             property("harnessStatus").defaultValue(0);
+            property("sbu1VoltageMV").defaultValue(-1);
+            property("sbu2VoltageMV").defaultValue(-1);
+            property("relayDriven").defaultValue(-1);
             property("somUartWptr").defaultValue(0);
             property("ignitionLine").defaultValue(0);
             property("ignitionCan").defaultValue(-1);

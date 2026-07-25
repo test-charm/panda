@@ -142,6 +142,15 @@ public class Factories {
             if (setup.harnessStatus != 0) {
                 client.setHarnessStatus(setup.harnessStatus);
             }
+            if (setup.sbu1VoltageMV != -1) {
+                client.setSbu1VoltageMV(setup.sbu1VoltageMV);
+            }
+            if (setup.sbu2VoltageMV != -1) {
+                client.setSbu2VoltageMV(setup.sbu2VoltageMV);
+            }
+            if (setup.relayDriven != -1) {
+                client.setRelayDriven(setup.relayDriven);
+            }
             if (setup.somUartWptr != 0) {
                 client.setSomUartWptr(setup.somUartWptr);
             }

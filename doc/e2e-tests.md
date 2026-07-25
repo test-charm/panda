@@ -43,6 +43,8 @@ Cucumber BDD 断言: gpioAModer: 0xFFFFFFF1, rccCr: 0x0, ...
 | `fdcan_e2e.gen.c` | `board/drivers/fdcan.h` | FDCAN 初始化代码 |
 | `can_health_e2e.gen.c` | `board/drivers/can_common.h` | CAN 健康统计提取 |
 | `bootkick_e2e.gen.c` | `board/drivers/bootkick.h` | `bootkick_tick()` FSM |
+| `harness_detect_e2e.gen.c` | `board/drivers/harness.h:52-88` | `harness_detect_orientation()` |
+| `harness_detect_e2e.gen.c` | `board/drivers/harness.h:52-88` | `harness_detect_orientation()` |
 
 覆盖率报告排除全部 `.gen.c` 文件。
 
@@ -92,8 +94,8 @@ e2e-tests/
 │   │   ├── build.sh                 # 编译（支持 BOARD 参数）
 │   │   ├── fake_stm.h               # GPIO_TypeDef 完整结构体
 │   │   ├── libpanda.c               # 假寄存器实例 + JNA 访问器
-│   │   ├── generate_*.py            # 自动生成脚本（4 个）
-│   │   ├── *_e2e.gen.c              # 自动生成文件（6 个，不纳入版本管理）
+│   │   ├── generate_*.py            # 自动生成脚本（5 个）
+│   │   ├── *_e2e.gen.c              # 自动生成文件（7 个，不纳入版本管理）
 │   │   └── board/drivers/           # 仅保留 harness.h 测试桩
 │   ├── java/com/panda/e2e/
 │   │   ├── PandaClient.java         # JNA 接口 + StopModeRegs DTO
@@ -152,6 +154,7 @@ e2e-tests/
 | 寄存器发散 | `register_divergence.feature` | 3 | readFaults (FAULT_REGISTER_DIVERGENT, 真实 `registers.h` + `jna_set_register_divergent` 注入) |
 | WFI 空闲路径 | `wfi_idle.feature` | 3 | stopModeRegs (wfiEntered + scbScr, 通过 `jna_process_wfi_idle`) |
 | ignition_can 自动复位 | `ignition_can.feature` | 2 | ignitionCan (通过 `jna_set_ignition_can` + `jna_call_tick_handler`) |
+| 线束翻转检测 | `harness_detect.feature` | 8 | harnessStatus (生产 `harness_detect_orientation()` + ADC 拦截桩) |
 
 ## C 代码覆盖率
 
@@ -198,7 +201,7 @@ BOARD=cuatro cc -std=gnu11 -fPIC -shared -O0 -g \
   -o libpanda_cuatro.dylib src/test/c/libpanda.c
 ```
 
-`-I src/test/c` 中的 stub 头文件仅有 `harness.h`（结构体定义）。其他头文件（`gpio.h`, `led.h`, `pwm.h` 等）已删除，统一使用 `board/` 下的生产代码。
+`-I src/test/c` 中的 stub 头文件仅包含 `harness.h`（结构体定义）和 `lladc.h`（ADC 拦截桩）。其他头文件（`gpio.h`, `led.h`, `pwm.h` 等）已删除，统一使用 `board/` 下的生产代码。
 
 ## 运行命令
 

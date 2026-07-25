@@ -87,6 +87,11 @@ public class PandaSteps {
         }
     }
 
+    @When("detect harness orientation")
+    public void detectHarnessOrientation() {
+        client.detectHarnessOrientation();
+    }
+
     public static class ControlSetup {
         public int timerValue;
         public int fanRpm;
@@ -112,6 +117,9 @@ public class PandaSteps {
         public String uartData;
         public int relayMalfunctionVal;
         public int harnessStatus;
+        public int sbu1VoltageMV;
+        public int sbu2VoltageMV;
+        public int relayDriven;
         public int somUartWptr;
         public int ignitionLine;
         public int ignitionCan;

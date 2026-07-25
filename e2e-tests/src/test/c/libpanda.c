@@ -171,7 +171,9 @@ void llcan_irq_disable(const FDCAN_GlobalTypeDef *x) {
 
 // ---- harness + board + uart ----
 #include "board/drivers/harness.h"
-struct harness_t harness;
+// Initialize SBU voltages above detection threshold so default detection is NC (0).
+// This matches the production behavior where floating SBU pins read high via pull-ups.
+struct harness_t harness = {.sbu1_voltage_mV = 3300U, .sbu2_voltage_mV = 3300U};
 
 #include "board/drivers/uart.h"
 uart_ring uart_ring_debug = {0};
@@ -265,6 +267,8 @@ struct harness_configuration harness_config_stub = {
     .pin_SBU2 = 1,
     .has_harness = false,
     .HARNESS_CONNECTED_THRESHOLD = 10000,
+    .adc_signal_SBU1 = {.adc = (void *)&e2e_ADC1, .channel = 4},
+    .adc_signal_SBU2 = {.adc = (void *)&e2e_ADC1, .channel = 17},
 };
 struct board board_stub = {
     .harness_config = &harness_config_stub,
@@ -272,9 +276,15 @@ struct board board_stub = {
 #if defined(E2E_BOARD_RED)
     .has_fan = false,
     .fan_enable_cooldown_time = 0U,
+    .avdd_mV = 3300U,
+#elif defined(E2E_BOARD_TRES)
+    .has_fan = true,
+    .fan_enable_cooldown_time = 3U,
+    .avdd_mV = 1800U,
 #else
     .has_fan = true,
     .fan_enable_cooldown_time = 3U,
+    .avdd_mV = 1800U,
 #endif
     .set_can_mode = board_set_can_mode_stub,
     .read_voltage_mV = board_read_voltage_mV_stub,
@@ -303,7 +313,6 @@ const struct board *current_board = &board_stub;
 // Recording stub: captures last set_intercept_relay call for test verification
 void set_intercept_relay(bool a, bool b);
 void harness_init(void) {}
-uint8_t harness_detect_orientation(void) { return 1; }
 
 // ---- harness check_ignition control ----
 static bool e2e_ignition_line;
@@ -447,6 +456,12 @@ void register_set_bits(volatile uint32_t *addr, uint32_t val);
 void register_clear_bits(volatile uint32_t *addr, uint32_t mask);
 #include "board/drivers/gpio.h"
 
+// ADC stub — intercepts adc_get_mV() for harness SBU reads
+#include "board/stm32h7/lladc.h"
+
+// Production harness_detect_orientation() — included verbatim from board/drivers/harness.h:52-88
+#include "harness_detect_e2e.gen.c"
+
 #define SCB_SCR_SLEEPDEEP_Msk 0x4U
 #define SCB_SCR_SLEEPONEXIT_Msk 0x2U
 
@@ -492,6 +507,10 @@ void jna_set_ignition_line(uint8_t val)  { e2e_ignition_line = (val != 0U); }
 uint8_t jna_get_ignition_can(void)       { return ignition_can ? 1U : 0U; }
 void jna_set_ignition_can(uint8_t val)   { ignition_can = (val != 0U); ignition_can_cnt = 0U; }
 void jna_set_harness_status(uint8_t val) { harness.status = val; }
+uint8_t jna_get_harness_status(void)     { return harness.status; }
+void jna_set_sbu1_voltage_mV(int val)    { harness.sbu1_voltage_mV = (uint16_t)val; }
+void jna_set_sbu2_voltage_mV(int val)    { harness.sbu2_voltage_mV = (uint16_t)val; }
+void jna_set_relay_driven(uint8_t val)   { harness.relay_driven = (val != 0U); }
 void jna_set_som_uart_wptr(uint16_t val) { uart_ring_som_debug.w_ptr_tx = val; }
 
 // ---- Override hardware registers for e2e testing ----

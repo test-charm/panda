@@ -2,6 +2,17 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+// adc_signal_t — defined here for when lladc.h hasn't been included yet
+#ifndef ADC_SIGNAL_T_DEFINED
+#define ADC_SIGNAL_T_DEFINED
+typedef struct {
+  void *adc;
+  uint8_t channel;
+  uint8_t sample_time;
+  uint8_t oversampling;
+} adc_signal_t;
+#endif
+
 #define HARNESS_STATUS_NC 0
 #define HARNESS_STATUS_NORMAL 1
 #define HARNESS_STATUS_FLIPPED 2
@@ -24,6 +35,8 @@ struct harness_configuration {
     uint8_t pin_SBU2;
     bool has_harness;
     uint16_t HARNESS_CONNECTED_THRESHOLD;
+    const adc_signal_t adc_signal_SBU1;
+    const adc_signal_t adc_signal_SBU2;
 };
 typedef struct harness_configuration harness_configuration;
 
@@ -33,4 +46,5 @@ void set_intercept_relay(bool intercept, bool ignition_relay);
 void harness_init(void);
 void harness_tick(void);
 bool harness_check_ignition(void);
-uint8_t harness_detect_orientation(void);
+// harness_detect_orientation() is defined as static in harness_detect_e2e.gen.c
+// (extracted verbatim from production board/drivers/harness.h:52-88)
