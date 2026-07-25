@@ -66,9 +66,13 @@ tasks.register('cucumber', JavaExec) {
     classpath = configurations.cucumberRuntime + sourceSets.main.output + sourceSets.test.output
     jvmArgs "-Dfile.encoding=UTF-8", "-Dsun.jnu.encoding=utf-8"
     def boardName = project.hasProperty('board') ? project.board : 'cuatro'
-    // Always exclude board-specific scenarios for non-current boards
-    def others = ['cuatro','tres','red'].findAll { it != boardName }
-    def tagExpr = others.collect { "not @$it" }.join(' and ')
+    def tagExpr
+    if (project.hasProperty('tags')) {
+        tagExpr = project.tags
+    } else {
+        def others = ['cuatro','tres','red'].findAll { it != boardName }
+        tagExpr = others.collect { "not @$it" }.join(' and ')
+    }
     args = ['--plugin', 'pretty',
             '--plugin', 'html:build/reports/cucumber/cucumber-html.html',
             '--glue', 'com.panda.e2e',
@@ -86,8 +90,10 @@ tasks.register('cucumberCoverage', JavaExec) {
     classpath = configurations.cucumberRuntime + sourceSets.main.output + sourceSets.test.output
     jvmArgs "-Dfile.encoding=UTF-8", "-Dsun.jnu.encoding=utf-8"
     def boardName = project.hasProperty('board') ? project.board : 'cuatro'
-    def tagExpr = null
-    if (project.hasProperty('board')) {
+    def tagExpr
+    if (project.hasProperty('tags')) {
+        tagExpr = project.tags
+    } else {
         def others = ['cuatro','tres','red'].findAll { it != boardName }
         tagExpr = others.collect { "not @$it" }.join(' and ')
     }
