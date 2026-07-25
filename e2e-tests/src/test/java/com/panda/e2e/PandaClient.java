@@ -267,6 +267,7 @@ public class PandaClient {
         int jna_get_stop_mode_requested();
 
         void jna_process_stop_mode();
+        void jna_process_wfi_idle();
 
         void jna_tick_siren();
 
@@ -965,6 +966,10 @@ public class PandaClient {
 
     public void processStopMode() {
         lib.jna_process_stop_mode();
+    }
+
+    public void processWfiIdle() {
+        lib.jna_process_wfi_idle();
     }
 
     public void tickSiren() {

@@ -48,6 +48,11 @@ public class PandaSteps {
         client.processStopMode();
     }
 
+    @When("process wfi idle")
+    public void processWfiIdle() {
+        client.processWfiIdle();
+    }
+
     @When("tick siren")
     public void tickSiren() {
         client.tickSiren();

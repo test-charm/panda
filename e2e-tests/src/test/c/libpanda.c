@@ -572,6 +572,22 @@ void jna_process_stop_mode(void) {
     }
 }
 
+// Simulates the main loop's WFI idle path (board/main.c:377-385).
+// Tests the non-CUATRO __WFI() light sleep path and CUATRO with SOM GPIO high.
+// The CUATRO enter_stop_mode() deep sleep path is covered by deep_sleep.feature.
+void jna_process_wfi_idle(void) {
+    if (power_save_enabled) {
+        // CUATRO deep sleep path is already tested — skip it here
+        if ((hw_type == HW_TYPE_CUATRO) && !current_board->read_som_gpio()) {
+            return;
+        }
+        // Pre-set SCB_SCR so we can verify the SLEEPDEEP clear at main.c:384
+        SCB->SCR = SCB_SCR_SLEEPDEEP_Msk;
+        __WFI();
+        SCB->SCR &= ~SCB_SCR_SLEEPDEEP_Msk;
+    }
+}
+
 // Real board_read_som_gpio (after GPIO macro overrides)
 bool board_read_som_gpio_stub(void) {
 #if defined(E2E_BOARD_TRES)

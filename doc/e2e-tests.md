@@ -72,6 +72,7 @@ Cucumber BDD 断言: gpioAModer: 0xFFFFFFF1, rccCr: 0x0, ...
 |------|-----------|
 | `jna_call_tick_handler()` | 完整 `tick_handler()`（8Hz + 1Hz 块）。8 次调用 = 1 个 1Hz tick |
 | `jna_process_stop_mode()` | 主循环检查 `stop_mode_requested` → `enter_stop_mode()` |
+| `jna_process_wfi_idle()` | 主循环 WFI 空闲路径 (power_save + 非 CUATRO 深度休眠) → `__WFI()` + SLEEPDEEP 清除 |
 | `jna_tick_siren()` | tick handler 读 `siren_enabled` → `current_board->set_siren()` |
 | `jna_set_microsecond_timer()` | 预设微秒定时器值 |
 | `jna_set_mcu_uid()` / `jna_set_serial()` / `jna_set_provision()` | 预设 OTP 内存区域 |
@@ -148,6 +149,7 @@ e2e-tests/
 | 继电器故障 | `relay_malfunction.feature` | 3 | readFaults (FAULT_RELAY_MALFUNCTION 边沿检测) |
 | 看门狗 | `watchdog.feature` | 3 | readFaults (FAULT_HEARTBEAT_LOOP_WATCHDOG, 直接 include 生产代码 `simple_watchdog.h`) |
 | 寄存器发散 | `register_divergence.feature` | 3 | readFaults (FAULT_REGISTER_DIVERGENT, 真实 `registers.h` + `jna_set_register_divergent` 注入) |
+| WFI 空闲路径 | `wfi_idle.feature` | 3 | stopModeRegs (wfiEntered + scbScr, 通过 `jna_process_wfi_idle`) |
 
 ## C 代码覆盖率
 
@@ -168,7 +170,7 @@ e2e-tests/
 | `board/utils.h` | **0.0%** (0/3) | 0/1 (0%) | 工具函数 (仅初始化) |
 | **合计** | **65.1%** (575/884) | **30/46** (65.2%) | |
 
-> ⚠️ `main.c` 中未覆盖的 1 个函数: `__WFI()` 空闲路径。P1-P5 已全部覆盖（`bootkick_tick`, 心跳丢失, `simple_watchdog`, `relay_malfunction`, `check_registers`）。详见 `e2e-tests/src/test/resources/test-design/uncovered-features.md`。
+> ⚠️ `main.c` 中未覆盖的函数：`tick_handler` 的 `ignition_can_cnt` 路径、`fan_state.cooldown`、`sound_tick`、`safety_mode_cnt`。P1-P6 已全部覆盖。详见 `e2e-tests/src/test/resources/test-design/uncovered-features.md`。
 
 ## 设计原则
 

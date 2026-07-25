@@ -190,7 +190,7 @@ BOOT_BOOTKICK → BOOT_STANDBY → (STANDBY→BOOTKICK edge) → 20 tick 等待 
 ```
 
 - CUATRO `enter_stop_mode()` ✅ 已覆盖
-- 非 CUATRO 的 `__WFI()` 空闲路径 ❌ 未覆盖
+- 非 CUATRO 的 `__WFI()` 空闲路径 ✅ 已覆盖 (`wfi_idle.feature`, 3 场景，通过 `jna_process_wfi_idle` 调用生产代码)
 
 #### P7 — `ignition_can_cnt` / `ignition_can` 自动复位
 
@@ -253,7 +253,7 @@ BOOT_BOOTKICK → BOOT_STANDBY → (STANDBY→BOOTKICK edge) → 20 tick 等待 
 | **P3** | `simple_watchdog` 看门狗 | `board/drivers/simple_watchdog.h` | ✅ `watchdog.feature` (3 场景)，直接 include 生产代码 | — |
 | **P4** | `relay_malfunction` 故障检测 | `board/main.c:134-141` | ✅ feature 已有 (`relay_malfunction.feature`，3 场景) + 设计文档 (`relay-malfunction.md`) | — |
 | **P5** | `check_registers()` | `board/drivers/registers.h` | ✅ `register_divergence.feature` (3 场景)，通过 `jna_set_register_divergent` 注入 + `init_registers` 在 init 末尾清噪音 | 小 |
-| **P6** | WFI 空闲路径 | `board/main.c:377-385` | ❌ 未覆盖 | 小 |
+| **P6** | WFI 空闲路径 | `board/main.c:377-385` | ✅ 已覆盖 (`wfi_idle.feature`, 3 场景) | 小 |
 | **P7** | `ignition_can_cnt` 复位 | `board/main.c:251-253` | ❌ 未覆盖 (lines 189-195) | 小 |
 | **P8** | `fan_state.cooldown` | `board/drivers/fan.h` | ❌ fan.h 仅 37.0% 覆盖 | 小 |
 | **P9** | `harness_detect_orientation` | `board/drivers/harness.h:52-88` | ⚠️ implicit（其他测试依赖 `harness.status`，但未直接测试翻转检测路径） | 小 |
