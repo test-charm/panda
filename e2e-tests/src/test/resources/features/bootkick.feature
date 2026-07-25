@@ -26,10 +26,6 @@ Feature: Bootkick SOM Reset FSM
       """
 
   Scenario: Recent heartbeat transitions to BOOT_STANDBY
-    Given exists data:
-      """
-      ControlSetup: { ... }
-      """
     When tick handler:
     Then control data should be:
       """
@@ -41,10 +37,6 @@ Feature: Bootkick SOM Reset FSM
       """
 
   Scenario: STANDBY to BOOTKICK edge starts 20-tick waiting countdown
-    Given exists data:
-      """
-      ControlSetup: { ... }
-      """
     # First tick with no ignition → STANDBY (recent_heartbeat=1 on first call)
     When tick handler:
     # Set ignition → rising edge on next tick
@@ -66,10 +58,6 @@ Feature: Bootkick SOM Reset FSM
       """
 
   Scenario: Full countdown triggers BOOT_RESET after 22 ticks
-    Given exists data:
-      """
-      ControlSetup: { ... }
-      """
     When tick handler:
     Given exists data:
       """
@@ -109,10 +97,6 @@ Feature: Bootkick SOM Reset FSM
       """
 
   Scenario: BOOT_RESET expires after 5 more ticks, returns to BOOT_BOOTKICK
-    Given exists data:
-      """
-      ControlSetup: { ... }
-      """
     When tick handler:
     Given exists data:
       """
@@ -157,12 +141,6 @@ Feature: Bootkick SOM Reset FSM
       """
 
   Scenario: Serial activity aborts waiting countdown
-    Given exists data:
-      """
-      ControlSetup: {
-        somUartWptr: 0
-      }
-      """
     When tick handler:
     Given exists data:
       """
@@ -197,10 +175,6 @@ Feature: Bootkick SOM Reset FSM
       """
 
   Scenario: reset_triggered prevents second reset cycle
-    Given exists data:
-      """
-      ControlSetup: { ... }
-      """
     When tick handler:
     Given exists data:
       """
@@ -261,12 +235,6 @@ Feature: Bootkick SOM Reset FSM
       """
 
   Scenario: Harness insertion triggers BOOT_BOOTKICK
-    Given exists data:
-      """
-      ControlSetup: {
-        harnessStatus: 0
-      }
-      """
     Given exists data:
       """
       ControlSetup: {

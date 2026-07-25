@@ -47,13 +47,6 @@ Feature: Interrupt Call Rate Retrieval
       """
 
   Scenario: Get interrupt rate returns all zero bytes for zero call rate
-    Given exists data:
-      """
-      ControlSetup: {
-        interruptIndex: 0
-        interruptCallRate: 0
-      }
-      """
     When control write:
       """
       GetInterruptRate: {

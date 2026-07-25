@@ -39,12 +39,6 @@ Feature: Relay Malfunction Fault Detection
       """
 
   Scenario: No edge change does not affect faults
-    Given exists data:
-      """
-      ControlSetup: {
-        relayMalfunctionVal: 0
-      }
-      """
     When tick handler
     Then control data should be:
       """

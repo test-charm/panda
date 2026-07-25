@@ -38,12 +38,6 @@ Feature: MCU UID Retrieval
       """
 
   Scenario: Get MCU UID returns all zero bytes for zero UID
-    Given exists data:
-      """
-      ControlSetup: {
-        mcuUidBytes: "000000000000000000000000"
-      }
-      """
     When control write:
       """
       GetMcuUid: {

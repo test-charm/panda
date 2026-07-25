@@ -736,35 +736,8 @@ void jna_can_clear_all(void) {
 
 // ---- JNA API: FDCAN register inspection ----
 void jna_reset_fdcan(void) {
-    for (int i = 0; i < 3; i++) {
-        fake_fdcan[i] = (FDCAN_GlobalTypeDef){0};
-    }
-    for (size_t i = 0; i < FAKE_FDCAN_SRAM_SIZE; i++) {
-        fake_fdcan_sram[i] = 0;
-    }
-    // Reset globals that persist across scenarios and affect can_init()
-    can_loopback = false;
-    can_silent = true;
-    // Restore default bus_config (can_speed, can_data_speed) modified by 0xde set-can-bitrate
-    bus_config[0].can_speed = 5000U;
-    bus_config[0].can_data_speed = 20000U;
-    bus_config[1].can_speed = 5000U;
-    bus_config[1].can_data_speed = 20000U;
-    bus_config[2].can_speed = 5000U;
-    bus_config[2].can_data_speed = 20000U;
-    // Reset CAN FD flags
-    bus_config[0].canfd_auto = false;
-    bus_config[0].canfd_non_iso = false;
-    bus_config[0].canfd_enabled = false;
-    bus_config[0].brs_enabled = false;
-    bus_config[1].canfd_auto = false;
-    bus_config[1].canfd_non_iso = false;
-    bus_config[1].canfd_enabled = false;
-    bus_config[1].brs_enabled = false;
-    bus_config[2].canfd_auto = false;
-    bus_config[2].canfd_non_iso = false;
-    bus_config[2].canfd_enabled = false;
-    bus_config[2].brs_enabled = false;
+    // BSS + data-segment init + can_init() handle all reset.
+    // Kept as empty shell for JNA interface compatibility.
 }
 
 void jna_reset_heartbeat(void) {
@@ -1107,16 +1080,6 @@ void jna_reset_can_health(void) {
     }
 }
 
-// ---- can_clear_send tracking ----
-void jna_reset_bus_canfd_flags(void) {
-    for (int i = 0; i < PANDA_CAN_CNT; i++) {
-        bus_config[i].canfd_auto = false;
-        bus_config[i].canfd_non_iso = false;
-        bus_config[i].canfd_enabled = false;
-        bus_config[i].brs_enabled = false;
-    }
-}
-
 // ---- JNA API: Health packet inspection ----
 static struct health_t jna_health;
 
@@ -1150,30 +1113,17 @@ uint8_t jna_get_health_heartbeat_lost(void) {
 }
 
 // Full panda init — called once after library load to set hardware to post-reset defaults.
+// can_init() and jna_reset_safety() trigger side effects (CAN transceiver, IRQ calls).
+// The reset calls below clean up tracking counters and GPIO state accumulated during init.
+// All other state is handled by BSS zeroing + data-segment init on fresh dlopen.
 void jna_panda_init(void) {
-    can_loopback = false;
-    can_silent = true;
     can_init(0);
     can_init(1);
     can_init(2);
-    jna_can_clear_all();
-    jna_reset_heartbeat();
     jna_reset_safety();
-    jna_reset_alternative_experience();
-    jna_reset_siren();
     jna_reset_power_save_tracking();
     jna_reset_stop_mode_tracking();
-    jna_reset_nvic_count();
-    jna_reset_TIM_regs();
-    jna_reset_can_health();
-    jna_reset_microsecond_timer();
-    jna_reset_mcu_uid();
-    jna_reset_interrupts();
-    jna_reset_serial();
-    jna_reset_provision();
-    jna_reset_signature();
-    jna_reset_enter_bootloader_mode();
-    jna_reset_uart();
-    jna_reset_faults();
+    jna_reset_siren();
+    jna_reset_heartbeat();
     jna_reset_bootkick();
 }

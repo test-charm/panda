@@ -74,7 +74,6 @@ Feature: CAN Health Statistics
       """
       ControlSetup: {
         fdcanPsr: 224   # BO=1 (bit7), EW=1 (bit6), EP=1 (bit5), LEC=0
-        irReg: 0
       }
       """
     Then control data should be:
