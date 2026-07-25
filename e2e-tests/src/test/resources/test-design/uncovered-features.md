@@ -7,7 +7,64 @@
 
 ---
 
-## 覆盖率总览
+## 零、e2e 编译模型：哪些文件进入了覆盖率报告
+
+e2e 通过 `libpanda.c` 编译完整 `board/main.c`，利用 `-I` 优先级覆盖机制：
+- `-I e2e-tests/src/test/c` (最高优先级 → e2e 桩)
+- `-I /path/to/panda` (项目根)
+- `-I /path/to/panda/board` (board 目录)
+
+文件被编译为真实生产代码 vs 被桩替换 vs 被切断，取决于 include 路径中的文件是否被 e2e 桩覆盖。
+
+### 进入覆盖率的 19 个真实 `board/` 文件
+
+这些文件被完整编译为生产代码，覆盖率数据有效：
+
+```
+board/main.c                          — 主固件逻辑
+board/main_comms.h                    — USB 命令处理 (comms_control_handler)
+board/can_comms.h                     — CAN 报文编解码 (comms_can_read/write)
+board/config.h                        — 构建配置
+board/comms_definitions.h             — ControlPacket_t 类型
+board/health.h                        — health_t 结构体
+board/can.h                           — CAN 常量定义
+board/sys/sys.h                       — 临界区宏、故障常量
+board/sys/faults.h                    — 故障处理函数
+board/drivers/drivers.h               — 中央驱动声明 (所有驱动类型/函数原型)
+board/drivers/registers.h             — 寄存器影子校验
+board/drivers/can_common.h            — CAN 队列、can_send、can_init_all
+board/drivers/fan.h                   — 风扇控制 (fan_set_power, fan_tick)
+board/drivers/gpio.h                  — GPIO 控制
+board/drivers/clock_source.h          — 时钟源定时器
+board/drivers/simple_watchdog.h       — 看门狗 (桩委托到真实代码)
+board/libc.h                          — memcpy, memset, delay
+board/stm32h7/lladc_declarations.h    — ADC 信号类型声明
+board/boards/board_declarations.h     — board 结构体、HW_TYPE_* 常量
+```
+
+### 未进入覆盖率的文件：四大原因
+
+```
+┌─ board/ 全部 C/H 文件 (~90 个)
+│
+├── ✅ 已编译为真实代码 (19 个) → 上面列出
+│
+├── ⚠️ 被 e2e 桩替换 (19 个) → 第一节
+│   └── 生产代码未经编译，覆盖率 0%
+│
+├── ❌ 被 stm32h7_config.h 桩切断 (16 个) → 第二节
+│   └── 通过真实 stm32h7_config.h 的 include 链被切断
+│
+├── 🚫 其他固件目标 (25 个) → 第三节
+│   └── jungle / body / bootstub / crypto (仅 bootstub 使用)
+│
+└── 📦 CMSIS/HAL 头 + 工具脚本 → 第四节
+    └── 第三方 STM32 头文件、Python 工具、测试辅助
+```
+
+---
+
+## 覆盖率总览 (仅编译为真实代码的文件)
 
 | 源文件 | 行覆盖 | 函数覆盖 | 未覆盖原因 |
 |--------|--------|---------|-----------|
@@ -20,13 +77,223 @@
 | `board/drivers/fan.h` | 37.0% | 2/3 | fan cooldown 逻辑 (P8) |
 | `board/can_comms.h` | 18.4% | 2/4 | CAN 接收/发送内层路径 |
 | `board/drivers/clock_source.h` | 18.4% | 1/2 | TIM8 外部时钟模式未覆盖 |
-| `board/utils.h` | 0.0% | 0/1 | 仅初始化调用, 未在测试路径中 |
+| `board/drivers/registers.h` | — | — | 头文件 (声明) |
 | `board/boards/board_declarations.h` | — | — | 头文件 (宏/声明) |
 | `board/sys/sys.h` | — | — | 头文件 (声明) |
 
 ---
 
-## 一、USB 命令覆盖状态
+## 一、被 e2e 桩替换的文件 (19 个)
+
+这些 `board/` 下的生产代码文件在 e2e 构建中被同路径的桩文件替换，**真实代码从未编译**，因此覆盖率报告中不存在。
+
+### 桩替换机制
+
+`build.sh` 的 include 路径优先级：`-I e2e-tests/src/test/c` > `-I board/`。当 `e2e-tests/src/test/c/board/xxx.h` 存在时，编译器使用桩文件而非真实 `board/xxx.h`。
+
+### 替换清单
+
+| 真实文件 | e2e 桩 | 替换原因 | 核心功能 |
+|----------|--------|---------|---------|
+| `board/provision.h` | 空桩 (返回假数据) | 无真实 OTP 存储 | 设备序列号/Provision 读取 |
+| `board/sys/power_saving.h` | `power_save_e2e.gen.c` (手写副本) | STM32 STOP 模式不可用 | `enter_stop_mode()`, `set_power_save_state()` |
+| `board/early_init.h` | 空桩 | STM32 早期初始化无意义 | `early_initialization()` |
+| `board/crc.h` | 空桩 | CRC 硬件不可用 | CRC 校验 (`crc_calc`, `crc_check`) |
+| `board/drivers/bootkick.h` | `bootkick_e2e.gen.c` (生成代码) | 无真实 GPIO | SOM 启动/复位状态机 |
+| `board/drivers/fdcan.h` | `fdcan_e2e.gen.c` (从真实源码生成) | 无 FDCAN 外设 | `can_init()`, `can_send()`, `can_rx()` 等 FDCAN 核心函数 |
+| `board/drivers/usb.h` | 空桩 | 无真实 USB OTG | `usb_init()`, `usb_irqhandler()` |
+| `board/drivers/spi.h` | 空桩 | 无真实 SPI | `spi_init()`, SPI DMA 传输 |
+| `board/drivers/fake_siren.h` | 空桩 | 无真实蜂鸣器 GPIO | 蜂鸣器控制 |
+| `board/drivers/harness.h` | `harness_detect_e2e.gen.c` (部分提取) | 无真实 SBU ADC | `harness_detect_orientation()` 提取，其他为空 |
+| `board/drivers/led.h` | 空桩 | 无真实 LED PWM | `led_init()`, `led_set()` |
+| `board/drivers/uart.h` | 桩 (基础实现) | 无真实 UART | `put_char()`, `get_char()` 等 |
+| `board/drivers/pwm.h` | 空桩 | 无真实 PWM 定时器 | `pwm_init()`, `pwm_set()` |
+| `board/drivers/interrupts.h` | 空桩 | 无真实 NVIC | `init_interrupts()`, `handle_interrupt()` |
+| `board/drivers/timers.h` | 空桩 | 无真实 TIM 外设 | `tick_timer_init()`, `microsecond_timer_init()` |
+| `board/stm32h7/lladc.h` | 桩 (拦截 `adc_get_mV()`) | 无真实 ADC | ADC 读取 (`adc_get_mV`, `adc_get_raw`) |
+| `board/stm32h7/stm32h7_config.h` | 最小化桩 | STM32H7 HAL 头不兼容宿主编译 | **关键枢纽** — 切断其下所有 include 链 |
+| `board/stm32h7/sound.h` | 空桩 | 无真实音频 DAC | `sound_init()`, `sound_tick()` |
+| `board/obj/gitversion.h` | 桩 (返回假版本) | 非 git 构建环境 | 固件版本号 |
+
+> **关于 `board/drivers/fdcan.h`**：虽然被桩替换，但 `fdcan_e2e.gen.c` 由 `generate_fdcan_stubs.py` 从真实 `board/stm32h7/llfdcan.h` 源码逐字提取生成。**FDCAN 核心函数 (`can_init`, `can_send`, `can_rx` 等) 是以生成代码形式出现在覆盖率中的**，只是声明被桩替换。
+
+### 影响评估
+
+| 优先级 | 文件 | 理由 |
+|--------|------|------|
+| 🔴 高 | `drivers/fdcan.h` | FDCAN 核心驱动 (500+ 行)，已通过 gen 脚本部分覆盖 |
+| 🔴 高 | `drivers/bootkick.h` | SOM 启动状态机 (5 态 FSM)，已通过 gen 脚本部分覆盖 |
+| 🟡 中 | `sys/power_saving.h` | STOP 模式进入逻辑，已通过手写副本覆盖 |
+| 🟡 中 | `drivers/harness.h` | SBU 检测逻辑，已通过 gen 脚本提取 |
+| 🟢 低 | `drivers/gpio.h`, `drivers/pwm.h`, `drivers/led.h` | 纯 GPIO 操作，无业务逻辑 |
+| 🟢 低 | `drivers/usb.h`, `drivers/spi.h` | 纯外设初始化，无业务逻辑 |
+| 🟢 低 | 其他 | 辅助/声明文件 |
+
+---
+
+## 二、被 `stm32h7_config.h` 桩切断的文件 (16 个)
+
+真实 `board/stm32h7/stm32h7_config.h` 是固件的**中央配置枢纽**，它 include 了约 20 个其他 board 文件：
+```
+stm32h7_config.h (真实)
+├── stm32h7xx.h (CMSIS)
+├── board/can.h
+├── board/comms_definitions.h
+├── board/main_definitions.h ──→ main_declarations.h ──→ drivers/drivers.h
+├── board/libc.h
+├── board/sys/critical.h          ← 切断
+├── board/sys/faults.h
+├── board/utils.h                 ← 切断
+├── board/drivers/registers.h
+├── board/drivers/interrupts.h    (随 stm32h7_config 一起被桩替换)
+├── board/drivers/gpio.h
+├── board/stm32h7/peripherals.h   ← 切断
+├── board/stm32h7/interrupt_handlers.h ← 切断
+├── board/drivers/timers.h        (随 stm32h7_config 一起被桩替换)
+├── board/drivers/uart.h          (随 stm32h7_config 一起被桩替换)
+├── board/stm32h7/lluart.h        ← 切断
+├── board/stm32h7/board.h ──────── 切断 ←
+│   ├── boards/board_declarations.h
+│   ├── boards/unused_funcs.h     ← 切断
+│   ├── stm32h7/lladc.h           (已被桩替换)
+│   ├── drivers/harness.h         (已被桩替换)
+│   ├── drivers/fan.h
+│   ├── stm32h7/llfan.h           ← 切断
+│   ├── stm32h7/sound.h           (已被桩替换)
+│   ├── drivers/fake_siren.h      (已被桩替换)
+│   ├── drivers/clock_source.h
+│   ├── boards/red.h              ← 切断
+│   ├── boards/tres.h             ← 切断
+│   └── boards/cuatro.h           ← 切断
+├── board/stm32h7/clock.h         ← 切断
+├── board/stm32h7/llfdcan.h       ← 切断
+│   └── stm32h7/llfdcan_declarations.h ← 切断
+├── board/stm32h7/llusb.h         ← 切断
+│   └── stm32h7/llusb_declarations.h ← 切断
+├── board/drivers/spi.h           (已被桩替换)
+└── board/stm32h7/llspi.h         ← 切断
+```
+
+e2e 用最小化桩替换 `stm32h7_config.h`，仅重新引入被切断的**必要文件**（`comms_definitions.h`、`sys/sys.h`、`drivers/registers.h`）。
+
+### 被切断且未被重新引入的文件
+
+| 文件 | 行数(估) | 核心功能 | 影响 |
+|------|---------|---------|------|
+| `board/utils.h` | ~45 | `MIN/MAX/CLAMP/ABS` 宏, `get_ts_elapsed()` | 工具宏，易补偿 |
+| `board/sys/critical.h` | ~15 | `enable_interrupts()`, `disable_interrupts()` | 仅用于真实 NVIC |
+| `board/stm32h7/board.h` | ~50 | `detect_board_type()` 硬件检测 | 硬件 ID 引脚检测，e2e 硬编码板型 |
+| `board/stm32h7/peripherals.h` | ~135 | `peripherals_init()` — 所有外设时钟使能 | 纯寄存器操作 |
+| `board/stm32h7/clock.h` | ~30 | 系统时钟配置 (HSE/PLL) | 纯寄存器操作 |
+| `board/stm32h7/interrupt_handlers.h` | ~50 | 中断向量表实现 | 纯外设中断 |
+| `board/stm32h7/lluart.h` | ~60 | UART 低层驱动 | 被 `drivers/uart.h` 桩屏蔽 |
+| `board/stm32h7/llspi.h` | ~40 | SPI 低层驱动 | 被 `drivers/spi.h` 桩屏蔽 |
+| `board/stm32h7/llfdcan.h` | ~500 | **FDCAN 寄存器级驱动** | 🔴 核心代码，已通过 `fdcan_e2e.gen.c` 部分提取 |
+| `board/stm32h7/llusb.h` | ~100 | USB OTG 低层驱动 | 被 `drivers/usb.h` 桩屏蔽 |
+| `board/stm32h7/llfan.h` | ~20 | 风扇 tach 输入捕获 | 被 `drivers/fan.h` 分离 |
+| `board/stm32h7/llfdcan_declarations.h` | ~30 | FDCAN 寄存器声明 | 头文件 |
+| `board/stm32h7/llusb_declarations.h` | ~30 | USB 寄存器声明 | 头文件 |
+| `board/boards/cuatro.h` | ~80 | Cuatro 板级实现 (GPIO 映射) | 🔴 板级关键代码 |
+| `board/boards/red.h` | ~60 | Red panda 板级实现 | 🔴 板级关键代码 |
+| `board/boards/tres.h` | ~70 | Tres 板级实现 | 🔴 板级关键代码 |
+| `board/boards/unused_funcs.h` | ~30 | 板级空函数 (未使用功能的默认实现) | 🟢 空桩 |
+
+### 影响评估
+
+| 优先级 | 文件 | 理由 |
+|--------|------|------|
+| 🔴 高 | `stm32h7/llfdcan.h` | FDCAN 核心驱动 (~500 行)，CAN 通信的底层实现。已通过 gen 脚本部分提取 |
+| 🔴 高 | `boards/cuatro.h`, `red.h`, `tres.h` | 硬件板级实现，包含 GPIO 映射、电压/电流读取等关键逻辑 |
+| 🟡 中 | `stm32h7/board.h` | 硬件类型检测 (`detect_board_type`) |
+| 🟡 中 | `stm32h7/peripherals.h` | 外设时钟初始化 (RCC)，硬件初始化关键步骤 |
+| 🟢 低 | 其他 | 纯 HAL 寄存器操作或声明文件 |
+
+---
+
+## 三、其他固件目标 (25 个文件)
+
+panda 代码库从同一 `board/` 目录构建**三个独立固件**，e2e 当前仅覆盖 panda 主固件 (`board/main.c`)：
+
+```
+board/main.c          → panda 固件    ✅ e2e 覆盖
+board/jungle/main.c   → jungle 固件   ❌ 无 e2e
+board/body/main.c     → body 固件     ❌ 无 e2e
+board/bootstub.c      → bootstub      ❌ 无 e2e
+```
+
+### Bootstub (3 个文件)
+
+| 文件 | 功能 |
+|------|------|
+| `board/bootstub.c` | 最小引导程序，负责固件刷写 |
+| `board/bootstub_declarations.h` | Bootstub 全局声明 |
+| `board/flasher.h` | 刷写协议命令处理 (3 个未覆盖命令: 0xb0 echo, 0xb1 unlock, 0xb2 erase) |
+
+### Jungle 固件 (6 个文件)
+
+| 文件 | 功能 |
+|------|------|
+| `board/jungle/main.c` | Jungle 测试夹具主固件 |
+| `board/jungle/main_comms.h` | 8 个 Jungle USB 命令 (panda 电源控制、点火信号等) |
+| `board/jungle/jungle_health.h` | Jungle 健康数据包结构 |
+| `board/jungle/boards/board_declarations.h` | Jungle 板级声明 |
+| `board/jungle/boards/board_v2.h` | Jungle V2 板级实现 |
+| `board/jungle/stm32h7/board.h` | Jungle 硬件检测 |
+
+### Body 固件 (12 个文件)
+
+| 文件 | 功能 |
+|------|------|
+| `board/body/main.c` | Body 控制器主固件 |
+| `board/body/main_comms.h` | 2 个 Body USB 命令 (电机启停/转速) |
+| `board/body/can.h` | Body CAN 定义 |
+| `board/body/dotstar.h` | DotStar LED 控制 |
+| `board/body/boards/board_declarations.h` | Body 板级声明 |
+| `board/body/boards/board_body.h` | Body 板级实现 |
+| `board/body/stm32h7/board.h` | Body 硬件检测 |
+| `board/body/bldc/bldc.h` | BLDC 电机控制接口 |
+| `board/body/bldc/bldc_defs.h` | BLDC 类型定义 |
+| `board/body/bldc/BLDC_controller.h` | BLDC 控制器 (Simulink 生成) |
+| `board/body/bldc/BLDC_controller.c` | BLDC 控制器实现 |
+| `board/body/bldc/BLDC_controller_data.c` | BLDC 控制器数据 |
+| `board/body/bldc/rtwtypes.h` | Simulink RTW 类型 |
+
+### Crypto (4 个文件，仅 bootstub 使用)
+
+| 文件 | 功能 | 使用方 |
+|------|------|--------|
+| `board/crypto/sha.h` / `sha.c` | SHA-256 实现 | bootstub (固件签名验证) |
+| `board/crypto/rsa.h` / `rsa.c` | RSA-1024 实现 | bootstub (固件签名验证) |
+| `board/crypto/hash-internal.h` | 哈希内部声明 | sha.c |
+
+---
+
+## 四、CMSIS/HAL 头文件与工具脚本 (不计入覆盖率)
+
+以下文件属于第三方代码或非 C 代码，不应计入覆盖率统计：
+
+### CMSIS/HAL 头文件 (12 个)
+`board/stm32h7/inc/` 下的 STM32 官方 CMSIS 头文件，非 panda 自有代码：
+`core_cm7.h`, `cmsis_gcc.h`, `cmsis_compiler.h`, `cmsis_version.h`, `mpu_armv7.h`, `system_stm32h7xx.h`, `stm32h725xx.h`, `stm32h735xx.h`, `stm32h7xx.h`, `stm32h7xx_hal_def.h`, `stm32h7xx_hal_gpio_ex.h`
+
+### 其他非 C 文件
+| 文件 | 类型 | 说明 |
+|------|------|------|
+| `board/fake_stm.h` | 测试辅助 | 宿主测试用 STM32 桩，非生产固件代码 |
+| `board/flash.py` | Python | panda 刷写工具 |
+| `board/recover.py` | Python | DFU 恢复工具 |
+| `board/__init__.py` | Python | Python 包 |
+| `board/README.md` | 文档 | — |
+
+### 未被任何 include 链引用的文件
+| 文件 | 说明 |
+|------|------|
+| `board/stm32h7/llflash.h` | Flash 驱动，仅 `BOOTSTUB` 条件下编译 |
+| `board/stm32h7/lli2c.h` | I2C 驱动，仅 audio codec 使用，主路径未引用 |
+
+---
+
+## 五、USB 命令覆盖状态
 
 ### `board/main_comms.h` — panda 固件 (33/34 已覆盖)
 
@@ -110,7 +377,7 @@
 
 ---
 
-## 二、`board/main.c` 主循环行为
+## 六、`board/main.c` 主循环行为
 
 ### 🔴 高优先级（行为显著、可测）
 
@@ -245,7 +512,7 @@ BOOT_BOOTKICK → BOOT_STANDBY → (STANDBY→BOOTKICK edge) → 20 tick 等待 
 
 ---
 
-## 三、权限状态总结
+## 七、权限状态总结
 
 | 优先级 | 项目 | 代码文件 | 覆盖状态 | 工作量估算 |
 |--------|------|---------|----------|-----------|
@@ -267,7 +534,7 @@ BOOT_BOOTKICK → BOOT_STANDBY → (STANDBY→BOOTKICK edge) → 20 tick 等待 
 
 ---
 
-## 四、`jna_call_tick_handler()` — 生产代码 tick 触发
+## 八、`jna_call_tick_handler()` — 生产代码 tick 触发
 
 `When tick handler` 步骤触发完整的生产代码 `tick_handler()`（`board/main.c`），包含所有 8Hz 和 1Hz 逻辑。通过 `heartbeatDisabled` 控制心跳超时，可精确测试 tick 累积行为。
 
@@ -290,3 +557,84 @@ Then control data should be → 验证结果
 ```
 
 适用于：心跳超时、controls_allowed 退出、watchdog、siren_countdown、ignition_can_cnt、fan cooldown 等所有需多 tick 累积的测试。
+
+---
+
+## 九、下一步推荐
+
+### 优先级路线图
+
+```
+本周                        下周                        后续
+P0 can_comms.h ──────────→ P2 boards/*.h ──────────→ P3 spi_cmd
+P1 main.c tick 路径        (去桩化)                   (SPI 通道)
+(不改构建，纯加场景)        (首个真实板级代码)          (ROI 偏低)
+```
+
+### 🔴 P0 — 提升 `can_comms.h` 覆盖率 (当前 18.4%，最高 ROI)
+
+**不改构建，代码已在编译中，直接加 Gherkin 场景。**
+
+CAN 报文序列化/反序列化核心路径。`comms_can_read` / `comms_can_write` 处理所有 `CANPacket_t` ↔ 6 字节头部 + 变长数据的转换。
+
+| 未覆盖路径 | 测试思路 | 风险 |
+|-----------|---------|------|
+| CAN FD 64 字节帧打包/解包 | 构造 `CANPacket_t` 含 64 字节 data，验证往返序列化 | 数据截断 bug |
+| 跨 chunk 分片传输 (单帧跨多个 USB bulk) | 设置 `max_len` < 帧大小，验证多 chunk 拼接 | 边界条件错误 |
+| `returned` / `rejected` 标志位编解码 | 设置 `returned=1` / `rejected=1`，验证位操作 | 标志位翻转 |
+| 校验和 mismatch 错误路径 | 注入错误校验和，验证 `can_check_checksum` 返回 false | 静默数据损坏 |
+| 连续多帧批量读写 | 3 帧连续写入，验证 `w_ptr` / `r_ptr` 推进 | 队列指针错误 |
+
+**工作量**: 3-5 个场景 (~1 天)，预计覆盖率 18.4% → 70%+
+
+---
+
+### 🟡 P1 — 提升 `main.c` tick 路径覆盖率 (当前 46.9%)
+
+**不改构建，当前 `jna_call_tick_handler` 框架已可用。**
+
+| 未覆盖路径 | 代码位置 | 测试思路 |
+|-----------|---------|---------|
+| `current_board->has_fan` 为 false 跳过 `fan_tick` | main.c:160 | red panda (无风扇) 下验证 fan_state 不变 |
+| `power_save_enabled` 与 `controls_allowed` 组合分支 | main.c:150-157 | 四象限组合测试 |
+| `heartbeat_counter` 溢出回绕 | main.c:182 | 设 heartbeat_counter = UINT32_MAX-1，触发 tick 验证 |
+| `safety_mode_cnt` 边界 | main.c:246 | 设 safety_mode_cnt = UINT32_MAX，验证回绕 |
+
+**工作量**: 2-3 个场景 (~0.5 天)
+
+---
+
+### 🟡 P2 — 将 `boards/{cuatro,red,tres}.h` 从桩切断恢复
+
+这三个文件定义了**板级 GPIO 映射**（CAN 收发器引脚、电压/电流检测引脚、bootkick 引脚）。当前 e2e 中用 `board_stub` 硬编码替代，真实函数从未编译。
+
+**做法**: 修改 e2e `stm32h7_config.h` 桩，从真实 `stm32h7/board.h` 引入 `boards/{cuatro,red,tres}.h`。`detect_board_type()` 仍需桩（依赖 GPIO 引脚检测），但板级函数直接编译真实代码。
+
+| 可覆盖的真实函数 | 所属文件 |
+|-----------------|---------|
+| `cuatro/tres/red_enable_can_transceiver()` | GPIO 引脚映射 |
+| `cuatro/tres/red_read_voltage_mV()` | ADC 通道映射 |
+| `cuatro/tres/red_read_current_mA()` | ADC 通道映射 |
+| `cuatro/tres_set_bootkick()` | GPIO 引脚映射 |
+| `cuatro_set_amp_enabled()` | GPIO 引脚映射 |
+
+**工作量**: 修改 build.sh / stm32h7_config.h 桩 → 3-5 个场景 (~1-2 天)
+
+---
+
+### 🟢 P3 — `main_comms.h` 缺失的 `spi_cmd` (唯一未覆盖的 USB 命令)
+
+33/34 USB 命令已覆盖，`spi_cmd` 是 SPI 通道的命令处理，仅在 SPI 传输模式下触发。
+
+**工作量**: 需要模拟 SPI 通道 (~1 天)，ROI 偏低
+
+---
+
+### P0+P1 预期收益
+
+```
+当前综合行覆盖率: 65.1% (575/884)
+P0 完成后预估:   72-75%  (+ can_comms.h 18.4→70%+)
+P1 完成后预估:   75-78%  (+ main.c 46.9→60%+)
+P2 完成后预估:   80-85%  (+ boards/*.h, llfdcan.h 等首次进入)
+```
