@@ -583,8 +583,18 @@ bool board_read_som_gpio_stub(void) {
 }
 
 // Siren stub (after GPIO macro overrides)
+static bool last_siren_state;
+static bool siren_was_active;
 void board_set_siren_stub(bool en) {
+    last_siren_state = en;
+    if (en) siren_was_active = true;
     set_gpio_output(GPIOB, 14, en);
+}
+int jna_get_siren_active(void) {
+    return last_siren_state ? 1 : 0;
+}
+int jna_get_siren_was_active(void) {
+    return siren_was_active ? 1 : 0;
 }
 
 // Fan enabled (after GPIO macro overrides)
@@ -817,6 +827,23 @@ int jna_get_heartbeat_engaged(void) {
     return heartbeat_engaged ? 1 : 0;
 }
 
+// ---- JNA API: Safety state inspection ----
+int jna_get_controls_allowed(void) {
+    return controls_allowed ? 1 : 0;
+}
+void jna_set_controls_allowed(int val) {
+    controls_allowed = (val != 0);
+}
+int jna_get_current_safety_mode(void) {
+    return (int)current_safety_mode;
+}
+int jna_get_siren_countdown(void) {
+    return (int)siren_countdown;
+}
+int jna_get_siren_enabled(void) {
+    return siren_enabled ? 1 : 0;
+}
+
 // ---- JNA API: Power save state inspection ----
 int jna_get_power_save_enabled(void) {
     return power_save_enabled ? 1 : 0;
@@ -834,6 +861,8 @@ void jna_reset_alternative_experience(void) {
 // ---- JNA API: Siren state inspection ----
 void jna_reset_siren(void) {
     siren_enabled = false;
+    last_siren_state = false;
+    siren_was_active = false;
 }
 
 // ---- JNA API: Power-save hardware call tracking ----

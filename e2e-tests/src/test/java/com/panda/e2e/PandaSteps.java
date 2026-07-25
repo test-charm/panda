@@ -87,6 +87,13 @@ public class PandaSteps {
         public byte bus;
     }
 
+    @When("call tick handler {int} times")
+    public void callTickHandlerTimes(int times) {
+        for (var i = 0; i < times; i++) {
+            client.callTickHandler();
+        }
+    }
+
     public static class ControlSetup {
         public int timerValue;
         public int fanRpm;
@@ -114,5 +121,6 @@ public class PandaSteps {
         public int harnessStatus;
         public int somUartWptr;
         public int ignitionLine;
+        public int controlsAllowed;
     }
 }

@@ -82,6 +82,20 @@ public class PandaClient {
 
         int jna_get_heartbeat_engaged();
 
+        int jna_get_controls_allowed();
+
+        void jna_set_controls_allowed(int val);
+
+        int jna_get_current_safety_mode();
+
+        int jna_get_siren_countdown();
+
+        int jna_get_siren_enabled();
+
+        int jna_get_siren_active();
+
+        int jna_get_siren_was_active();
+
         void jna_reset_heartbeat();
 
         void jna_reset_safety();
@@ -589,6 +603,33 @@ public class PandaClient {
                 lib.jna_get_heartbeat_disabled(),
                 lib.jna_get_heartbeat_engaged()
         );
+    }
+
+    // ---- Safety state ----
+    @AllArgsConstructor
+    @Getter
+    public static class SafetyState {
+        private final int controlsAllowed;
+        private final int safetyMode;
+        private final int sirenCountdown;
+        private final int sirenEnabled;
+        private final int sirenActive;
+        private final int sirenWasActive;
+    }
+
+    public SafetyState getSafetyState() {
+        return new SafetyState(
+                lib.jna_get_controls_allowed(),
+                lib.jna_get_current_safety_mode(),
+                lib.jna_get_siren_countdown(),
+                lib.jna_get_siren_enabled(),
+                lib.jna_get_siren_active(),
+                lib.jna_get_siren_was_active()
+        );
+    }
+
+    public void setControlsAllowed(int val) {
+        lib.jna_set_controls_allowed(val);
     }
 
     public boolean isPowerSaveEnabled() {

@@ -33,6 +33,7 @@ public class ControlSetups {
             property("harnessStatus").defaultValue(0);
             property("somUartWptr").defaultValue(0);
             property("ignitionLine").defaultValue(0);
+            property("controlsAllowed").defaultValue(-1);
         }
     }
 
