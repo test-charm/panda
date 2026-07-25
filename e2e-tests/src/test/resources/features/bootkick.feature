@@ -161,3 +161,101 @@ Feature: Bootkick SOM Reset FSM
         resetTriggered: 0
       }
       """
+
+  @cuatro
+  Scenario: BOOT_BOOTKICK drives bootkick GPIO low
+    # PA0=0, PC11=0 (state == BOOT_BOOTKICK)
+    Given exists data:
+      """
+      ControlSetup: {
+        ignitionLine: 1
+      }
+      """
+    When tick handler:
+    Then control data should be:
+      """
+      stopModeRegs: {
+        gpioAOdr: 0L
+        gpioCOdr: 0L
+      }
+      """
+
+  @cuatro
+  Scenario: BOOT_STANDBY drives bootkick GPIO high
+    # PA0=1, PC11=1 (state != BOOT_BOOTKICK)
+    When tick handler:
+    Then control data should be:
+      """
+      stopModeRegs: {
+        gpioAOdr: 1L
+        gpioCOdr: 2048L
+      }
+      """
+
+  @cuatro
+  Scenario: BOOT_RESET drives bootkick GPIO high
+    # PA0=1, PC11=1 (state != BOOT_BOOTKICK)
+    When tick handler:
+    Given exists data:
+      """
+      ControlSetup: {
+        ignitionLine: 1
+      }
+      """
+    When tick handler 22 times
+    Then control data should be:
+      """
+      stopModeRegs: {
+        gpioAOdr: 1L
+        gpioCOdr: 2048L
+      }
+      """
+
+  @tres
+  Scenario: BOOT_BOOTKICK drives bootkick GPIO low (tres)
+    # PA0=0, PC12=1 (state == BOOT_BOOTKICK, state != BOOT_RESET)
+    Given exists data:
+      """
+      ControlSetup: {
+        ignitionLine: 1
+      }
+      """
+    When tick handler:
+    Then control data should be:
+      """
+      stopModeRegs: {
+        gpioAOdr: 0L
+        gpioCOdr: 4096L
+      }
+      """
+
+  @tres
+  Scenario: BOOT_STANDBY drives bootkick GPIO high (tres)
+    # PA0=1, PC12=1 (state != BOOT_BOOTKICK, state != BOOT_RESET)
+    When tick handler:
+    Then control data should be:
+      """
+      stopModeRegs: {
+        gpioAOdr: 1L
+        gpioCOdr: 4096L
+      }
+      """
+
+  @tres
+  Scenario: BOOT_RESET drives PC12 low (tres)
+    # PA0=1, PC12=0 (state != BOOT_BOOTKICK, state == BOOT_RESET)
+    When tick handler:
+    Given exists data:
+      """
+      ControlSetup: {
+        ignitionLine: 1
+      }
+      """
+    When tick handler 22 times
+    Then control data should be:
+      """
+      stopModeRegs: {
+        gpioAOdr: 1L
+        gpioCOdr: 0L
+      }
+      """

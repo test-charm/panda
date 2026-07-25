@@ -3,7 +3,7 @@
 
 Extracts bootkick_tick() from board/drivers/bootkick.h and transforms:
   - static locals → file-scope e2e_* globals (accessible by JNA)
-  - set_bootkick() call → commented out (fake GPIO writes corrupt memory)
+  - set_bootkick() call → preserved for e2e GPIO verification
   - Generates e2e_tick_handler_1hz() mirroring main.c's 1Hz block
   - Generates JNA accessor/reset functions
 
@@ -74,10 +74,6 @@ def transform_body(lines):
             if len(tokens) >= 2 and tokens[0] in ("uint16_t", "uint8_t", "bool", "BootState"):
                 if tokens[1] in promoted_new_names:
                     continue
-        # Comment out set_bootkick call
-        if "current_board->set_bootkick" in line:
-            result.append(f"  // {line.strip()}  // commented: fake GPIO writes corrupt e2e globals")
-            continue
         # Remove 'static' keyword from the renamed variables
         line = re.sub(r"\bstatic\s+(uint16_t|uint8_t|bool|BootState)\s+e2e_", r"\1 e2e_", line)
         result.append(line)

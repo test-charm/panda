@@ -67,7 +67,7 @@ void bootkick_tick(bool ignition, bool recent_heartbeat) {
   if (e2e_boot_reset_countdown > 0U) {
     e2e_boot_reset_countdown--;
   }
-  // current_board->set_bootkick(e2e_boot_state);  // commented: fake GPIO writes corrupt e2e globals
+  current_board->set_bootkick(e2e_boot_state);
 }
 
 // ---- e2e_tick_handler_1hz — mirrors main.c 1Hz decimated block ----
