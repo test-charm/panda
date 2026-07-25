@@ -110,5 +110,6 @@ public class PandaSteps {
         public int somUartWptr;
         public int ignitionLine;
         public int controlsAllowed;
+        public int registerDivergent;
     }
 }

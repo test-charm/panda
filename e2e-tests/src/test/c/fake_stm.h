@@ -11,8 +11,8 @@
 
 #define ALLOW_DEBUG
 
-#define ENTER_CRITICAL() 0
-#define EXIT_CRITICAL() 0
+#define ENTER_CRITICAL()
+#define EXIT_CRITICAL()
 
 void print(const char *a) { printf("%s", a); }
 void puth(unsigned int i) { printf("%u", i); }

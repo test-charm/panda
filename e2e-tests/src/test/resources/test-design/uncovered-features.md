@@ -1,8 +1,8 @@
 # 端到端测试未覆盖功能清单
 
 > 生成时间: 2026-07-25
-> 基准 e2e 场景数: 142（覆盖 `board/main.c` → 34 个 USB 命令中 33 个）
-> 综合行覆盖率: **65.1%** (575/884 lines), 函数覆盖率: **65.2%** (30/46 functions)
+> 基准 e2e 场景数: 145（覆盖 `board/main.c` → 34 个 USB 命令中 33 个）
+> 综合行覆盖率: **65.1%** (575/884 lines), 函数覆盖率: **67.4%** (31/46 functions)
 > 数据来源: `e2e-tests/run_all_coverage.sh` (cuatro + tres + red 合并)
 
 ---
@@ -177,7 +177,9 @@ BOOT_BOOTKICK → BOOT_STANDBY → (STANDBY→BOOTKICK edge) → 20 tick 等待 
 ```
 
 - 影子寄存器校验 → `FAULT_REGISTER_DIVERGENT`
-- **状态：** ❌ 无测试
+- **状态：** ✅ `register_divergence.feature` (3 场景)，全部通过
+- **实现方式：** e2e `stm32h7_config.h` 引入真实 `registers.h`（替换原有空存根），`jna_set_register_divergent()` 直接注入 `register_map` 制造发散状态，`init_registers()` 在 `jna_panda_init()` 末尾调用清除初始化噪音
+- **行覆盖：** `check_registers()` 内部 100% 行 + 分支覆盖
 
 ### 🟡 中优先级（状态变量 / 辅助路径）
 
@@ -250,7 +252,7 @@ BOOT_BOOTKICK → BOOT_STANDBY → (STANDBY→BOOTKICK edge) → 20 tick 等待 
 | **P2** | 心跳丢失自动行为 | `board/main.c:185-244` | ✅ `heartbeat_loss.feature` (9 场景)，全部通过，通过 `jna_call_tick_handler` 调用真实生产代码 | — |
 | **P3** | `simple_watchdog` 看门狗 | `board/drivers/simple_watchdog.h` | ✅ `watchdog.feature` (3 场景)，直接 include 生产代码 | — |
 | **P4** | `relay_malfunction` 故障检测 | `board/main.c:134-141` | ✅ feature 已有 (`relay_malfunction.feature`，3 场景) + 设计文档 (`relay-malfunction.md`) | — |
-| **P5** | `check_registers()` | `board/drivers/registers.h` | ❌ 无测试 | 小 |
+| **P5** | `check_registers()` | `board/drivers/registers.h` | ✅ `register_divergence.feature` (3 场景)，通过 `jna_set_register_divergent` 注入 + `init_registers` 在 init 末尾清噪音 | 小 |
 | **P6** | WFI 空闲路径 | `board/main.c:377-385` | ❌ 未覆盖 | 小 |
 | **P7** | `ignition_can_cnt` 复位 | `board/main.c:251-253` | ❌ 未覆盖 (lines 189-195) | 小 |
 | **P8** | `fan_state.cooldown` | `board/drivers/fan.h` | ❌ fan.h 仅 37.0% 覆盖 | 小 |
@@ -274,6 +276,7 @@ BOOT_BOOTKICK → BOOT_STANDBY → (STANDBY→BOOTKICK edge) → 20 tick 等待 
 | `relay_malfunction.feature` | ✅ 3 场景 | 3 |
 | `watchdog.feature` | ✅ 3 场景全部通过 | 3 |
 | `heartbeat_loss.feature` | ✅ 9 场景全部通过 | 9 |
+| `register_divergence.feature` | ✅ 3 场景全部通过 | 3 |
 
 8 次 `jna_call_tick_handler()` 调用 = 1 次 1Hz tick（`loop_counter` 每 8 次归零）。
 使用 `When call tick handler {int} times` 批量触发多个 tick。

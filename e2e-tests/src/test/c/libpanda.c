@@ -343,7 +343,6 @@ void tick_timer_init(void) {}
 void microsecond_timer_init(void) {}
 void interrupt_timer_init(void) {}
 void gpio_spi_init(void) {}
-void check_registers(void) {}
 void disable_interrupts(void) {}
 void enable_interrupts(void) {}
 static int nvic_reset_call_count;
@@ -630,19 +629,6 @@ void set_intercept_relay(bool a, bool b) {
 #undef TIM8
 #define TIM1 ((e2e_TIM_TypeDef *)&fake_TIM1)
 #define TIM8 ((e2e_TIM_TypeDef *)&fake_TIM8)
-
-// e2e register_set: writes directly to fake register without critical section
-void register_set(volatile uint32_t *addr, uint32_t val, uint32_t mask) {
-    (*addr) = ((*addr) & (~mask)) | (val & mask);
-}
-
-void register_set_bits(volatile uint32_t *addr, uint32_t val) {
-    register_set(addr, val, val);
-}
-
-void register_clear_bits(volatile uint32_t *addr, uint32_t mask) {
-    register_set(addr, (~mask), mask);
-}
 
 // ---- clock_source_set_timer_params from board/drivers/clock_source.h ----
 // Uses fake TIM1/TIM8 instances defined above.
@@ -1143,6 +1129,42 @@ uint8_t jna_get_health_heartbeat_lost(void) {
     return jna_health.heartbeat_lost_pkt;
 }
 
+// ---- Register divergence testing (check_registers) ----
+// e2e register_set stub bypasses register_map; inject directly for testing.
+// Sets up a fake register where shadow (register_map) and actual (*addr) can differ.
+static uint32_t e2e_reg_divergence_storage;
+
+void jna_set_register_divergent(int enable) {
+    volatile uint32_t *addr = &e2e_reg_divergence_storage;
+    uint32_t addr_val = (uint32_t)addr;
+
+    // Find hash slot
+    uint16_t hash = hash_addr(addr_val);
+    uint16_t tries = REGISTER_MAP_SIZE;
+    while (CHECK_COLLISION(hash, addr) && (tries > 0U)) {
+        hash = hash_addr((uint32_t)hash);
+        tries--;
+    }
+
+    if (tries != 0U) {
+        if (enable) {
+            // Divergent: shadow expects 0xAAAA, hardware reads 0x5555
+            *addr = 0x5555U;
+            register_map[hash].address = addr;
+            register_map[hash].value = 0xAAAAU;
+            register_map[hash].check_mask = 0xFFFFU;
+            register_map[hash].logged_fault = false;
+        } else {
+            // Non-divergent: shadow = actual
+            *addr = 0xAAAAU;
+            register_map[hash].address = addr;
+            register_map[hash].value = 0xAAAAU;
+            register_map[hash].check_mask = 0xFFFFU;
+            register_map[hash].logged_fault = false;
+        }
+    }
+}
+
 // Full panda init — called once after library load to set hardware to post-reset defaults.
 // can_init() and jna_reset_safety() trigger side effects (CAN transceiver, IRQ calls).
 // The reset calls below clean up tracking counters and GPIO state accumulated during init.
@@ -1158,4 +1180,5 @@ void jna_panda_init(void) {
     jna_reset_heartbeat();
     jna_reset_bootkick();
     simple_watchdog_init(FAULT_HEARTBEAT_LOOP_WATCHDOG, (3U * 1000000U / 8U));
+    init_registers();  // clear register_map after init to avoid false divergence
 }

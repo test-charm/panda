@@ -151,6 +151,9 @@ public class Factories {
             if (setup.controlsAllowed != -1) {
                 client.setControlsAllowed(setup.controlsAllowed);
             }
+            if (setup.registerDivergent != -1) {
+                client.setRegisterDivergent(setup.registerDivergent);
+            }
         }
     }
 }

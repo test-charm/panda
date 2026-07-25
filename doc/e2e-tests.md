@@ -147,6 +147,7 @@ e2e-tests/
 | Bootkick SOM 复位 | `bootkick.feature` | 14 | tick_handler FSM (state/waitingCountdown/resetCountdown/resetTriggered) + stopModeRegs (gpioAOdr/gpioCOdr) 通过 jna_call_tick_handler |
 | 继电器故障 | `relay_malfunction.feature` | 3 | readFaults (FAULT_RELAY_MALFUNCTION 边沿检测) |
 | 看门狗 | `watchdog.feature` | 3 | readFaults (FAULT_HEARTBEAT_LOOP_WATCHDOG, 直接 include 生产代码 `simple_watchdog.h`) |
+| 寄存器发散 | `register_divergence.feature` | 3 | readFaults (FAULT_REGISTER_DIVERGENT, 真实 `registers.h` + `jna_set_register_divergent` 注入) |
 
 ## C 代码覆盖率
 
@@ -167,7 +168,7 @@ e2e-tests/
 | `board/utils.h` | **0.0%** (0/3) | 0/1 (0%) | 工具函数 (仅初始化) |
 | **合计** | **65.1%** (575/884) | **30/46** (65.2%) | |
 
-> ⚠️ `main.c` 中未覆盖的 2 个函数: `check_registers()` 寄存器校验、`__WFI()` 空闲路径。P2 心跳丢失已由 `heartbeat_loss.feature` 覆盖。详见 `e2e-tests/src/test/resources/test-design/uncovered-features.md`。
+> ⚠️ `main.c` 中未覆盖的 1 个函数: `__WFI()` 空闲路径。P1-P5 已全部覆盖（`bootkick_tick`, 心跳丢失, `simple_watchdog`, `relay_malfunction`, `check_registers`）。详见 `e2e-tests/src/test/resources/test-design/uncovered-features.md`。
 
 ## 设计原则
 

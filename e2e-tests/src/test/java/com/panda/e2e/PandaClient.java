@@ -234,6 +234,8 @@ public class PandaClient {
 
         void jna_call_tick_handler();
 
+        void jna_set_register_divergent(int enable);
+
         void jna_set_fan_rpm(int val);
 
         int jna_get_resp_len();
@@ -802,6 +804,10 @@ public class PandaClient {
 
     public void setRelayMalfunction(int val) {
         lib.jna_set_relay_malfunction(val);
+    }
+
+    public void setRegisterDivergent(int enable) {
+        lib.jna_set_register_divergent(enable);
     }
 
     public int readFaults() {

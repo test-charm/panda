@@ -34,6 +34,7 @@ public class ControlSetups {
             property("somUartWptr").defaultValue(0);
             property("ignitionLine").defaultValue(0);
             property("controlsAllowed").defaultValue(-1);
+            property("registerDivergent").defaultValue(-1);
         }
     }
 
