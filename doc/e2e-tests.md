@@ -134,6 +134,7 @@ e2e-tests/
 | 时钟源 | `clock_source.feature` | 3 | clockSource (TIM1/TIM8 CCR) |
 | 定时器/风扇 | `timer_fan.feature` | 2 | respBuffer (little-endian) |
 | 风扇功率 | `fan_power.feature` | 5 | fanPower |
+| 风扇冷却 | `fan_cooldown.feature` | 3 | fanCooldownCounter + fanPower 通过 jna_call_tick_handler |
 | 系统复位 | `reset_st.feature` | 1 | nvicResetCount |
 | 深度休眠 | `deep_sleep.feature` | 13 | stopModeRegs (25+ 假寄存器: GPIO/ADC/RCC/SYSCFG/EXTI/PWR/SCB/NVIC) |
 | SOM GPIO | `som_gpio.feature` | 1 | respBuffer |
@@ -171,7 +172,7 @@ e2e-tests/
 | `board/utils.h` | **0.0%** (0/3) | 0/1 (0%) | 工具函数 (仅初始化) |
 | **合计** | **65.1%** (575/884) | **30/46** (65.2%) | |
 
-> ⚠️ `main.c` 中未覆盖的函数：`fan_state.cooldown`、`sound_tick`、`safety_mode_cnt`。P1-P7 已全部覆盖。详见 `e2e-tests/src/test/resources/test-design/uncovered-features.md`。
+> ⚠️ `main.c` 中未覆盖的函数：`sound_tick`、`safety_mode_cnt`。P1-P8 已全部覆盖。详见 `e2e-tests/src/test/resources/test-design/uncovered-features.md`。
 
 ## 设计原则
 

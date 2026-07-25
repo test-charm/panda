@@ -205,7 +205,7 @@ BOOT_BOOTKICK → BOOT_STANDBY → (STANDBY→BOOTKICK edge) → 20 tick 等待 
 #### P8 — `fan_state.cooldown_counter` 冷却保持
 
 - 风扇断电后继续运行 `cooldown_time * 8` 个 tick
-- **状态：** ❌ 无测试
+- **状态：** ✅ `fan_cooldown.feature` (3 场景) + 设计文档 (`fan-cooldown.md`)，全部通过，通过 `jna_call_tick_handler` 调用真实 `fan_tick()` 代码
 
 #### P9 — `harness_detect_orientation()` 线束翻转检测
 
@@ -256,7 +256,7 @@ BOOT_BOOTKICK → BOOT_STANDBY → (STANDBY→BOOTKICK edge) → 20 tick 等待 
 | **P5** | `check_registers()` | `board/drivers/registers.h` | ✅ `register_divergence.feature` (3 场景) + 设计文档 (`register-divergence.md`)，通过 `jna_set_register_divergent` 注入 + `init_registers` 在 init 末尾清噪音 | 小 |
 | **P6** | WFI 空闲路径 | `board/main.c:377-385` | ✅ 已覆盖 (`wfi_idle.feature`, 3 场景) + 设计文档 (`wfi-idle.md`) | 小 |
 | **P7** | `ignition_can_cnt` 复位 | `board/main.c:251-253` | ✅ `ignition_can.feature` (2 场景) + 设计文档 (`ignition-can.md`) | 小 |
-| **P8** | `fan_state.cooldown` | `board/drivers/fan.h` | ❌ fan.h 仅 37.0% 覆盖 | 小 |
+| **P8** | `fan_state.cooldown` | `board/drivers/fan.h` | ✅ `fan_cooldown.feature` (3 场景) + 设计文档 (`fan-cooldown.md`)，通过 `jna_call_tick_handler` 调用真实 `fan_tick()` 代码 | 小 |
 | **P9** | `harness_detect_orientation` | `board/drivers/harness.h:52-88` | ⚠️ implicit（其他测试依赖 `harness.status`，但未直接测试翻转检测路径） | 小 |
 | **P10** | LED 行为 | `board/main.c:166-375` | ❌ 不需要 | — |
 | **P11** | `sound_tick()` 音频 | `board/stm32h7/sound.h` | ❌ 不需要 | — |

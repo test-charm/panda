@@ -269,6 +269,13 @@ struct harness_configuration harness_config_stub = {
 struct board board_stub = {
     .harness_config = &harness_config_stub,
     .led_GPIO = {&dummy_gpio, &dummy_gpio, &dummy_gpio},
+#if defined(E2E_BOARD_RED)
+    .has_fan = false,
+    .fan_enable_cooldown_time = 0U,
+#else
+    .has_fan = true,
+    .fan_enable_cooldown_time = 3U,
+#endif
     .set_can_mode = board_set_can_mode_stub,
     .read_voltage_mV = board_read_voltage_mV_stub,
     .read_current_mA = board_read_current_mA_stub,
@@ -893,6 +900,9 @@ int jna_get_ir_power_value_at(int index) {
 // fan_power — direct read from fan_state.power (set by real fan_set_power)
 int jna_get_fan_power(void) { return (int)fan_state.power; }
 
+// fan_cooldown_counter — read from fan_state.cooldown_counter (managed by fan_tick)
+int jna_get_fan_cooldown_counter(void) { return (int)fan_state.cooldown_counter; }
+
 void jna_reset_power_save_tracking(void) {
     power_save_enabled = false;
     irq_enable_call_count = 0;
@@ -1191,6 +1201,7 @@ void jna_panda_init(void) {
     can_init(0);
     can_init(1);
     can_init(2);
+    fan_init();
     jna_reset_safety();
     jna_reset_power_save_tracking();
     jna_reset_stop_mode_tracking();

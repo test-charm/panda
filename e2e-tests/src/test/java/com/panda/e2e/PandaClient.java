@@ -151,6 +151,8 @@ public class PandaClient {
 
         int jna_get_fan_power();
 
+        int jna_get_fan_cooldown_counter();
+
         void jna_reset_power_save_tracking();
 
         // CAN comms buffer inspection (comms_can_reset)
@@ -1064,6 +1066,10 @@ public class PandaClient {
 
     public int getFanPower() {
         return lib.jna_get_fan_power();
+    }
+
+    public int getFanCooldownCounter() {
+        return lib.jna_get_fan_cooldown_counter();
     }
 
     // ---- Health packet inspection ----
