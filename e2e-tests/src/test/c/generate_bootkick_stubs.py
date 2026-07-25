@@ -154,26 +154,7 @@ def generate():
     output.extend(body_lines)
     output.append("")
 
-    output.append("// ---- e2e_tick_handler_1hz — mirrors main.c 1Hz decimated block ----")
-    output.append("static void e2e_tick_handler_1hz(void) {")
-    if started_line:
-        output.append(f"  // Mirrors: {started_line}")
-    output.append("  bool started = e2e_ignition_line;")
-    if heartbeat_line:
-        output.append(f"  // Mirrors: {heartbeat_line}")
-    output.append("  bool recent_heartbeat = heartbeat_counter == 0U;")
-    if tick_call:
-        output.append(f"  // Mirrors: {tick_call}")
-    output.append("  bootkick_tick(started, recent_heartbeat);")
-    output.append("  if (heartbeat_counter < UINT32_MAX) {")
-    output.append("    heartbeat_counter += 1U;")
-    output.append("  }")
-    output.append("}")
-    output.append("")
-
     output.append("// ---- JNA entry points ----")
-    output.append("void jna_tick_handler(void) { e2e_tick_handler_1hz(); }")
-    output.append("")
     output.append("int jna_get_bootkick_state(void)            { return (int)e2e_boot_state; }")
     output.append("int jna_get_bootkick_reset_triggered(void)   { return (int)bootkick_reset_triggered; }")
     output.append("int jna_get_bootkick_waiting_countdown(void) { return (int)e2e_waiting_countdown; }")

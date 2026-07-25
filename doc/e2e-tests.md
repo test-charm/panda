@@ -70,6 +70,7 @@ Cucumber BDD 断言: gpioAModer: 0xFFFFFFF1, rccCr: 0x0, ...
 
 | 函数 | 模拟的操作 |
 |------|-----------|
+| `jna_call_tick_handler()` | 完整 `tick_handler()`（8Hz + 1Hz 块）。8 次调用 = 1 个 1Hz tick |
 | `jna_process_stop_mode()` | 主循环检查 `stop_mode_requested` → `enter_stop_mode()` |
 | `jna_tick_siren()` | tick handler 读 `siren_enabled` → `current_board->set_siren()` |
 | `jna_set_microsecond_timer()` | 预设微秒定时器值 |
@@ -112,6 +113,7 @@ e2e-tests/
 | 安全模式 | `safety_mode.feature` | 8 | FDCAN CCCR, gpioAOdr |
 | CAN 回环 | `can_loopback.feature` | 4 | FDCAN TEST/MON |
 | 心跳 | `heartbeat.feature` | 6 | heartbeat_* 变量 |
+| 心跳丢失 | `heartbeat_loss.feature` | 9 | safetyState + powerSaveTracking 通过 jna_call_tick_handler |
 | 健康数据包 | `health.feature` | 5 | healthPacket + 可设 voltage/current |
 | CAN 模式 | `can_mode.feature` | 6 | stopModeRegs (gpioBModer/gpioBOdr/gpioBPupdr) |
 | 继电器 | `relay.feature` | 6 | stopModeRegs.gpioAOdr (PA3/PA9) |
@@ -142,7 +144,7 @@ e2e-tests/
 | 固件签名 | `signature.feature` | 2 | respBuffer (64 bytes 分块) |
 | Bootloader 模式 | `bootloader.feature` | 3 | nvicResetCount, enterBootloaderMode |
 | UART 读取 | `uart_read.feature` | 3 | respBuffer (字符读取 / 空) |
-| Bootkick SOM 复位 | `bootkick.feature` | 14 | tick_handler FSM (state/waitingCountdown/resetCountdown/resetTriggered) + stopModeRegs (gpioAOdr/gpioCOdr) |
+| Bootkick SOM 复位 | `bootkick.feature` | 14 | tick_handler FSM (state/waitingCountdown/resetCountdown/resetTriggered) + stopModeRegs (gpioAOdr/gpioCOdr) 通过 jna_call_tick_handler |
 | 继电器故障 | `relay_malfunction.feature` | 3 | readFaults (FAULT_RELAY_MALFUNCTION 边沿检测) |
 
 ## C 代码覆盖率
@@ -164,7 +166,7 @@ e2e-tests/
 | `board/utils.h` | **0.0%** (0/3) | 0/1 (0%) | 工具函数 (仅初始化) |
 | **合计** | **65.1%** (575/884) | **30/46** (65.2%) | |
 
-> ⚠️ `main.c` 中未覆盖的 3 个函数: 主循环 tick 路径（心跳丢失、controls_allowed_countdown、ignition_can_cnt）、`check_registers()` 寄存器校验、`__WFI()` 空闲路径。详见 `e2e-tests/src/test/resources/test-design/uncovered-features.md`。
+> ⚠️ `main.c` 中未覆盖的 2 个函数: `check_registers()` 寄存器校验、`__WFI()` 空闲路径。P2 心跳丢失已由 `heartbeat_loss.feature` 覆盖。详见 `e2e-tests/src/test/resources/test-design/uncovered-features.md`。
 
 ## 设计原则
 

@@ -2,10 +2,19 @@
 Feature: Bootkick SOM Reset FSM
 
   BootState enum: BOOT_STANDBY=0, BOOT_BOOTKICK=1, BOOT_RESET=2.
-  tick_handler() calls the real bootkick_tick() from board/drivers/bootkick.h.
-  Each call increments heartbeat_counter and decrements siren_countdown.
+  Uses callTickHandler() — the full production tick_handler() from board/main.c.
+  The 1Hz block fires every 8th call, so 8 × N calls advances N ticks.
+  heartbeatDisabled prevents the heartbeat timeout from interfering.
   Control via: ignitionLine (harness_check_ignition), harnessStatus (harness.status),
   somUartWptr (serial activity).
+
+  Background:
+    Given exists data:
+      """
+      ControlSetup: {
+        heartbeatDisabled: 1
+      }
+      """
 
   Scenario: Ignition rising edge triggers BOOT_BOOTKICK
     Given exists data:
@@ -14,7 +23,7 @@ Feature: Bootkick SOM Reset FSM
         ignitionLine: 1
       }
       """
-    When tick handler:
+    When call tick handler 8 times
     Then control data should be:
       """
       bootkick: {
@@ -26,7 +35,7 @@ Feature: Bootkick SOM Reset FSM
       """
 
   Scenario: Recent heartbeat transitions to BOOT_STANDBY
-    When tick handler:
+    When call tick handler 8 times
     Then control data should be:
       """
       bootkick: {
@@ -38,7 +47,7 @@ Feature: Bootkick SOM Reset FSM
 
   Scenario: STANDBY to BOOTKICK edge starts 20-tick waiting countdown
     # First tick with no ignition → STANDBY (recent_heartbeat=1 on first call)
-    When tick handler:
+    When call tick handler 8 times
     # Set ignition → rising edge on next tick
     Given exists data:
       """
@@ -46,7 +55,7 @@ Feature: Bootkick SOM Reset FSM
         ignitionLine: 1
       }
       """
-    When tick handler:
+    When call tick handler 8 times
     Then control data should be:
       """
       bootkick: {
@@ -58,15 +67,15 @@ Feature: Bootkick SOM Reset FSM
       """
 
   Scenario: Full countdown triggers BOOT_RESET after 22 ticks
-    When tick handler:
+    When call tick handler 8 times
     Given exists data:
       """
       ControlSetup: {
         ignitionLine: 1
       }
       """
-    # 21 more tick_handler calls: 1 rising edge tick + 20 countdown ticks
-    When tick handler 21 times
+    # 21 more 1Hz ticks: 1 rising edge + 20 waiting countdown → BOOT_RESET
+    When call tick handler 168 times
     Then control data should be:
       """
       bootkick: {
@@ -77,14 +86,14 @@ Feature: Bootkick SOM Reset FSM
       """
 
   Scenario: BOOT_RESET expires after 5 more ticks, returns to BOOT_BOOTKICK
-    When tick handler:
+    When call tick handler 8 times
     Given exists data:
       """
       ControlSetup: {
         ignitionLine: 1
       }
       """
-    When tick handler 25 times
+    When call tick handler 200 times
     Then control data should be:
       """
       bootkick: {
@@ -102,7 +111,7 @@ Feature: Bootkick SOM Reset FSM
         somUartWptr: 42
       }
       """
-    When tick handler:
+    When call tick handler 8 times
     Then control data should be:
       """
       bootkick: {
@@ -113,14 +122,14 @@ Feature: Bootkick SOM Reset FSM
       """
 
   Scenario: reset_triggered prevents second reset cycle
-    When tick handler:
+    When call tick handler 8 times
     Given exists data:
       """
       ControlSetup: {
         ignitionLine: 1
       }
       """
-    When tick handler 23 times
+    When call tick handler 184 times
     # Toggle ignition to create STANDBY→BOOTKICK edge
     Given exists data:
       """
@@ -128,14 +137,14 @@ Feature: Bootkick SOM Reset FSM
         ignitionLine: 0
       }
       """
-    When tick handler:
+    When call tick handler 8 times
     Given exists data:
       """
       ControlSetup: {
         ignitionLine: 1
       }
       """
-    When tick handler:
+    When call tick handler 8 times
     Then control data should be:
       """
       bootkick: {
@@ -153,7 +162,7 @@ Feature: Bootkick SOM Reset FSM
       }
       """
     # First tick: heartbeat=0 (recent), ignition=0, harness_inserted=true → BOOTKICK
-    When tick handler:
+    When call tick handler 8 times
     Then control data should be:
       """
       bootkick: {
@@ -171,7 +180,7 @@ Feature: Bootkick SOM Reset FSM
         ignitionLine: 1
       }
       """
-    When tick handler:
+    When call tick handler 8 times
     Then control data should be:
       """
       stopModeRegs: {
@@ -183,7 +192,7 @@ Feature: Bootkick SOM Reset FSM
   @cuatro
   Scenario: BOOT_STANDBY drives bootkick GPIO high
     # PA0=1, PC11=1 (state != BOOT_BOOTKICK)
-    When tick handler:
+    When call tick handler 8 times
     Then control data should be:
       """
       stopModeRegs: {
@@ -195,14 +204,14 @@ Feature: Bootkick SOM Reset FSM
   @cuatro
   Scenario: BOOT_RESET drives bootkick GPIO high
     # PA0=1, PC11=1 (state != BOOT_BOOTKICK)
-    When tick handler:
+    When call tick handler 8 times
     Given exists data:
       """
       ControlSetup: {
         ignitionLine: 1
       }
       """
-    When tick handler 22 times
+    When call tick handler 176 times
     Then control data should be:
       """
       stopModeRegs: {
@@ -220,7 +229,7 @@ Feature: Bootkick SOM Reset FSM
         ignitionLine: 1
       }
       """
-    When tick handler:
+    When call tick handler 8 times
     Then control data should be:
       """
       stopModeRegs: {
@@ -232,7 +241,7 @@ Feature: Bootkick SOM Reset FSM
   @tres
   Scenario: BOOT_STANDBY drives bootkick GPIO high (tres)
     # PA0=1, PC12=1 (state != BOOT_BOOTKICK, state != BOOT_RESET)
-    When tick handler:
+    When call tick handler 8 times
     Then control data should be:
       """
       stopModeRegs: {
@@ -244,14 +253,14 @@ Feature: Bootkick SOM Reset FSM
   @tres
   Scenario: BOOT_RESET drives PC12 low (tres)
     # PA0=1, PC12=0 (state != BOOT_BOOTKICK, state == BOOT_RESET)
-    When tick handler:
+    When call tick handler 8 times
     Given exists data:
       """
       ControlSetup: {
         ignitionLine: 1
       }
       """
-    When tick handler 22 times
+    When call tick handler 176 times
     Then control data should be:
       """
       stopModeRegs: {

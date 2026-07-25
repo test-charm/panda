@@ -493,10 +493,6 @@ public class PandaClient {
         private final int resetCountdown;
     }
 
-    public void tickHandler() {
-        lib.jna_tick_handler();
-    }
-
     public Bootkick getBootkick() {
         return new Bootkick(
                 lib.jna_get_bootkick_state(),

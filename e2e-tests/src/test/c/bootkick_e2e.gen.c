@@ -70,22 +70,7 @@ void bootkick_tick(bool ignition, bool recent_heartbeat) {
   current_board->set_bootkick(e2e_boot_state);
 }
 
-// ---- e2e_tick_handler_1hz — mirrors main.c 1Hz decimated block ----
-static void e2e_tick_handler_1hz(void) {
-  // Mirrors: bool started = harness_check_ignition() || ignition_can;
-  bool started = e2e_ignition_line;
-  // Mirrors: const bool recent_heartbeat = heartbeat_counter == 0U;
-  bool recent_heartbeat = heartbeat_counter == 0U;
-  // Mirrors: bootkick_tick(started, recent_heartbeat);
-  bootkick_tick(started, recent_heartbeat);
-  if (heartbeat_counter < UINT32_MAX) {
-    heartbeat_counter += 1U;
-  }
-}
-
 // ---- JNA entry points ----
-void jna_tick_handler(void) { e2e_tick_handler_1hz(); }
-
 int jna_get_bootkick_state(void)            { return (int)e2e_boot_state; }
 int jna_get_bootkick_reset_triggered(void)   { return (int)bootkick_reset_triggered; }
 int jna_get_bootkick_waiting_countdown(void) { return (int)e2e_waiting_countdown; }

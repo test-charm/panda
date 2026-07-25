@@ -53,11 +53,6 @@ public class PandaSteps {
         client.tickSiren();
     }
 
-    @When("tick handler:")
-    public void tickHandler() {
-        client.tickHandler();
-    }
-
     @Then("control data should be:")
     public void controlDataShould(String expression) {
         expect(client).should(expression);
@@ -66,13 +61,6 @@ public class PandaSteps {
     @When("tick handler")
     public void callTickHandler() {
         client.callTickHandler();
-    }
-
-    @When("tick handler {int} times")
-    public void tickHandlerTimes(int times) {
-        for (var i = 0; i < times; i++) {
-            client.tickHandler();
-        }
     }
 
     public static class UsbControlRequest {

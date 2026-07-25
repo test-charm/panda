@@ -1,7 +1,7 @@
 # 端到端测试未覆盖功能清单
 
 > 生成时间: 2026-07-25
-> 基准 e2e 场景数: 119（覆盖 `board/main.c` → 34 个 USB 命令中 33 个）
+> 基准 e2e 场景数: 139（覆盖 `board/main.c` → 34 个 USB 命令中 33 个）
 > 综合行覆盖率: **65.1%** (575/884 lines), 函数覆盖率: **65.2%** (30/46 functions)
 > 数据来源: `e2e-tests/run_all_coverage.sh` (cuatro + tres + red 合并)
 
@@ -12,7 +12,7 @@
 | 源文件 | 行覆盖 | 函数覆盖 | 未覆盖原因 |
 |--------|--------|---------|-----------|
 | `board/main_comms.h` | 93.3% | 2/3 | `spi_cmd` 函数 (SPI 通道, 非 USB 路径) |
-| `board/main.c` | 46.9% | 4/7 | 主循环 tick 路径 (心跳丢失/controls_allowed_countdown/ignition_can_cnt), check_registers, WFI 空闲 |
+| `board/main.c` | 46.9% | 4/7 | 主循环 tick 路径 (ignition_can_cnt), check_registers, WFI 空闲 |
 | `board/drivers/can_common.h` | 86.8% | 10/12 | can_clear_rx 未遍历路径, can_set_speed 未遍历比特率 |
 | `board/drivers/gpio.h` | 72.1% | 5/7 | set_gpio_analog, restore_gpio 仅 deep_sleep 覆盖 |
 | `board/sys/faults.h` | 78.9% | 2/2 | fault_occurred 未触发路径 |
@@ -130,21 +130,24 @@ BOOT_BOOTKICK → BOOT_STANDBY → (STANDBY→BOOTKICK edge) → 20 tick 等待 
 - 复位倒计时、串口活动检测、SOM GPIO 检测
 - 3 种中止路径：串口活动、SOM GPIO 高、非 BOOTKICK 状态
 
-**状态：** ✅ `bootkick.feature` (14 场景，含 @cuatro × 11 + @tres × 3) + `bootkick.md` 设计文档，全部通过，通过 `jna_tick_handler` 调用真实 `bootkick_tick()` 代码。
+**状态：** ✅ `bootkick.feature` (14 场景，含 @cuatro × 11 + @tres × 3) + `bootkick.md` 设计文档，全部通过，通过 `jna_call_tick_handler`（完整生产代码 `tick_handler()`）调用真实 `bootkick_tick()` 代码。
 
 #### P2 — 心跳丢失自动行为
 
 ```
-文件: board/main.c:201-244
+文件: board/main.c:185-244
 ```
 
 | 行为 | 代码位置 | 覆盖 |
 |------|----------|------|
-| `controls_allowed` → false（3 次 heartbeat_engaged 不匹配） | main.c:201-208 | ❌ |
-| 心跳超时 2-5 秒 → SILENT + 省电 | main.c:210-244 | ⚠️ 部分（省电覆盖，但心跳丢失路径未测） |
-| `siren_countdown` 3 秒触发 | main.c:217-220 | ❌ |
-| `controls_allowed_countdown` 5 秒宽限期 | main.c:192-196 | ❌ |
-| 心跳丢失时 IR 关闭 + 风扇按 SOM GPIO 调整 | main.c:239-243 | ❌ |
+| `controls_allowed` → false（3 次 heartbeat_engaged 不匹配） | main.c:201-208 | ✅ `heartbeat_loss.feature` Scenario 1 |
+| 心跳超时 2-5 秒 → SILENT + 省电 | main.c:210-245 | ✅ `heartbeat_loss.feature` Scenario 2,3 |
+| `siren_countdown` 3 秒触发 | main.c:217-220 | ✅ `heartbeat_loss.feature` Scenario 4 |
+| `controls_allowed_countdown` 5 秒宽限期 | main.c:192-196 | ✅ `heartbeat_loss.feature` Scenario 5（countdown 过期后不触发 siren） |
+| 心跳丢失时 IR 关闭 + 风扇按 SOM GPIO 调整 | main.c:238-243 | ✅ `heartbeat_loss.feature` Scenario 6,7,8 |
+| `heartbeat_disabled` 旁路 | main.c:210 | ✅ `heartbeat_loss.feature` Scenario 9 |
+
+**状态：** ✅ `heartbeat_loss.feature` (9 场景)，全部通过，通过 `jna_call_tick_handler` 调用真实生产代码。
 
 #### P3 — `simple_watchdog_kick()` 看门狗
 
@@ -162,7 +165,7 @@ BOOT_BOOTKICK → BOOT_STANDBY → (STANDBY→BOOTKICK edge) → 20 tick 等待 
 调用: 8Hz tick_handler
 ```
 
-- **状态：** ✅ `relay_malfunction.feature`（3 个场景，通过 `jna_call_tick_handler` 调用真实生产代码）
+- **状态：** ✅ `relay_malfunction.feature`（3 个场景，通过 `jna_call_tick_handler` 调用真实生产代码 `tick_handler()`）
 
 #### P5 — `check_registers()` 寄存器发散检测
 
@@ -242,7 +245,7 @@ BOOT_BOOTKICK → BOOT_STANDBY → (STANDBY→BOOTKICK edge) → 20 tick 等待 
 | 优先级 | 项目 | 代码文件 | 覆盖状态 | 工作量估算 |
 |--------|------|---------|----------|-----------|
 | **P1** | `bootkick_tick()` FSM | `board/drivers/bootkick.h` | ✅ feature 已有 (`bootkick.feature`，14 场景) + 设计文档 (`bootkick.md`)，全部通过，通过 `jna_tick_handler` 调用真实代码 | — |
-| **P2** | 心跳丢失自动行为 | `board/main.c:201-244` | ❌ 代码路径未被任何测试触发 (lines 202-205, 213 uncovered) | 中 |
+| **P2** | 心跳丢失自动行为 | `board/main.c:185-244` | ✅ `heartbeat_loss.feature` (9 场景)，全部通过，通过 `jna_call_tick_handler` 调用真实生产代码 | — |
 | **P3** | `simple_watchdog` 看门狗 | `board/main.c:318` | ❌ 无测试 | 中 |
 | **P4** | `relay_malfunction` 故障检测 | `board/main.c:134-141` | ✅ feature 已有 (`relay_malfunction.feature`，3 场景) + 设计文档 (`relay-malfunction.md`) | — |
 | **P5** | `check_registers()` | `board/drivers/registers.h` | ❌ 无测试 | 小 |
@@ -259,18 +262,22 @@ BOOT_BOOTKICK → BOOT_STANDBY → (STANDBY→BOOTKICK edge) → 20 tick 等待 
 
 ---
 
-## 四、`jna_tick_handler()` — 已投入使用
+## 四、`jna_call_tick_handler()` — 生产代码 tick 触发
 
-新增的 `When tick handler` 步骤可直接触发 bootkick FSM 中的真实 `tick_handler()` 1Hz 路径。已在以下特性中使用：
+`When tick handler` 步骤触发完整的生产代码 `tick_handler()`（`board/main.c`），包含所有 8Hz 和 1Hz 逻辑。通过 `heartbeatDisabled` 控制心跳超时，可精确测试 tick 累积行为。
 
 | 特性 | 状态 | 场景数 |
 |------|------|--------|
 | `bootkick.feature` | ✅ 14 场景全部通过 | 14 |
 | `relay_malfunction.feature` | ✅ 3 场景 | 3 |
+| `heartbeat_loss.feature` | ✅ 9 场景全部通过 | 9 |
+
+8 次 `jna_call_tick_handler()` 调用 = 1 次 1Hz tick（`loop_counter` 每 8 次归零）。
+使用 `When call tick handler {int} times` 批量触发多个 tick。
 
 ```
 Given exists data → 设置全局状态
-When tick handler → 触发生产代码 1Hz 路径
+When call tick handler N times → 触发生产代码 tick_handler() N 次
 Then control data should be → 验证结果
 ```
 
