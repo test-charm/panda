@@ -49,8 +49,6 @@ public class PandaClient {
         void jna_can_clear_all();
 
         // FDCAN register inspection
-        void jna_reset_fdcan();
-
         int jna_get_fdcan_cccr(int canNumber);
 
         int jna_get_fdcan_ie(int canNumber);
@@ -103,10 +101,6 @@ public class PandaClient {
 
         void jna_set_safety_mode_cnt(int val);
 
-        void jna_reset_heartbeat();
-
-        void jna_reset_safety();
-
         // Health packet inspection
         void jna_read_health_pkt();
 
@@ -132,12 +126,8 @@ public class PandaClient {
         // Alternative experience inspection
         int jna_get_alternative_experience();
 
-        void jna_reset_alternative_experience();
-
         // Siren state inspection
         long jna_get_ir_pwm();
-
-        void jna_reset_siren();
 
         // Power-save hardware call tracking
         int jna_get_irq_enable_call_count();
@@ -148,10 +138,6 @@ public class PandaClient {
 
         int jna_get_irq_disabled_bus(int bus);
 
-        int jna_get_can_transceivers_enabled();
-
-        int jna_get_can_transceivers_call_count();
-
         int jna_get_ir_power_call_count();
 
         int jna_get_ir_power_value_at(int index);
@@ -159,8 +145,6 @@ public class PandaClient {
         int jna_get_fan_power();
 
         int jna_get_fan_cooldown_counter();
-
-        void jna_reset_power_save_tracking();
 
         // CAN comms buffer inspection (comms_can_reset)
         int jna_get_can_read_buffer_ptr();
@@ -207,42 +191,33 @@ public class PandaClient {
 
         int jna_get_TIM1_CCR4();
 
-        void jna_reset_TIM_regs();
 
         // Microsecond timer and fan RPM
         void jna_set_microsecond_timer(int val);
 
-        void jna_reset_microsecond_timer();
 
         void jna_set_mcu_uid(byte[] hex, int hexLen);
 
-        void jna_reset_mcu_uid();
 
         void jna_set_interrupt_call_rate(byte index, int val);
 
-        void jna_reset_interrupts();
 
         void jna_set_serial(byte[] hex, int hexLen);
 
-        void jna_reset_serial();
 
         void jna_set_provision(byte[] hex, int hexLen);
 
-        void jna_reset_provision();
 
         void jna_set_app_code_len(int len);
 
         void jna_set_signature_chunk(int chunk, byte[] hex, int hexLen);
 
-        void jna_reset_signature();
 
         int jna_get_enter_bootloader_mode();
 
-        void jna_reset_enter_bootloader_mode();
 
         void jna_uart_push(byte[] data, int len);
 
-        void jna_reset_uart();
 
         int jna_get_relay_malfunction();
 
@@ -250,7 +225,6 @@ public class PandaClient {
 
         int jna_get_faults();
 
-        void jna_reset_faults();
 
         void jna_call_tick_handler();
 
@@ -289,7 +263,6 @@ public class PandaClient {
 
         int jna_get_nvic_reset_count();
 
-        void jna_reset_nvic_count();
 
         int jna_get_stop_mode_requested();
 
@@ -298,10 +271,8 @@ public class PandaClient {
 
         void jna_tick_siren();
 
-        void jna_reset_stop_mode_tracking();
 
         // Bootkick FSM inspection and control
-        void jna_tick_handler();
 
         int jna_get_bootkick_state();
 
@@ -311,7 +282,6 @@ public class PandaClient {
 
         int jna_get_bootkick_reset_countdown();
 
-        void jna_reset_bootkick();
 
         void jna_set_ignition_line(byte val);
 
@@ -445,7 +415,6 @@ public class PandaClient {
 
         int jna_get_can_health_total_rx_lost_cnt(int bus);
 
-        void jna_reset_can_health();
 
         void jna_call_update_can_health_pkt(int canNumber, int irReg);
 
@@ -719,8 +688,6 @@ public class PandaClient {
         private final boolean irqDisabledBus0;
         private final boolean irqDisabledBus1;
         private final boolean irqDisabledBus2;
-        private final boolean canTransceiversEnabled;
-        private final int canTransceiversCallCount;
         private final int irPowerValue;
         private final int irPowerCallCount;
     }
@@ -733,8 +700,6 @@ public class PandaClient {
                 lib.jna_get_irq_disabled_bus(0) != 0,
                 lib.jna_get_irq_disabled_bus(1) != 0,
                 lib.jna_get_irq_disabled_bus(2) != 0,
-                lib.jna_get_can_transceivers_enabled() != 0,
-                lib.jna_get_can_transceivers_call_count(),
                 lib.jna_get_ir_power_value_at(0),
                 lib.jna_get_ir_power_call_count()
         );

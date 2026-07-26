@@ -17,7 +17,6 @@ Feature: Power Save State Control
         powerSaveTracking: {
           irqDisableCount: 0
           irqEnableCount: 0
-          canTransceiversCallCount: 0
           irPowerCallCount: 0
         }
       }
@@ -41,8 +40,6 @@ Feature: Power Save State Control
           irqDisabledBus0: false
           irqDisabledBus1: true
           irqDisabledBus2: true
-          canTransceiversEnabled: false
-          canTransceiversCallCount: 1
           irPowerValue: 0
           irPowerCallCount: 1
         }
@@ -85,7 +82,6 @@ Feature: Power Save State Control
         powerSaveEnabled: true
         powerSaveTracking: {
           irqDisableCount: 2
-          canTransceiversCallCount: 1
           irPowerCallCount: 1
         }
       }
@@ -111,7 +107,6 @@ Feature: Power Save State Control
         powerSaveTracking: {
           irqDisableCount: 0
           irqEnableCount: 0
-          canTransceiversCallCount: 0
           irPowerCallCount: 0
         }
       }
@@ -137,8 +132,6 @@ Feature: Power Save State Control
         powerSaveTracking: {
           irqEnableCount: 2
           lastIrqEnabledBus: 1
-          canTransceiversEnabled: true
-          canTransceiversCallCount: 2
           irPowerCallCount: 1
         }
       }
@@ -274,6 +267,86 @@ Feature: Power Save State Control
           gpioBOdr: 0L
           gpioDOdr: 0L
           gpioGOdr: 0L
+        }
+      }
+      """
+
+  @cuatro
+  Scenario: Flipped harness — bus3 becomes main bus, bus1 follows enable_can_transceivers
+    Given exists data:
+      """
+      ControlSetup: {
+        harnessStatus: 2
+      }
+      """
+    When control write:
+      """
+      SetPowerSaveState: {
+        param1: 1
+      }
+      """
+    Then control data should be:
+      """
+      : {
+        powerSaveEnabled: true
+        stopModeRegs: {
+          gpioBOdr: 3200L          # PB7(CAN1 disabled!) + PB10(CAN2 disabled) + PB11(CAN4 disabled)
+          gpioDOdr: 0L             # PD8: CAN3 — bus3 is main bus, stays enabled (LOW)
+        }
+      }
+      """
+
+  @red
+  Scenario: Flipped harness for red — bus3 stays enabled, bus1 disabled
+    Given exists data:
+      """
+      ControlSetup: {
+        harnessStatus: 2
+      }
+      """
+    When control write:
+      """
+      SetPowerSaveState: {
+        param1: 1
+      }
+      """
+    Then control data should be:
+      """
+      : {
+        powerSaveEnabled: true
+        stopModeRegs: {
+          gpioBOdr: 24L            # PB3+PB4: CAN2/4 disabled (same as normal)
+          gpioDOdr: 0L             # PD7: CAN3 — bus3 is main bus, stays enabled (LOW, was 128)
+          gpioGOdr: 2048L          # PG11: CAN1 now disabled (follows enable_can_transceivers(false))
+        }
+      }
+      """
+
+  @tres
+  Scenario: Flipped harness for tres — bus3 becomes main bus (software-only CAN1/CAN3)
+    Given exists data:
+      """
+      ControlSetup: {
+        harnessStatus: 2
+      }
+      """
+    When control write:
+      """
+      SetPowerSaveState: {
+        param1: 1
+      }
+      """
+    Then control data should be:
+      """
+      : {
+        powerSaveEnabled: true
+        powerSaveTracking: {
+          irqDisableCount: 2
+          irPowerCallCount: 1
+        }
+        stopModeRegs: {
+          gpioBOdr: 3072L          # PB10+PB11: CAN2/4 disabled (same as normal)
+          gpioDOdr: 0L             # CAN1/CAN3 software-only, no GPIO change
         }
       }
       """

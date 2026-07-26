@@ -40,12 +40,9 @@ bool heartbeat_lost;
 bool heartbeat_disabled;
 uint32_t uptime_cnt;
 uint8_t hw_type;
-// power_save_enabled and stop_mode_requested are also defined in board/sys/power_saving.h;
-// tentative definitions here are merged by -fcommon at link time.
-bool power_save_enabled;
 bool siren_enabled;
 uint32_t siren_countdown;
-volatile bool stop_mode_requested;
+extern volatile bool stop_mode_requested;
 #define MAX_LED_FADE 1024U
 
 // ---- Fake hardware register types (field offsets match real STM32H7 headers) ----
@@ -68,7 +65,7 @@ struct e2e_NVIC_Regs {
     volatile uint32_t ISPR[8]; uint8_t _p2[96];
     volatile uint32_t ICPR[8];
 };
-struct e2e_SCB_Regs  { uint8_t _p[0x0C]; volatile uint32_t SCR; };
+struct e2e_SCB_Regs  { uint8_t _p[0x0C]; volatile uint32_t SCR; volatile uint32_t _p2[0x13]; volatile uint32_t CPACR; };
 
 // Fake register instances (file scope, before harness_config_stub)
 GPIO_TypeDef e2e_GPIOA, e2e_GPIOB, e2e_GPIOC, e2e_GPIOD, e2e_GPIOE, e2e_GPIOF, e2e_GPIOG;
@@ -384,22 +381,6 @@ void detect_board_type(void) {
 }
 void get_provision_chunk(uint8_t *out) { if (out) { for (int i = 0; i < 32; i++) out[i] = fake_provision[i]; } }
 
-// Tracking stub: records last enable_can_transceivers call AND drives real GPIO
-static bool last_can_transceivers_enabled;
-static int can_transceivers_call_count;
-void enable_can_transceivers(bool en) {
-    last_can_transceivers_enabled = en;
-    can_transceivers_call_count++;
-    // Drive real GPIO via board implementation
-    uint8_t main_bus = 1U;
-    for (uint8_t i = 1U; i <= 4U; i++) {
-        current_board->enable_can_transceiver(i, (i == main_bus) || en);
-    }
-}
-
-// Hand-maintained copy of set_power_save_state() from board/sys/power_saving.h.
-#include "power_save_e2e.gen.c"
-
 void sound_init(void) {}
 void sound_tick(void) {}
 void sound_init_dac(void) {}
@@ -539,41 +520,7 @@ void __ISB(void) { isb_called = true; }
 void __WFI(void) { wfi_entered = true; }
 
 // ---- FULL board/main.c ----
-#include "board/main.c"
-
-// ---- AUTO-GENERATED bootkick stub ----
-// Extracted & transformed from board/drivers/bootkick.h and board/main.c.
-// Regenerate: python3 generate_bootkick_stubs.py > bootkick_e2e.gen.c
-#include "bootkick_e2e.gen.c"
-
-// ---- Harness control (e2e-specific, not in generated code) ----
-void jna_set_ignition_line(uint8_t val)  { e2e_ignition_line = (val != 0U); }
-uint8_t jna_get_ignition_can(void)       { return ignition_can ? 1U : 0U; }
-void jna_set_ignition_can(uint8_t val)   { ignition_can = (val != 0U); ignition_can_cnt = 0U; }
-void jna_set_harness_status(uint8_t val) { harness.status = val; }
-uint8_t jna_get_harness_status(void)     { return harness.status; }
-void jna_set_sbu1_voltage_mV(int val)    { harness.sbu1_voltage_mV = (uint16_t)val; }
-void jna_set_sbu2_voltage_mV(int val)    { harness.sbu2_voltage_mV = (uint16_t)val; }
-void jna_set_relay_driven(uint8_t val)   { harness.relay_driven = (val != 0U); }
-void jna_set_som_uart_wptr(uint16_t val) { uart_ring_som_debug.w_ptr_tx = val; }
-
-// ---- Override hardware registers for e2e testing ----
-// Must come AFTER board/main.c (which may define its own macros)
-#undef GPIOA
-#undef GPIOB
-#undef GPIOC
-#undef GPIOD
-#undef GPIOE
-#undef GPIOF
-#undef GPIOG
-#define GPIOA (&e2e_GPIOA)
-#define GPIOB (&e2e_GPIOB)
-#define GPIOC (&e2e_GPIOC)
-#define GPIOD (&e2e_GPIOD)
-#define GPIOE (&e2e_GPIOE)
-#define GPIOF (&e2e_GPIOF)
-#define GPIOG (&e2e_GPIOG)
-
+// CMSIS register macros (must be before main.c for power_saving.h's enter_stop_mode)
 #undef ADC1
 #undef ADC2
 #define ADC1 (&e2e_ADC1)
@@ -613,21 +560,55 @@ void jna_set_som_uart_wptr(uint16_t val) { uart_ring_som_debug.w_ptr_tx = val; }
 #define PWR_CR1_SVOS          (0x3UL << 14U)
 #define PWR_CR1_SVOS_0        (0x1UL << 14U)
 #define PWR_CR1_FLPS          (0x1UL << 9U)
-#define GPIO_AF9_FDCAN2    ((uint8_t)0x09)
-#define OUTPUT_TYPE_OPEN_DRAIN 1U
 #define EXTI1_IRQn        7
 #define EXTI4_IRQn        10
 #define EXTI9_5_IRQn      23
 #define EXTI15_10_IRQn    40
 #define NVIC_EnableIRQ(x) e2e_nvic_enable_irq(x)
 
+#include "board/main.c"
+
+// ---- AUTO-GENERATED bootkick stub ----
+// Extracted & transformed from board/drivers/bootkick.h and board/main.c.
+// Regenerate: python3 generate_bootkick_stubs.py > bootkick_e2e.gen.c
+#include "bootkick_e2e.gen.c"
+
+// ---- Harness control (e2e-specific, not in generated code) ----
+void jna_set_ignition_line(uint8_t val)  { e2e_ignition_line = (val != 0U); }
+uint8_t jna_get_ignition_can(void)       { return ignition_can ? 1U : 0U; }
+void jna_set_ignition_can(uint8_t val)   { ignition_can = (val != 0U); ignition_can_cnt = 0U; }
+void jna_set_harness_status(uint8_t val) { harness.status = val; }
+uint8_t jna_get_harness_status(void)     { return harness.status; }
+void jna_set_sbu1_voltage_mV(int val)    { harness.sbu1_voltage_mV = (uint16_t)val; }
+void jna_set_sbu2_voltage_mV(int val)    { harness.sbu2_voltage_mV = (uint16_t)val; }
+void jna_set_relay_driven(uint8_t val)   { harness.relay_driven = (val != 0U); }
+void jna_set_som_uart_wptr(uint16_t val) { uart_ring_som_debug.w_ptr_tx = val; }
+
+// ---- Override hardware registers for e2e testing ----
+// Must come AFTER board/main.c (which may define its own macros)
+#undef GPIOA
+#undef GPIOB
+#undef GPIOC
+#undef GPIOD
+#undef GPIOE
+#undef GPIOF
+#undef GPIOG
+#define GPIOA (&e2e_GPIOA)
+#define GPIOB (&e2e_GPIOB)
+#define GPIOC (&e2e_GPIOC)
+#define GPIOD (&e2e_GPIOD)
+#define GPIOE (&e2e_GPIOE)
+#define GPIOF (&e2e_GPIOF)
+#define GPIOG (&e2e_GPIOG)
+
 // Forward declarations
 void register_set(volatile uint32_t *addr, uint32_t val, uint32_t mask);
 void register_clear_bits(volatile uint32_t *addr, uint32_t mask);
 void register_set_bits(volatile uint32_t *addr, uint32_t val);
 
-// enter_stop_mode is a verbatim copy from board/sys/power_saving.h with 'static' stripped.
-#include "enter_stop_mode_e2e.gen.c"
+// enter_stop_mode is provided by real board/sys/power_saving.h.
+// Although it is static, it's accessible from jna_process_stop_mode() because
+// libpanda.c textually includes board/main.c which includes power_saving.h.
 
 // Simulates the main loop's stop_mode_requested check.
 void jna_process_stop_mode(void) {
@@ -953,9 +934,6 @@ int jna_get_irq_disabled_bus(int bus) {
     if ((bus < 0) || (bus >= 3)) return -1;
     return last_irq_disabled_bus[bus] > 0 ? 1 : 0;
 }
-// enable_can_transceivers tracking
-int jna_get_can_transceivers_enabled(void) { return last_can_transceivers_enabled ? 1 : 0; }
-int jna_get_can_transceivers_call_count(void) { return can_transceivers_call_count; }
 // set_ir_power tracking
 int jna_get_ir_power_call_count(void) { return ir_power_call_count; }
 int jna_get_ir_power_value_at(int index) {
@@ -977,8 +955,6 @@ void jna_reset_power_save_tracking(void) {
     last_irq_disabled_bus[0] = -1;
     last_irq_disabled_bus[1] = -1;
     last_irq_disabled_bus[2] = -1;
-    last_can_transceivers_enabled = false;
-    can_transceivers_call_count = 0;
     ir_power_call_count = 0;
 }
 

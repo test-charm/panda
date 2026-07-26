@@ -1,11 +1,11 @@
 # 端到端测试未覆盖功能清单
 
 > 最后更新: 2026-07-26
-> 基准 e2e 场景数: 190+（含 P0 `can_comms.feature`、P1 `tick_paths.feature`、P2 真实 board 头文件编译、`endpoint2_write.feature` 等）
-> 综合行覆盖率: **79.6%** (720/905 lines), 函数覆盖率: **76.1%** (35/46 functions)
+> 基准 e2e 场景数: 179 (cuatro 默认, 含 tres/red 板型特定场景)
+> 综合行覆盖率: **81.6%** (1459/1789 lines), 29 files
 > 数据来源: `e2e-tests/run_all_coverage.sh` (cuatro + tres + red 合并)
 >
-> **本次更新**: 刷新覆盖率数据（P0/P1/P2/P3/P8 已完成后），新增 clock_source_init / board init / libc.h / 去桩化机会分析
+> **本次更新**: B1 power_saving.h 去桩化完成 — 真实生产代码进入覆盖率 (95.8%), 消除 2 个手写副本文件
 
 ---
 
@@ -81,6 +81,7 @@ board/boards/board_declarations.h     — board 结构体、HW_TYPE_* 常量
 | `board/libc.h` | 61.3% | 3/5 | `delay()`、`assert_fatal()`、`memcmp()` 未覆盖 |
 | `board/drivers/registers.h` | 97.8% | — | 仅 1 行未覆盖 (hash collision fallback) |
 | `board/drivers/simple_watchdog.h` | 100% | — | ✅ P3 已完成 |
+| `board/sys/power_saving.h` | 95.8% | — | ✅ B1 完成，真实生产代码直接编译 |
 | `board/sys/sys.h` | 83.3% | — | 头文件 (声明) |
 | `board/utils.h` | 100% | — | 全部覆盖 |
 | `board/boards/cuatro.h` | 34.8% | — | `cuatro_init()` GPIO 配置路径未调用 (P2 首次编译) |
@@ -104,7 +105,7 @@ board/boards/board_declarations.h     — board 结构体、HW_TYPE_* 常量
 | 真实文件 | e2e 桩 | 替换原因 | 核心功能 |
 |----------|--------|---------|---------|
 | `board/provision.h` | 空桩 (返回假数据) | 无真实 OTP 存储 | 设备序列号/Provision 读取 |
-| `board/sys/power_saving.h` | `power_save_e2e.gen.c` (手写副本) | STM32 STOP 模式不可用 | `enter_stop_mode()`, `set_power_save_state()` |
+| `board/sys/power_saving.h` | ✅ **B1 已完成 — 真实生产代码直接编译** | — | `enter_stop_mode()`, `set_power_save_state()`, `enable_can_transceivers()` |
 | `board/early_init.h` | 空桩 | STM32 早期初始化无意义 | `early_initialization()` |
 | `board/crc.h` | 空桩 | CRC 硬件不可用 | CRC 校验 (`crc_calc`, `crc_check`) |
 | `board/drivers/bootkick.h` | `bootkick_e2e.gen.c` (生成代码) | 无真实 GPIO | SOM 启动/复位状态机 |
@@ -131,7 +132,7 @@ board/boards/board_declarations.h     — board 结构体、HW_TYPE_* 常量
 |--------|------|------|
 | 🔴 高 | `drivers/fdcan.h` | FDCAN 核心驱动 (500+ 行)，已通过 gen 脚本部分覆盖 |
 | 🔴 高 | `drivers/bootkick.h` | SOM 启动状态机 (5 态 FSM)，已通过 gen 脚本部分覆盖 |
-| 🟡 中 | `sys/power_saving.h` | STOP 模式进入逻辑，已通过手写副本覆盖 |
+| 🟡 中 | `sys/power_saving.h` | ✅ B1 已完成 — 真实生产代码直接编译，覆盖率 95.8% |
 | 🟡 中 | `drivers/harness.h` | SBU 检测逻辑，已通过 gen 脚本提取 |
 | 🟢 低 | `drivers/gpio.h`, `drivers/pwm.h`, `drivers/led.h` | 纯 GPIO 操作，无业务逻辑 |
 | 🟢 低 | `drivers/usb.h`, `drivers/spi.h` | 纯外设初始化，无业务逻辑 |
@@ -588,8 +589,8 @@ Then control data should be → 验证结果
 ```
 本周                                    下周                              后续
 N1 clock_source_init (17.5% → 95%+)    N2 board xxx_init() (35-66%+)    N4 can_common wrap
-N3 faults permanent (78.9% → 100%)      B1 power_saving.h 去桩化          N5 libc.h (低 ROI)
-                                        B2 bootkick.h 去桩化               Jungle/Body 固件
+N3 faults permanent (78.9% → 100%)      B2 bootkick.h 去桩化               N5 libc.h (低 ROI)
+✅ B1 power_saving.h 去桩化 (已完成)                                       Jungle/Body 固件
 ```
 
 ---
@@ -662,25 +663,18 @@ N3 faults permanent (78.9% → 100%)      B1 power_saving.h 去桩化          N
 
 ### 🟡 Phase B — 减少测试桩，引用更多生产代码
 
-#### B1 — 合并 `power_save_e2e.gen.c` + `enter_stop_mode_e2e.gen.c` → 真实 `board/sys/power_saving.h`
+#### B1 ✅ — 合并 `power_save_e2e.gen.c` + `enter_stop_mode_e2e.gen.c` → 真实 `board/sys/power_saving.h`（已完成 2026-07-26）
 
-**当前状态**:
-```
-board/sys/power_saving.h (e2e 桩, 仅 3 行声明)
-  ↓ 手工维护
-power_save_e2e.gen.c         — 手写 `set_power_save_state()` 副本 (26 lines, 92.3% 覆盖)
-enter_stop_mode_e2e.gen.c    — 手写 `enter_stop_mode()` 副本（去掉 static, 60 lines, 96.7% 覆盖）
-```
-
-**目标**: 直接 `#include "board/sys/power_saving.h"` 真实生产代码
-
-**障碍**: `enter_stop_mode()` 在真实代码中为 `static`，JNA 无法直接调用。解决方案：
-- 方案 A: 在 `libpanda.c` 中添加非 static 包装函数 `void jna_enter_stop_mode(void) { enter_stop_mode(); }`
-- 方案 B: 在 `build.sh` 编译选项中用 `-Dstatic=` 去掉 static 关键字
-
-**收益**: 消除 2 个手写副本文件（~86 lines），真实 `power_saving.h` 进入覆盖率
-
-**工作量**: ~0.5 天
+**实施结果**:
+- 删除 `e2e-tests/src/test/c/board/sys/power_saving.h`（e2e 桩）
+- 删除 `power_save_e2e.gen.c`（37 行手写副本）
+- 删除 `enter_stop_mode_e2e.gen.c`（98 行手写副本）
+- 真实 `board/sys/power_saving.h` 添加 `#pragma once`（防重入保护）
+- `enable_can_transceivers` 使用纯生产代码，移除 `#ifdef E2E_TEST` 跟踪
+- CMSIS 寄存器宏前置到 `board/main.c` 之前
+- 新增 3 个翻转线束场景（`@cuatro/@tres/@red`），覆盖 `harness.status == HARNESS_STATUS_FLIPPED` → `main_bus = 3U` 分支
+- `power_saving.h` 覆盖率: 0% → **95.8%** (92/96 lines)
+- 综合覆盖率: 79.6% → **81.6%**
 
 ---
 
@@ -702,7 +696,8 @@ enter_stop_mode_e2e.gen.c    — 手写 `enter_stop_mode()` 副本（去掉 stat
 
 ```
 Phase A 完成后:  79.6% → ~85%   (770/905 lines)
-Phase B 完成后:  ~85% → ~87%   (消除手写副本，真实代码进入覆盖)
+✅ B1 完成:       power_saving.h 进入覆盖率 (95.8%), 综合 81.6%
+Phase B 剩余:     ~81.6% → ~83%  (完成 B2 bootkick 去桩化)
 ```
 
 ---
@@ -712,8 +707,8 @@ Phase B 完成后:  ~85% → ~87%   (消除手写副本，真实代码进入覆�
 ### 当前状态：哪些已是真实代码，哪些还是桩
 
 ```
-libpanda.c (1348 lines) 编译模型:
-  #include "board/main.c"                    ← ✅ 完整固件
+libpanda.c (精简后) 编译模型:
+  #include "board/main.c"                    ← ✅ 完整固件 (main.c 内 include 真实 power_saving.h)
   #include "board/drivers/fan.h"             ← ✅ 真实代码 (100% 覆盖)
   #include "board/drivers/clock_source.h"    ← ✅ 真实代码 (17.5% 覆盖 — 仅 set_timer_params 被调用)
   #include "board/drivers/simple_watchdog.h" ← ✅ 真实代码 (100% 覆盖)
@@ -738,15 +733,13 @@ libpanda.c (1348 lines) 编译模型:
   #include "can_health_e2e.gen.c"            ← 🔧 从 fdcan.h 提取 (94.6% 覆盖)
   #include "bootkick_e2e.gen.c"              ← 🔧 从 bootkick.h 提取 (98.3% 覆盖)
   #include "harness_detect_e2e.gen.c"        ← 🔧 从 harness.h 提取 (100% 覆盖)
-  #include "power_save_e2e.gen.c"            ← 📝 手写副本 (92.3% 覆盖)
-  #include "enter_stop_mode_e2e.gen.c"       ← 📝 手写副本 (96.7% 覆盖)
 ```
 
 ### 去桩化机会排序
 
 | 优先级 | 桩/Gen 文件 | 替换目标 | 收益 | 障碍 |
 |--------|-----------|---------|------|------|
-| 🔴 B1 | `power_save_e2e.gen.c` + `enter_stop_mode_e2e.gen.c` | `board/sys/power_saving.h` | 消除 2 个手写文件 (~86 lines) | `enter_stop_mode` 为 static |
+| ✅ B1 | `power_save_e2e.gen.c` + `enter_stop_mode_e2e.gen.c` | `board/sys/power_saving.h` | ✅ 已完成 — 真实代码覆盖率 95.8% | `enter_stop_mode` 为 static (通过文本 include 解决) |
 | 🔴 B2 | `bootkick_e2e.gen.c` | `board/drivers/bootkick.h` | 消除 1 个生成文件 + 生成脚本 | 需 USART_TypeDef stub |
 | 🟡 B3 | `fdcan_e2e.gen.c` | `board/stm32h7/llfdcan.h` | 消除最大的生成文件 (140 lines) | 依赖大量 STM32 HAL 头 |
 | 🟡 B4 | `can_health_e2e.gen.c` | `board/drivers/fdcan.h` | 消除 1 个生成文件 (37 lines) | fdcan.h 已有 e2e 桩 |

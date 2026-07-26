@@ -37,14 +37,14 @@ Cucumber BDD 断言: gpioAModer: 0xFFFFFFF1, rccCr: 0x0, ...
 
 | 生成文件 | 来源 | 内容 |
 |---------|------|------|
-| `enter_stop_mode_e2e.gen.c` | `board/sys/power_saving.h` | `enter_stop_mode()` 逐字提取 |
-| `power_save_e2e.gen.c` | `board/sys/power_saving.h` | `set_power_save_state()` |
 | `fdcan_e2e.gen.c` | `board/drivers/fdcan.h` | FDCAN 初始化代码 |
 | `can_health_e2e.gen.c` | `board/drivers/can_common.h` | CAN 健康统计提取 |
 | `bootkick_e2e.gen.c` | `board/drivers/bootkick.h` | `bootkick_tick()` FSM |
 | `harness_detect_e2e.gen.c` | `board/drivers/harness.h:52-88` | `harness_detect_orientation()` |
 
 覆盖率报告排除全部 `.gen.c` 文件。
+
+> B1 任务已完成：`enter_stop_mode_e2e.gen.c` 和 `power_save_e2e.gen.c` 已删除，改为直接 include 真实 `board/sys/power_saving.h`。
 
 > 板级函数（`enable_can_transceiver`, `set_bootkick`, `set_amp_enabled`, `set_can_mode`）已不再从桩提取，改为通过 `board/stm32h7/board.h` 桩直接编译 `board/boards/{cuatro,tres,red}.h` 生产代码。详见 P2 任务。
 
@@ -95,7 +95,7 @@ e2e-tests/
 │   │   ├── fake_stm.h               # GPIO_TypeDef 完整结构体
 │   │   ├── libpanda.c               # 假寄存器实例 + JNA 访问器
 │   │   ├── generate_*.py            # 自动生成脚本（5 个）
-│   │   ├── *_e2e.gen.c              # 自动生成文件（7 个，不纳入版本管理）
+│   │   ├── *_e2e.gen.c              # 自动生成文件（5 个，不纳入版本管理）
 │   │   └── board/drivers/           # 仅保留 harness.h 测试桩
 │   ├── java/com/panda/e2e/
 │   │   ├── PandaClient.java         # JNA 接口 + StopModeRegs DTO
@@ -120,7 +120,7 @@ e2e-tests/
 | 健康数据包 | `health.feature` | 5 | healthPacket + 可设 voltage/current |
 | CAN 模式 | `can_mode.feature` | 6 | stopModeRegs (gpioBModer/gpioBOdr/gpioBPupdr) |
 | 继电器 | `relay.feature` | 6 | stopModeRegs.gpioAOdr (PA3/PA9) |
-| 省电模式 | `power_save.feature` | 12 | powerSaveTracking + stopModeRegs (gpioBOdr/gpioDOdr/gpioGOdr) |
+| 省电模式 | `power_save.feature` | 15 | powerSaveTracking + stopModeRegs (gpioBOdr/gpioDOdr/gpioGOdr) |
 | 替代体验 | `alternative_experience.feature` | 5 | alternativeExperience |
 | 警笛 | `siren.feature` | 3 | stopModeRegs.gpioBOdr (PB14) via jna_tick_siren |
 | CAN 通信重置 | `can_comms_reset.feature` | 3 | canCommsBuffers + stopModeRegs.gpioAOdr |
@@ -161,22 +161,23 @@ e2e-tests/
 ## C 代码覆盖率
 
 > 数据来源: `e2e-tests/run_all_coverage.sh` 合并报告 (cuatro + tres + red)
-> 生成时间: 2026-07-25 (P0 can_comms 完成时) → P1 tick_paths 已完成 → P2 boards/*.h 直接编译已完成 (2026-07-26)
+> 生成时间: 2026-07-26 (B1 power_saving.h 去桩化完成)
 
 | 源文件 | 行覆盖 | 函数覆盖 | 说明 |
 |--------|--------|---------|------|
-| `board/main_comms.h` | **93.3%** (251/269) | 2/3 (66.7%) | USB 命令处理 (33/34 已覆盖) |
-| `board/main.c` | **64.2%** (145/226) | 4/7 (57.1%) | 主循环 + 初始化 |
-| `board/drivers/can_common.h` | **95.3%** (102/107) | 10/12 (83.3%) | CAN 通用操作 |
-| `board/drivers/gpio.h` | **71.0%** (49/69) | 5/7 (71.4%) | GPIO 控制 |
-| `board/sys/faults.h` | **78.9%** (15/19) | 2/2 (100%) | 故障设置 |
-| `board/libc.h` | **61.3%** (38/62) | 3/5 (60.0%) | 最小化 libc 替代 |
-| `board/drivers/fan.h` | **100%** (27/27) | 3/3 (100%) | 风扇 PWM + 冷却 |
-| `board/can_comms.h` | **100%** (76/76) | 4/4 (100%) | CAN 通信序列化 (P0 已完成，新增 8 场景) |
-| `board/drivers/clock_source.h` | **17.5%** (7/40) | 1/2 (50.0%) | 时钟源选择 |
-| `board/utils.h` | **100%** (10/10) | 1/1 (100%) | 工具函数 |
-| `board/boards/*.h` | **P2 新增** | — | 板级 GPIO 映射 (cuatro/tres/red) 首次直接编译 |
-| **合计** | **~86%** (预估) | — | P2 完成后预估 86-90% |
+| `board/main_comms.h` | **97.0%** (261/269) | 3/3 | USB 命令处理 |
+| `board/main.c` | **64.2%** (145/226) | 4/7 | 主循环 + 初始化 |
+| `board/drivers/can_common.h` | **95.3%** (102/107) | 10/12 | CAN 通用操作 |
+| `board/drivers/gpio.h` | **70.4%** (50/71) | 5/7 | GPIO 控制 |
+| `board/sys/faults.h` | **78.9%** (15/19) | 2/2 | 故障设置 |
+| `board/libc.h` | **61.3%** (38/62) | 3/5 | 最小化 libc 替代 |
+| `board/drivers/fan.h` | **100%** (27/27) | 3/3 | 风扇 PWM + 冷却 |
+| `board/can_comms.h` | **100%** (76/76) | 4/4 | CAN 通信序列化 |
+| `board/drivers/clock_source.h` | **17.5%** (7/40) | 1/2 | 时钟源选择 |
+| `board/utils.h` | **100%** (10/10) | 1/1 | 工具函数 |
+| `board/sys/power_saving.h` | **95.8%** (92/96) | — | ✅ B1 完成，省电模式 + STOP 进入逻辑 |
+| `board/boards/*.h` | **P2 已编译** | — | 板级 GPIO 映射直接编译 |
+| **合计** | **81.6%** (1459/1789 lines, 29 files) | — | B1 去桩化完成 |
 
 > ⚠️ `main.c` 中未覆盖的函数：`sound_tick`。P1-P8 已全部覆盖。详见 `e2e-tests/src/test/resources/test-design/uncovered-features.md`。
 
@@ -190,7 +191,9 @@ e2e-tests/
 * `safety_mode.feature`：`fdcanRegs[N].cccr` 寄存器直接证明 `can_init_all()` 初始化了 CAN 硬件
 * `relay.feature`：`stopModeRegs.gpioAOdr` 寄存器直接证明 `set_intercept_relay()` 设置了 GPIO
 
-所有功能均已通过寄存器级别验证覆盖，无需函数调用计数或参数追踪。
+**所有功能均已通过寄存器级别验证覆盖**，无需函数调用计数或参数追踪。
+
+> B1 完成后，`enable_can_transceivers` 使用纯生产代码，`canTransceiversEnabled`/`canTransceiversCallCount` 跟踪已移除。收发器 GPIO 状态通过 `stopModeRegs.gpio*Odr` 寄存器直接验证。
 
 ## C 代码编译
 
