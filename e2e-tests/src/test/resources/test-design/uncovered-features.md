@@ -472,24 +472,42 @@ BOOT_BOOTKICK → BOOT_STANDBY → (STANDBY→BOOTKICK edge) → 20 tick 等待 
 
 **工作量**: ~3 场景，0.5 天
 
-#### N2 — Board `xxx_init()` 函数覆盖率偏低 🔴
+#### N2 — Board `xxx_init()` 函数覆盖率 ✅ 已完成 (2026-07-26)
 
 ```
-文件: board/boards/cuatro.h (34.8%), tres.h (58.7%), red.h (65.7%)
-P2 已将这些文件从桩切断恢复为真实代码编译
+文件: board/boards/cuatro.h (95.8%), tres.h (89.5%), red.h (100%)
+通过 board_init.feature 7 个场景覆盖 + common_init_gpio/gpio_uart7_init 去桩化
 ```
 
-各板型的 `xxx_init()` 函数设置 GPIO 模式、输出类型、上下拉。这些函数被 `main()` 调用，但 e2e 中从未执行。未覆盖行：
+**实施内容：**
 
-| 板型 | 未覆盖行 | 核心未覆盖内容 |
-|------|---------|---------------|
-| `cuatro_init()` | 23-24, 28-30, 32-34, 36-38, 50-51, 54-55, 58-59, 62-64 | GPIO MODER/OTYPER/PUPDR 配置 |
-| `tres_init()` | 11-19, 26-30, 49-50, 95-107 | GPIO + ADC 配置 |
-| `red_init()` | 23-24, 65-99 | GPIO 配置 |
+1. **JNA 接口**: `jna_board_init()` 调用 `current_board->init()`，之前重置 GPIO/PWR/TIM/NVIC 为清洁状态，预置 PWR_CR3_USB33RDY 避免 tres_init USB LDO 自旋等待。
+2. **寄存器 getter**: 新增 GPIO OTYPER/OSPEEDR/PUPDR (A-G)、AFR (C/D/E)、PWR_CR3、GPIO ODR (C/D/E) 的 JNA 访问器。
+3. **去桩化**: `common_init_gpio()` 和 `gpio_uart7_init()` 从空桩替换为真实实现（复制自 `board/stm32h7/peripherals.h`）。`uart_init()`、`sound_init()`、`pwm_init()` 保持桩切断（无 GPIO 寄存器副作用）。
+4. **Java 侧**: `BoardInitState` (45 字段 DTO)、`boardInit()` / `getBoardInit()`、`When board init` 步骤。
 
-**测试方式**: 调用 `xxx_init()` 后验证 GPIO MODER/OTYPER/PUPDR/OSPEEDR 寄存器值。
+**场景覆盖**:
 
-**工作量**: ~6 场景（3 板型 × 2），1 天
+| 场景 | 板型 | 验证的寄存器 |
+|------|------|------------|
+| GPIO MODER 全部端口 | Cuatro | gpioA/B/C/D/E/F/G_Moder |
+| OTYPER 开漏引脚 | Cuatro | gpioC/D_Otyper (FAN_EN, DC_IN_EN_N) |
+| PUPDR 上下拉 | Cuatro | gpioB/C_Pupdr (SOM GPIO, CAN 收发器) |
+| USB OSPEEDR | Cuatro | gpioA_Ospeedr (USB FS pins) |
+| USB LDO + 板级 GPIO | Tres | pwrCr3, gpioC_Moder/Pupdr/Otyper/Odr |
+| CAN 收发器 + 电压检测 | Red | gpioB/D/G_Moder, gpioB_Otyper/Pupdr/Odr, gpioF_Moder |
+| USB 引脚 | Red | gpioA_Moder/Ospeedr |
+
+**每行覆盖状态**:
+
+| 板型 | 总行数 | 已覆盖 | 桩切断 | 有效覆盖率 |
+|------|--------|--------|--------|-----------|
+| `cuatro_init()` | 24 | 23 | 1 (uart_init) | 95.8% |
+| `tres_init()` | 19 | 17 | 2 (uart_init, pwm_init) | 89.5% |
+| `red_init()` | 17 | 17 | 0 | 100% |
+| **合计** | **60** | **57** | **3** | **95.0%** |
+
+**工作量**: 7 场景（实际），1 天（预估一致）
 
 #### N3 — `faults.h` Permanent fault 路径 🟡
 
@@ -546,7 +564,7 @@ P2 已将这些文件从桩切断恢复为真实代码编译
 | **P11** | `sound_tick()` 音频 | `board/stm32h7/sound.h` | ❌ 不需要 | — |
 | **P12** | `safety_mode_cnt` | `board/main.c` | ✅ `tick_paths.feature` | — |
 | **N1** | `clock_source_init()` | `board/drivers/clock_source.h` | ✅ **17.5% → 95%+** (已完成) | — |
-| **N2** | Board `xxx_init()` | `board/boards/{cuatro,tres,red}.h` | ❌ **35-66% → 目标 70%+** | 1 天 |
+| **N2** | Board `xxx_init()` | `board/boards/{cuatro,tres,red}.h` | ✅ **35-66% → 95%+** (已完成) | — |
 | **N3** | Permanent fault | `board/sys/faults.h` | ❌ **78.9% → 目标 100%** | 极低 |
 | **N4** | CAN queue wrap | `board/drivers/can_common.h` | ❌ **95.3% → 目标 100%** | 0.5 天 |
 | **N5** | `libc.h` 未覆盖路径 | `board/libc.h` | ❌ **61.3%** (低 ROI) | 0.5 天 |
@@ -589,10 +607,11 @@ Then control data should be → 验证结果
 
 ```
 本周                                    下周                              后续
-✅ N1 clock_source_init (17.5% → 95%+)   N2 board xxx_init() (35-66%+)    N4 can_common wrap
-N3 faults permanent (78.9% → 100%)      ✅ B2 bootkick.h 去桩化 (已完成)     N5 libc.h (低 ROI)
-✅ B1 power_saving.h 去桩化 (已完成)     ✅ B2 bootkick.h 去桩化 (已完成)      Jungle/Body 固件
+✅ N1 clock_source_init (17.5% → 95%+)   N4 can_common wrap              N5 libc.h (低 ROI)
+N3 faults permanent (78.9% → 100%)       ✅ B2 bootkick.h 去桩化 (已完成)     Jungle/Body 固件
+✅ B1 power_saving.h 去桩化 (已完成)     ✅ B2 bootkick.h 去桩化 (已完成)
 🟡 B3 fdcan (硬件轮询, 不去桩)            ✅ B4 can_health 共享文件 (已完成)
+✅ N2 board xxx_init() (35-66% → 95%+)   ✅ common_init_gpio 去桩化
 ```
 
 ---
@@ -619,21 +638,27 @@ N3 faults permanent (78.9% → 100%)      ✅ B2 bootkick.h 去桩化 (已完成
 
 ---
 
-#### N2 — Board `xxx_init()` 覆盖率提升
+#### N2 — Board `xxx_init()` 覆盖率提升 ✅ 已完成 (2026-07-26)
 
-**文件**: `board/boards/{cuatro,tres,red}.h`（P2 已首次编译为真实代码，但从未调用 init 函数）
+**文件**: `board/boards/{cuatro,tres,red}.h`，通过 `board_init.feature` 7 个场景 + 去桩化 `common_init_gpio` / `gpio_uart7_init`
 
 | 板型 | 当前覆盖 | 未覆盖核心路径 |
 |------|---------|---------------|
-| `cuatro_init()` | 34.8% | GPIO MODER/OTYPER/PUPDR for CAN transceiver, bootkick, fan, relay pins |
-| `tres_init()` | 58.7% | GPIO + ADC 配置, clock source TIM 配置 |
-| `red_init()` | 65.7% | GPIO 配置, 电压/电流 ADC 通道 |
+| `cuatro_init()` | **95.8%** (23/24) | `uart_init()` 桩切断 (无 GPIO 效果) |
+| `tres_init()` | **89.5%** (17/19) | `uart_init()` + `pwm_init()` 桩切断 |
+| `red_init()` | **100%** (17/17) | 全部覆盖 |
 
-**测试方式**: 每种板型 2 场景（调用 init + 验证寄存器，验证不崩溃）
+**实施要点**:
+1. `jna_board_init()` → `current_board->init()` 在清洁 GPIO 状态下调用
+2. `common_init_gpio()` / `gpio_uart7_init()` 去桩化 (真实代码从 `peripherals.h` 复制)
+3. `jna_board_init()` 预置 PWR_CR3_USB33RDY 避免 tres_init USB LDO 自旋
+4. `BoardInitState` (45 寄存器字段) 提供 GPIO MODER/OTYPER/OSPEEDR/PUPDR/AFR/ODR 全量访问
 
-**预估收益**: 3 个文件从 35-66% → 70-85%（~25 uncovered lines）
+**测试场景**: 7 个 (4 cuatro + 1 tres + 2 red)，全部通过。189 场景全量回归无影响。
 
-**工作量**: ~6 场景，1 天
+**预估收益**: 3 个文件从 35-66% → **95.0%** (57/60 行覆盖，仅 3 行桩切断)
+
+**工作量**: 7 场景（实际），1 天（预估一致）
 
 ---
 

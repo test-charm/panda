@@ -52,9 +52,56 @@ void pwm_set(TIM_TypeDef *TIM, uint8_t channel, uint8_t percentage);
 // ---- Typedefs normally from main_declarations.h (simplified to avoid deps) ----
 typedef struct board board;
 
-// ---- Stubs for functions called by board init (never invoked at runtime) ----
-void common_init_gpio(void) {}
-void gpio_uart7_init(void) {}
+// ---- Real implementations of functions called by board init ----
+// gpio_usb_init: internal helper used by common_init_gpio (real from peripherals.h)
+static void gpio_usb_init(void) {
+  // A11,A12: USB
+  set_gpio_alternate(GPIOA, 11, GPIO_AF10_OTG1_FS);
+  set_gpio_alternate(GPIOA, 12, GPIO_AF10_OTG1_FS);
+  GPIOA->OSPEEDR = GPIO_OSPEEDR_OSPEED11 | GPIO_OSPEEDR_OSPEED12;
+}
+
+// gpio_uart7_init: real from peripherals.h
+void gpio_uart7_init(void) {
+  // E7,E8: UART 7 for debugging
+  set_gpio_alternate(GPIOE, 7, GPIO_AF7_UART7);
+  set_gpio_alternate(GPIOE, 8, GPIO_AF7_UART7);
+}
+
+// common_init_gpio: real from peripherals.h
+void common_init_gpio(void) {
+  //F11: VOLT_S
+  set_gpio_pullup(GPIOF, 11, PULL_NONE);
+  set_gpio_mode(GPIOF, 11, MODE_ANALOG);
+
+  gpio_usb_init();
+
+  // B8,B9: FDCAN1
+  set_gpio_pullup(GPIOB, 8, PULL_NONE);
+  set_gpio_alternate(GPIOB, 8, GPIO_AF9_FDCAN1);
+
+  set_gpio_pullup(GPIOB, 9, PULL_NONE);
+  set_gpio_alternate(GPIOB, 9, GPIO_AF9_FDCAN1);
+
+  // B5,B6 (mplex to B12,B13): FDCAN2
+  set_gpio_pullup(GPIOB, 12, PULL_NONE);
+  set_gpio_pullup(GPIOB, 13, PULL_NONE);
+
+  set_gpio_pullup(GPIOB, 5, PULL_NONE);
+  set_gpio_alternate(GPIOB, 5, GPIO_AF9_FDCAN2);
+
+  set_gpio_pullup(GPIOB, 6, PULL_NONE);
+  set_gpio_alternate(GPIOB, 6, GPIO_AF9_FDCAN2);
+
+  // G9,G10: FDCAN3
+  set_gpio_pullup(GPIOG, 9, PULL_NONE);
+  set_gpio_alternate(GPIOG, 9, GPIO_AF2_FDCAN3);
+
+  set_gpio_pullup(GPIOG, 10, PULL_NONE);
+  set_gpio_alternate(GPIOG, 10, GPIO_AF2_FDCAN3);
+}
+
+// uart_init stays stubbed — accesses real UART hardware registers (BRR, CR1)
 void uart_init(void *q, int baud) { (void)q; (void)baud; }
 void sound_init(void);  // defined in libpanda.c
 void fake_siren_set(bool enabled);

@@ -3,10 +3,11 @@ Feature: Board initialization
 
   Board xxx_init() functions configure GPIO modes, output types, and pull-up/pull-down
   resistors for each hardware variant. These functions are called by panda_main() on
-  real hardware but have never been exercised in e2e tests.
+  real hardware but were previously never exercised in e2e tests.
 
-  Note: common_init_gpio() is currently stubbed in e2e. These scenarios test the
-  board-specific portions of the init functions.
+  common_init_gpio() and gpio_uart7_init() have been un-stubbed — their real
+  implementations from board/stm32h7/peripherals.h now run in e2e.
+  uart_init(), sound_init(), and pwm_init() remain stubbed (no GPIO side effects).
 
   @cuatro
   Scenario: Cuatro init configures GPIO MODER for bootkick, analog, CAN transceiver pins
@@ -15,13 +16,13 @@ Feature: Board initialization
       """
       : {
         boardInit: {
-          gpioAModer: 143393L
-          gpioBModer: 2684370945L
+          gpioAModer: 42086433L
+          gpioBModer: 2685036545L
           gpioCModer: 4328450L
           gpioDModer: 176226304L
-          gpioEModer: 533120L
-          gpioFModer: 0L
-          gpioGModer: 0L
+          gpioEModer: 696960L
+          gpioFModer: 12582912L
+          gpioGModer: 2621440L
         }
       }
       """
@@ -52,6 +53,18 @@ Feature: Board initialization
       }
       """
 
+  @cuatro
+  Scenario: Cuatro init configures USB OSPEEDR via common_init_gpio
+    When board init
+    Then control data should be:
+      """
+      : {
+        boardInit: {
+          gpioAOspeedr: 62914560L
+        }
+      }
+      """
+
   @tres
   Scenario: Tres init configures USB LDO and board-specific GPIO
     When board init
@@ -75,12 +88,26 @@ Feature: Board initialization
       """
       : {
         boardInit: {
-          gpioBModer: 268435788L
+          gpioBModer: 269101388L
           gpioBOtyper: 16384L
           gpioBPupdr: 268435456L
           gpioBOdr: 16384L
           gpioDModer: 16384L
-          gpioGModer: 4194304L
+          gpioGModer: 6815744L
+          gpioFModer: 12582912L
+        }
+      }
+      """
+
+  @red
+  Scenario: Red init configures USB pins via common_init_gpio
+    When board init
+    Then control data should be:
+      """
+      : {
+        boardInit: {
+          gpioAModer: 41943040L
+          gpioAOspeedr: 62914560L
         }
       }
       """

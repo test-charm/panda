@@ -79,6 +79,7 @@ Cucumber BDD 断言: gpioAModer: 0xFFFFFFF1, rccCr: 0x0, ...
 | `jna_set_interrupt_call_rate()` | 预设中断调用率 |
 | `jna_set_signature_chunk()` / `jna_set_app_code_len()` | 预设固件签名数据 |
 | `jna_uart_push()` | 向 UART debug ring 推送字符 |
+| `jna_board_init()` | 重置 GPIO/PWR/TIM，预置 USB33RDY → `current_board->init()` (N2) |
 | `jna_reset_*` 系列 (15+) | 每次 `@Before` 中重置所有假状态 |
 
 ## 目录结构
@@ -134,6 +135,7 @@ e2e-tests/
 | CAN FD 数据率 | `can_fd_data_bitrate.feature` | 3 | FDCAN DBTP/CCCR/IE/TXBC/RXF0C |
 | 时钟源 | `clock_source.feature` | 3 | clockSource (TIM1/TIM8 CCR) |
 | 时钟源初始化 | `clock_source_init.feature` | 6 | clockSourceInit (TIM1×12, TIM8×8, GPIO×4, NVIC×2) |
+| 板级初始化 | `board_init.feature` | 7 | boardInit (GPIO MODER/OTYPER/OSPEEDR/PUPDR/AFR/ODR ×45, PWR_CR3) — N2 完成 |
 | 定时器/风扇 | `timer_fan.feature` | 2 | respBuffer (little-endian) |
 | 风扇功率 | `fan_power.feature` | 5 | fanPower |
 | 风扇冷却 | `fan_cooldown.feature` | 3 | fanCooldownCounter + fanPower 通过 jna_call_tick_handler |
@@ -160,7 +162,7 @@ e2e-tests/
 ## C 代码覆盖率
 
 > 数据来源: `e2e-tests/run_all_coverage.sh` 合并报告 (cuatro + tres + red)
-> 生成时间: 2026-07-26 (B1/B2/B4 去桩化完成)
+> 生成时间: 2026-07-26 (B1/B2/B4 去桩化 + N1/N2 完成)
 
 | 源文件 | 行覆盖 | 函数覆盖 | 说明 |
 |--------|--------|---------|------|
@@ -177,8 +179,8 @@ e2e-tests/
 | `board/sys/power_saving.h` | **95.8%** (92/96) | — | ✅ B1 |
 | `board/drivers/bootkick.h` | **~98%** (预估) | — | ✅ B2 |
 | `board/drivers/can_health_pkt.h` | **~95%** (预估) | — | ✅ B4 (共享文件) |
-| `board/boards/*.h` | **P2 已编译** | — | 板级 GPIO 映射直接编译 |
-| **合计** | **86.4%** (1545/1789 lines, 29 files) | — | B1/B2/B4 去桩化 + N1 完成 |
+| `board/boards/*.h` | **95.0%** (57/60) | — | ✅ N2 完成 + 去桩化 (board_init.feature 7 场景) |
+| **合计** | **~87.5%** (~1570/1789 lines, 29 files) | — | B1/B2/B4 去桩化 + N1/N2 完成 |
 
 > ⚠️ `main.c` 中未覆盖的函数：`sound_tick`。P1-P8 已全部覆盖。详见 `e2e-tests/src/test/resources/test-design/uncovered-features.md`。
 
@@ -194,9 +196,9 @@ e2e-tests/
 
 **所有功能均已通过寄存器级别验证覆盖**，无需函数调用计数或参数追踪。
 
-> B1/B2 完成后，`enable_can_transceivers` / `bootkick_tick` 使用纯生产代码。
+> B1/B2/N2 完成后，`enable_can_transceivers` / `bootkick_tick` / `xxx_init()` 使用纯生产代码。
 > 冗余跟踪变量（`canTransceivers*`, `irPowerCallCount`, `last_siren_state`）已移除，
-> 改为 `stopModeRegs` 和 TIM1.CCR1 寄存器直接验证。
+> 改为 `stopModeRegs` / `boardInit` 和 TIM1.CCR1 寄存器直接验证。
 > B4: `update_can_health_pkt()` 提取为共享文件 `can_health_pkt.h`。
 
 ## C 代码编译
@@ -211,7 +213,7 @@ BOARD=cuatro cc -std=gnu11 -fPIC -shared -O0 -g \
   -o libpanda_cuatro.dylib src/test/c/libpanda.c
 ```
 
-`-I src/test/c` 中的 stub 头文件提供板级适配（`board/stm32h7/board.h` — 引入真实 `board/boards/*.h` 生产代码并桩化 init 依赖）以及 `harness.h`（结构体定义）、`lladc.h`（ADC 拦截桩）。其他头文件（`gpio.h`, `led.h`, `pwm.h` 等）统一使用 `board/` 下的生产代码。
+`-I src/test/c` 中的 stub 头文件提供板级适配（`board/stm32h7/board.h` — 引入真实 `board/boards/*.h` 生产代码，并包含 `common_init_gpio()` / `gpio_uart7_init()` 的真实实现复制自 `peripherals.h`）以及 `harness.h`（结构体定义）、`lladc.h`（ADC 拦截桩）。其他头文件（`gpio.h`, `led.h`, `pwm.h` 等）统一使用 `board/` 下的生产代码。
 
 ## 运行命令
 
