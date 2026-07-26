@@ -36,6 +36,9 @@ cd e2e-tests && ./gradlew cucumber
 # 运行单个端到端测试场景
 cd e2e-tests && ./gradlew cucumber -Pfile='src/test/resources/features/safety_mode.feature:7'
 
+# 运行全部端到端测试并生成覆盖率报告
+cd e2e-tests && ./run_all_coverage.sh
+
 # 运行 HITL 测试（需要真实 panda 硬件 + panda jungle）
 cd tests/hitl && pytest test_file_name.py
 ```
