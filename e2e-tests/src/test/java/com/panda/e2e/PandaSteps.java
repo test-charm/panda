@@ -131,6 +131,11 @@ public class PandaSteps {
         client.clockSourceInit(false);
     }
 
+    @When("board init")
+    public void boardInit() {
+        client.boardInit();
+    }
+
     public static class ControlSetup {
         public int timerValue;
         public int fanRpm;

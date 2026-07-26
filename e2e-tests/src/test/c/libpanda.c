@@ -420,6 +420,29 @@ uint32_t jna_get_reg_GPIOB_PUPDR(void)  { return e2e_GPIOB.PUPDR; }
 uint32_t jna_get_reg_GPIOE_ODR(void)   { return e2e_GPIOE.ODR; }
 uint32_t jna_get_reg_GPIOF_ODR(void)   { return e2e_GPIOF.ODR; }
 uint32_t jna_get_reg_GPIOG_ODR(void)   { return e2e_GPIOG.ODR; }
+// GPIO OTYPER (output type)
+uint32_t jna_get_reg_GPIOA_OTYPER(void) { return e2e_GPIOA.OTYPER; }
+uint32_t jna_get_reg_GPIOB_OTYPER(void) { return e2e_GPIOB.OTYPER; }
+uint32_t jna_get_reg_GPIOC_OTYPER(void) { return e2e_GPIOC.OTYPER; }
+uint32_t jna_get_reg_GPIOD_OTYPER(void) { return e2e_GPIOD.OTYPER; }
+uint32_t jna_get_reg_GPIOE_OTYPER(void) { return e2e_GPIOE.OTYPER; }
+uint32_t jna_get_reg_GPIOF_OTYPER(void) { return e2e_GPIOF.OTYPER; }
+uint32_t jna_get_reg_GPIOG_OTYPER(void) { return e2e_GPIOG.OTYPER; }
+// GPIO OSPEEDR (output speed)
+uint32_t jna_get_reg_GPIOA_OSPEEDR(void) { return e2e_GPIOA.OSPEEDR; }
+uint32_t jna_get_reg_GPIOB_OSPEEDR(void) { return e2e_GPIOB.OSPEEDR; }
+uint32_t jna_get_reg_GPIOC_OSPEEDR(void) { return e2e_GPIOC.OSPEEDR; }
+uint32_t jna_get_reg_GPIOD_OSPEEDR(void) { return e2e_GPIOD.OSPEEDR; }
+uint32_t jna_get_reg_GPIOE_OSPEEDR(void) { return e2e_GPIOE.OSPEEDR; }
+uint32_t jna_get_reg_GPIOF_OSPEEDR(void) { return e2e_GPIOF.OSPEEDR; }
+uint32_t jna_get_reg_GPIOG_OSPEEDR(void) { return e2e_GPIOG.OSPEEDR; }
+// GPIO PUPDR (pull-up/pull-down) — full set
+uint32_t jna_get_reg_GPIOA_PUPDR(void)  { return e2e_GPIOA.PUPDR; }
+uint32_t jna_get_reg_GPIOC_PUPDR(void)  { return e2e_GPIOC.PUPDR; }
+uint32_t jna_get_reg_GPIOD_PUPDR(void)  { return e2e_GPIOD.PUPDR; }
+uint32_t jna_get_reg_GPIOE_PUPDR(void)  { return e2e_GPIOE.PUPDR; }
+uint32_t jna_get_reg_GPIOF_PUPDR(void)  { return e2e_GPIOF.PUPDR; }
+uint32_t jna_get_reg_GPIOG_PUPDR(void)  { return e2e_GPIOG.PUPDR; }
 uint32_t jna_get_reg_ADC1_CR(void)     { return e2e_ADC1.CR; }
 uint32_t jna_get_reg_ADC2_CR(void)     { return e2e_ADC2.CR; }
 uint32_t jna_get_reg_RCC_CR(void)          { return e2e_RCC.CR; }
@@ -435,6 +458,7 @@ uint32_t jna_get_reg_EXTI_RTSR1(void)      { return e2e_EXTI.RTSR1; }
 uint32_t jna_get_reg_EXTI_FTSR1(void)      { return e2e_EXTI.FTSR1; }
 uint32_t jna_get_reg_EXTI_PR1(void)        { return e2e_EXTI.PR1; }
 uint32_t jna_get_reg_PWR_CR1(void)         { return e2e_PWR.CR1; }
+uint32_t jna_get_reg_PWR_CR3(void)         { return e2e_PWR.CR3; }
 uint32_t jna_get_reg_PWR_CPUCR(void)       { return e2e_PWR.CPUCR; }
 uint32_t jna_get_reg_SCB_SCR(void)         { return e2e_SCB.SCR; }
 uint32_t jna_get_reg_NVIC_ICER0(void)      { return e2e_NVIC.ICER[0]; }
@@ -1138,6 +1162,12 @@ uint32_t jna_get_reg_GPIOA_AFR0(void) { return e2e_GPIOA.AFR[0]; }
 uint32_t jna_get_reg_GPIOA_AFR1(void) { return e2e_GPIOA.AFR[1]; }
 uint32_t jna_get_reg_GPIOB_AFR0(void) { return e2e_GPIOB.AFR[0]; }
 uint32_t jna_get_reg_GPIOB_AFR1(void) { return e2e_GPIOB.AFR[1]; }
+uint32_t jna_get_reg_GPIOC_AFR0(void) { return e2e_GPIOC.AFR[0]; }
+uint32_t jna_get_reg_GPIOC_AFR1(void) { return e2e_GPIOC.AFR[1]; }
+uint32_t jna_get_reg_GPIOD_AFR0(void) { return e2e_GPIOD.AFR[0]; }
+uint32_t jna_get_reg_GPIOD_AFR1(void) { return e2e_GPIOD.AFR[1]; }
+uint32_t jna_get_reg_GPIOE_AFR0(void) { return e2e_GPIOE.AFR[0]; }
+uint32_t jna_get_reg_GPIOE_AFR1(void) { return e2e_GPIOE.AFR[1]; }
 
 // ---- JNA API: clock_source_init() ----
 void jna_clock_source_init(int enable_channel1) {
@@ -1147,6 +1177,25 @@ void jna_clock_source_init(int enable_channel1) {
 void jna_reset_TIM_regs(void) {
     fake_TIM1 = (e2e_TIM_TypeDef){0};
     fake_TIM8 = (e2e_TIM_TypeDef){0};
+}
+
+// ---- JNA API: board_init() ----
+void jna_board_init(void) {
+    // Reset GPIO registers to clean state before init
+    e2e_GPIOA = (GPIO_TypeDef){0};   e2e_GPIOB = (GPIO_TypeDef){0};
+    e2e_GPIOC = (GPIO_TypeDef){0};   e2e_GPIOD = (GPIO_TypeDef){0};
+    e2e_GPIOE = (GPIO_TypeDef){0};   e2e_GPIOF = (GPIO_TypeDef){0};
+    e2e_GPIOG = (GPIO_TypeDef){0};
+    // Reset PWR (used by tres_init USB LDO enable)
+    e2e_PWR = (struct e2e_PWR_Regs){0};
+    // Pre-set USB33RDY so tres_init's spin-wait doesn't hang
+    e2e_PWR.CR3 = PWR_CR3_USB33RDY;
+    // Reset TIM registers (used by clock_source_init inside init)
+    jna_reset_TIM_regs();
+    // Reset NVIC tracking (used by clock_source_init)
+    jna_reset_nvic_count();
+    // Call the board init function
+    current_board->init();
 }
 
 // ---- JNA API: Setup + response buffer inspection ----

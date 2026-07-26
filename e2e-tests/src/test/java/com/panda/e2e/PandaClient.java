@@ -236,6 +236,64 @@ public class PandaClient {
 
         long jna_get_reg_GPIOB_AFR1();
 
+        long jna_get_reg_GPIOC_AFR0();
+
+        long jna_get_reg_GPIOC_AFR1();
+
+        long jna_get_reg_GPIOD_AFR0();
+
+        long jna_get_reg_GPIOD_AFR1();
+
+        long jna_get_reg_GPIOE_AFR0();
+
+        long jna_get_reg_GPIOE_AFR1();
+
+        // GPIO OTYPER getters
+        long jna_get_reg_GPIOA_OTYPER();
+
+        long jna_get_reg_GPIOB_OTYPER();
+
+        long jna_get_reg_GPIOC_OTYPER();
+
+        long jna_get_reg_GPIOD_OTYPER();
+
+        long jna_get_reg_GPIOE_OTYPER();
+
+        long jna_get_reg_GPIOF_OTYPER();
+
+        long jna_get_reg_GPIOG_OTYPER();
+
+        // GPIO OSPEEDR getters
+        long jna_get_reg_GPIOA_OSPEEDR();
+
+        long jna_get_reg_GPIOB_OSPEEDR();
+
+        long jna_get_reg_GPIOC_OSPEEDR();
+
+        long jna_get_reg_GPIOD_OSPEEDR();
+
+        long jna_get_reg_GPIOE_OSPEEDR();
+
+        long jna_get_reg_GPIOF_OSPEEDR();
+
+        long jna_get_reg_GPIOG_OSPEEDR();
+
+        // GPIO PUPDR getters (GPIOB already exists in register accessor section)
+        long jna_get_reg_GPIOA_PUPDR();
+
+        long jna_get_reg_GPIOC_PUPDR();
+
+        long jna_get_reg_GPIOD_PUPDR();
+
+        long jna_get_reg_GPIOE_PUPDR();
+
+        long jna_get_reg_GPIOF_PUPDR();
+
+        long jna_get_reg_GPIOG_PUPDR();
+
+        // Board init
+        void jna_board_init();
+
 
         // Microsecond timer and fan RPM
         void jna_set_microsecond_timer(int val);
@@ -408,6 +466,8 @@ public class PandaClient {
         long jna_get_reg_EXTI_PR1();
 
         long jna_get_reg_PWR_CR1();
+
+        long jna_get_reg_PWR_CR3();
 
         long jna_get_reg_PWR_CPUCR();
 
@@ -947,6 +1007,112 @@ public class PandaClient {
                 lib.jna_get_nvic_disable_irq_count(),
                 lib.jna_get_nvic_disable_irq_at(0),
                 lib.jna_get_nvic_disable_irq_at(1)
+        );
+    }
+
+    @AllArgsConstructor
+    @Getter
+    public static class BoardInitState {
+        private final long gpioAModer;
+        private final long gpioBModer;
+        private final long gpioCModer;
+        private final long gpioDModer;
+        private final long gpioEModer;
+        private final long gpioFModer;
+        private final long gpioGModer;
+        private final long gpioAOtyper;
+        private final long gpioBOtyper;
+        private final long gpioCOtyper;
+        private final long gpioDOtyper;
+        private final long gpioEOtyper;
+        private final long gpioFOtyper;
+        private final long gpioGOtyper;
+        private final long gpioAOspeedr;
+        private final long gpioBOspeedr;
+        private final long gpioCOspeedr;
+        private final long gpioDOspeedr;
+        private final long gpioEOspeedr;
+        private final long gpioFOspeedr;
+        private final long gpioGOspeedr;
+        private final long gpioAPupdr;
+        private final long gpioBPupdr;
+        private final long gpioCPupdr;
+        private final long gpioDPupdr;
+        private final long gpioEPupdr;
+        private final long gpioFPupdr;
+        private final long gpioGPupdr;
+        private final long gpioAAfr0;
+        private final long gpioAAfr1;
+        private final long gpioBAfr0;
+        private final long gpioBAfr1;
+        private final long gpioCAfr0;
+        private final long gpioCAfr1;
+        private final long gpioDAfr0;
+        private final long gpioDAfr1;
+        private final long gpioEAfr0;
+        private final long gpioEAfr1;
+        private final long gpioAOdr;
+        private final long gpioBOdr;
+        private final long gpioCOdr;
+        private final long gpioDOdr;
+        private final long gpioEOdr;
+        private final long gpioFOdr;
+        private final long gpioGOdr;
+        private final long pwrCr3;
+    }
+
+    public void boardInit() {
+        lib.jna_board_init();
+    }
+
+    public BoardInitState getBoardInit() {
+        return new BoardInitState(
+                lib.jna_get_reg_GPIOA_MODER(),
+                lib.jna_get_reg_GPIOB_MODER(),
+                lib.jna_get_reg_GPIOC_MODER(),
+                lib.jna_get_reg_GPIOD_MODER(),
+                lib.jna_get_reg_GPIOE_MODER(),
+                lib.jna_get_reg_GPIOF_MODER(),
+                lib.jna_get_reg_GPIOG_MODER(),
+                lib.jna_get_reg_GPIOA_OTYPER(),
+                lib.jna_get_reg_GPIOB_OTYPER(),
+                lib.jna_get_reg_GPIOC_OTYPER(),
+                lib.jna_get_reg_GPIOD_OTYPER(),
+                lib.jna_get_reg_GPIOE_OTYPER(),
+                lib.jna_get_reg_GPIOF_OTYPER(),
+                lib.jna_get_reg_GPIOG_OTYPER(),
+                lib.jna_get_reg_GPIOA_OSPEEDR(),
+                lib.jna_get_reg_GPIOB_OSPEEDR(),
+                lib.jna_get_reg_GPIOC_OSPEEDR(),
+                lib.jna_get_reg_GPIOD_OSPEEDR(),
+                lib.jna_get_reg_GPIOE_OSPEEDR(),
+                lib.jna_get_reg_GPIOF_OSPEEDR(),
+                lib.jna_get_reg_GPIOG_OSPEEDR(),
+                lib.jna_get_reg_GPIOA_PUPDR(),
+                lib.jna_get_reg_GPIOB_PUPDR(),
+                lib.jna_get_reg_GPIOC_PUPDR(),
+                lib.jna_get_reg_GPIOD_PUPDR(),
+                lib.jna_get_reg_GPIOE_PUPDR(),
+                lib.jna_get_reg_GPIOF_PUPDR(),
+                lib.jna_get_reg_GPIOG_PUPDR(),
+                lib.jna_get_reg_GPIOA_AFR0(),
+                lib.jna_get_reg_GPIOA_AFR1(),
+                lib.jna_get_reg_GPIOB_AFR0(),
+                lib.jna_get_reg_GPIOB_AFR1(),
+                lib.jna_get_reg_GPIOC_AFR0(),
+                lib.jna_get_reg_GPIOC_AFR1(),
+                lib.jna_get_reg_GPIOD_AFR0(),
+                lib.jna_get_reg_GPIOD_AFR1(),
+                lib.jna_get_reg_GPIOE_AFR0(),
+                lib.jna_get_reg_GPIOE_AFR1(),
+                lib.jna_get_reg_GPIOA_ODR(),
+                lib.jna_get_reg_GPIOB_ODR(),
+                lib.jna_get_reg_GPIOC_ODR(),
+                lib.jna_get_reg_GPIOD_ODR(),
+                lib.jna_get_reg_GPIOE_ODR(),
+                lib.jna_get_reg_GPIOF_ODR(),
+                lib.jna_get_reg_GPIOG_ODR(),
+                lib.jna_get_reg_PWR_CR3()
         );
     }
 
