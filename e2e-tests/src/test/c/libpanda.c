@@ -949,6 +949,46 @@ uint32_t jna_get_can_write_buffer_tail(void) {
     return can_write_buffer.tail_size;
 }
 
+// ---- JNA API: CAN comms serialization/deserialization (comms_can_read/write) ----
+
+// Wire-format CAN frame → deserialize via comms_can_write → can_send → queue.
+// Packets end up in can_tx*_q (allowed) or can_rx_q (blocked), depending on safety mode.
+void jna_comms_can_write(const uint8_t *data, uint32_t len) {
+    comms_can_write(data, len);
+}
+
+// Serialize queued packets from can_rx_q to wire-format buffer via comms_can_read.
+// Populate can_rx_q first (e.g. via jna_can_send in SILENT mode).
+static uint8_t jna_comms_read_buf[512];
+static int jna_comms_read_len;
+
+int jna_comms_can_read(uint8_t *out_data, uint32_t max_len) {
+    uint32_t capped = (max_len < 512U) ? max_len : 512U;
+    jna_comms_read_len = comms_can_read(jna_comms_read_buf, capped);
+    if ((out_data != ((void *)0)) && (jna_comms_read_len > 0)) {
+        (void)memcpy(out_data, jna_comms_read_buf, (uint32_t)jna_comms_read_len);
+    }
+    return jna_comms_read_len;
+}
+
+int jna_get_comms_read_len(void) {
+    return jna_comms_read_len;
+}
+
+int jna_get_comms_read_byte(int index) {
+    if ((index < 0) || (index >= jna_comms_read_len)) return 0;
+    return (int)jna_comms_read_buf[index];
+}
+
+// Checksum validation: CANPacket_t raw bytes → can_check_checksum.
+// Pass a complete CANPacket_t struct (including checksum byte at offset 5).
+bool jna_can_check_checksum(const uint8_t *pkt_data, uint32_t len) {
+    CANPacket_t pkt = {0};
+    uint32_t copy_len = (len < sizeof(CANPacket_t)) ? len : sizeof(CANPacket_t);
+    (void)memcpy((uint8_t*)&pkt, pkt_data, copy_len);
+    return can_check_checksum(&pkt);
+}
+
 // ---- JNA API: Packet versions (read from response after 0xdd) ----
 // Returns the two uint32 values from the last control response buffer.
 // Call after controlWrite(0xdd, 0, 0).

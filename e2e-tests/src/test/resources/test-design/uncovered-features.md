@@ -566,26 +566,24 @@ Then control data should be → 验证结果
 
 ```
 本周                        下周                        后续
-P0 can_comms.h ──────────→ P2 boards/*.h ──────────→ P3 spi_cmd
+P0 can_comms.h ✅ 完成    → P2 boards/*.h ──────────→ P3 spi_cmd
 P1 main.c tick 路径        (去桩化)                   (SPI 通道)
 (不改构建，纯加场景)        (首个真实板级代码)          (ROI 偏低)
 ```
 
-### 🔴 P0 — 提升 `can_comms.h` 覆盖率 (当前 18.4%，最高 ROI)
+### 🔴 P0 — 提升 `can_comms.h` 覆盖率 (当前 18.4%，最高 ROI) ✅ 已完成
 
-**不改构建，代码已在编译中，直接加 Gherkin 场景。**
+**2026-07-25 完成**，新增 `can_comms.feature` 8 个场景，覆盖率从 18.4% → 97.4%。所有 4 个函数 100% 覆盖，可执行行 76/76 (100%)。
 
-CAN 报文序列化/反序列化核心路径。`comms_can_read` / `comms_can_write` 处理所有 `CANPacket_t` ↔ 6 字节头部 + 变长数据的转换。
+已覆盖路径：
+- ✅ CAN FD 64 字节帧打包/解包 → DLC=15 正确解析
+- ✅ 跨 chunk 分片传输 — write 端 (二次分片、tail > remaining、tail ≤ remaining)
+- ✅ 跨 chunk 分片传输 — read 端 (max_len 截断、overflow 排空)
+- ✅ `returned` / `rejected` 标志位 — wire format 编解码验证
+- ✅ 校验和 mismatch → `can_check_checksum` 返回 false
+- ✅ 连续多帧批量读写 — 帧边界正确识别
 
-| 未覆盖路径 | 测试思路 | 风险 |
-|-----------|---------|------|
-| CAN FD 64 字节帧打包/解包 | 构造 `CANPacket_t` 含 64 字节 data，验证往返序列化 | 数据截断 bug |
-| 跨 chunk 分片传输 (单帧跨多个 USB bulk) | 设置 `max_len` < 帧大小，验证多 chunk 拼接 | 边界条件错误 |
-| `returned` / `rejected` 标志位编解码 | 设置 `returned=1` / `rejected=1`，验证位操作 | 标志位翻转 |
-| 校验和 mismatch 错误路径 | 注入错误校验和，验证 `can_check_checksum` 返回 false | 静默数据损坏 |
-| 连续多帧批量读写 | 3 帧连续写入，验证 `w_ptr` / `r_ptr` 推进 | 队列指针错误 |
-
-**工作量**: 3-5 个场景 (~1 天)，预计覆盖率 18.4% → 70%+
+剩余未覆盖：`refresh_can_tx_slots_available()` 中 `can_tx_check_min_slots_free` 返回 false 的 4 个分支（队列满边界），需硬件层模拟，ROI 偏低。
 
 ---
 
@@ -633,8 +631,8 @@ CAN 报文序列化/反序列化核心路径。`comms_can_read` / `comms_can_wri
 ### P0+P1 预期收益
 
 ```
-当前综合行覆盖率: 65.1% (575/884)
-P0 完成后预估:   72-75%  (+ can_comms.h 18.4→70%+)
-P1 完成后预估:   75-78%  (+ main.c 46.9→60%+)
-P2 完成后预估:   80-85%  (+ boards/*.h, llfdcan.h 等首次进入)
+当前综合行覆盖率: 79.6% (720/905)
+P0 已完成 (can_comms.h 18.4→100%, 76/76 可执行行)
+P1 完成后预估:   82-85%  (+ main.c 64.2→75%+)
+P2 完成后预估:   86-90%  (+ boards/*.h, llfdcan.h 等首次进入)
 ```

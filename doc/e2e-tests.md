@@ -124,6 +124,7 @@ e2e-tests/
 | 替代体验 | `alternative_experience.feature` | 5 | alternativeExperience |
 | 警笛 | `siren.feature` | 3 | stopModeRegs.gpioBOdr (PB14) via jna_tick_siren |
 | CAN 通信重置 | `can_comms_reset.feature` | 3 | canCommsBuffers + stopModeRegs.gpioAOdr |
+| CAN 通信序列化 | `can_comms.feature` | 8 | comms_can_write → txQueue, comms_can_read → commsReadBytes, checksumCheckPassed |
 | CAN 环形缓冲 | `can_ring_clear.feature` | 4 | rxQueue/txQueue |
 | 固件版本 | `get_version.feature` | 1 | respBuffer |
 | 数据包版本 | `packet_versions.feature` | 1 | packetVersions |
@@ -164,16 +165,16 @@ e2e-tests/
 | 源文件 | 行覆盖 | 函数覆盖 | 说明 |
 |--------|--------|---------|------|
 | `board/main_comms.h` | **93.3%** (251/269) | 2/3 (66.7%) | USB 命令处理 (33/34 已覆盖) |
-| `board/main.c` | **46.9%** (106/226) | 4/7 (57.1%) | 主循环 + 初始化 |
-| `board/drivers/can_common.h` | **86.8%** (92/106) | 10/12 (83.3%) | CAN 通用操作 |
-| `board/drivers/gpio.h` | **72.1%** (44/61) | 5/7 (71.4%) | GPIO 控制 |
-| `board/sys/faults.h` | **78.9%** (15/19) | 2/2 (100%) | 故障设置 (Temporary fault 路径已由 watchdog 覆盖) |
-| `board/libc.h` | **60.7%** (37/61) | 3/5 (60.0%) | 最小化 libc 替代 |
-| `board/drivers/fan.h` | **37.0%** (10/27) | 2/3 (66.7%) | 风扇 PWM + 冷却 |
-| `board/can_comms.h` | **18.4%** (14/76) | 2/4 (50.0%) | CAN 通信处理 |
-| `board/drivers/clock_source.h` | **18.4%** (7/38) | 1/2 (50.0%) | 时钟源选择 |
-| `board/utils.h` | **0.0%** (0/3) | 0/1 (0%) | 工具函数 (仅初始化) |
-| **合计** | **65.1%** (575/884) | **30/46** (65.2%) | |
+| `board/main.c` | **64.2%** (145/226) | 4/7 (57.1%) | 主循环 + 初始化 |
+| `board/drivers/can_common.h` | **95.3%** (102/107) | 10/12 (83.3%) | CAN 通用操作 |
+| `board/drivers/gpio.h` | **71.0%** (49/69) | 5/7 (71.4%) | GPIO 控制 |
+| `board/sys/faults.h` | **78.9%** (15/19) | 2/2 (100%) | 故障设置 |
+| `board/libc.h` | **61.3%** (38/62) | 3/5 (60.0%) | 最小化 libc 替代 |
+| `board/drivers/fan.h` | **100%** (27/27) | 3/3 (100%) | 风扇 PWM + 冷却 |
+| `board/can_comms.h` | **100%** (76/76) | 4/4 (100%) | CAN 通信序列化 (P0 已完成，新增 8 场景) |
+| `board/drivers/clock_source.h` | **17.5%** (7/40) | 1/2 (50.0%) | 时钟源选择 |
+| `board/utils.h` | **100%** (10/10) | 1/1 (100%) | 工具函数 |
+| **合计** | **79.6%** (720/905) | **35/46** (76.1%) | |
 
 > ⚠️ `main.c` 中未覆盖的函数：`sound_tick`、`safety_mode_cnt`。P1-P8 已全部覆盖。详见 `e2e-tests/src/test/resources/test-design/uncovered-features.md`。
 

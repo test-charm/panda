@@ -92,6 +92,30 @@ public class PandaSteps {
         client.detectHarnessOrientation();
     }
 
+    @When("comms can write with hex:")
+    public void commsCanWrite(String hexExpression) {
+        client.commsCanWrite(hexToBytes(hexExpression));
+    }
+
+    @When("comms can read with max len {int}")
+    public void commsCanRead(int maxLen) {
+        client.commsCanRead(maxLen);
+    }
+
+    private static byte[] hexToBytes(String hex) {
+        String cleaned = hex.replaceAll("\\s+", "");
+        byte[] bytes = new byte[cleaned.length() / 2];
+        for (int i = 0; i < bytes.length; i++) {
+            bytes[i] = (byte) Integer.parseInt(cleaned.substring(i * 2, i * 2 + 2), 16);
+        }
+        return bytes;
+    }
+
+    @When("check can checksum with hex:")
+    public void checkCanChecksum(String hexExpression) {
+        client.checkCanChecksum(hexToBytes(hexExpression));
+    }
+
     public static class ControlSetup {
         public int timerValue;
         public int fanRpm;
