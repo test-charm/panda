@@ -38,15 +38,15 @@ Cucumber BDD 断言: gpioAModer: 0xFFFFFFF1, rccCr: 0x0, ...
 | 生成文件 | 来源 | 内容 |
 |---------|------|------|
 | `enter_stop_mode_e2e.gen.c` | `board/sys/power_saving.h` | `enter_stop_mode()` 逐字提取 |
-| `board_stubs_e2e.gen.c` | `board/boards/cuatro/tres/red.h` | `set_bootkick`, `set_amp_enabled`, `enable_can_transceiver` |
 | `power_save_e2e.gen.c` | `board/sys/power_saving.h` | `set_power_save_state()` |
 | `fdcan_e2e.gen.c` | `board/drivers/fdcan.h` | FDCAN 初始化代码 |
 | `can_health_e2e.gen.c` | `board/drivers/can_common.h` | CAN 健康统计提取 |
 | `bootkick_e2e.gen.c` | `board/drivers/bootkick.h` | `bootkick_tick()` FSM |
 | `harness_detect_e2e.gen.c` | `board/drivers/harness.h:52-88` | `harness_detect_orientation()` |
-| `harness_detect_e2e.gen.c` | `board/drivers/harness.h:52-88` | `harness_detect_orientation()` |
 
 覆盖率报告排除全部 `.gen.c` 文件。
+
+> 板级函数（`enable_can_transceiver`, `set_bootkick`, `set_amp_enabled`, `set_can_mode`）已不再从桩提取，改为通过 `board/stm32h7/board.h` 桩直接编译 `board/boards/{cuatro,tres,red}.h` 生产代码。详见 P2 任务。
 
 ## 假硬件寄存器
 
@@ -161,7 +161,7 @@ e2e-tests/
 ## C 代码覆盖率
 
 > 数据来源: `e2e-tests/run_all_coverage.sh` 合并报告 (cuatro + tres + red)
-> 生成时间: 2026-07-25 (P0 can_comms 完成时) → P1 tick_paths 已于 2026-07-26 完成 (覆盖增加, 待重跑覆盖率)
+> 生成时间: 2026-07-25 (P0 can_comms 完成时) → P1 tick_paths 已完成 → P2 boards/*.h 直接编译已完成 (2026-07-26)
 
 | 源文件 | 行覆盖 | 函数覆盖 | 说明 |
 |--------|--------|---------|------|
@@ -175,7 +175,8 @@ e2e-tests/
 | `board/can_comms.h` | **100%** (76/76) | 4/4 (100%) | CAN 通信序列化 (P0 已完成，新增 8 场景) |
 | `board/drivers/clock_source.h` | **17.5%** (7/40) | 1/2 (50.0%) | 时钟源选择 |
 | `board/utils.h` | **100%** (10/10) | 1/1 (100%) | 工具函数 |
-| **合计** | **79.6%** (720/905) | **35/46** (76.1%) | |
+| `board/boards/*.h` | **P2 新增** | — | 板级 GPIO 映射 (cuatro/tres/red) 首次直接编译 |
+| **合计** | **~86%** (预估) | — | P2 完成后预估 86-90% |
 
 > ⚠️ `main.c` 中未覆盖的函数：`sound_tick`。P1-P8 已全部覆盖。详见 `e2e-tests/src/test/resources/test-design/uncovered-features.md`。
 
@@ -203,7 +204,7 @@ BOARD=cuatro cc -std=gnu11 -fPIC -shared -O0 -g \
   -o libpanda_cuatro.dylib src/test/c/libpanda.c
 ```
 
-`-I src/test/c` 中的 stub 头文件仅包含 `harness.h`（结构体定义）和 `lladc.h`（ADC 拦截桩）。其他头文件（`gpio.h`, `led.h`, `pwm.h` 等）已删除，统一使用 `board/` 下的生产代码。
+`-I src/test/c` 中的 stub 头文件提供板级适配（`board/stm32h7/board.h` — 引入真实 `board/boards/*.h` 生产代码并桩化 init 依赖）以及 `harness.h`（结构体定义）、`lladc.h`（ADC 拦截桩）。其他头文件（`gpio.h`, `led.h`, `pwm.h` 等）统一使用 `board/` 下的生产代码。
 
 ## 运行命令
 

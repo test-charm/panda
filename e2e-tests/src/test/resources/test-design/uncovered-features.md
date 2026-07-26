@@ -567,9 +567,9 @@ Then control data should be → 验证结果
 
 ```
 本周                        下周                        后续
-P0 can_comms.h ✅ 完成    → P2 boards/*.h ──────────→ P3 spi_cmd
+P0 can_comms.h ✅ 完成    → P2 boards/*.h ✅ 完成    → P3 spi_cmd
 P1 main.c tick 路径 ✅ 完成 (去桩化)                   (SPI 通道)
-(不改构建，纯加场景)        (首个真实板级代码)          (ROI 偏低)
+(不改构建，纯加场景)        (板级生产代码直接编译)       (ROI 偏低)
 ```
 
 ### 🔴 P0 — 提升 `can_comms.h` 覆盖率 (当前 18.4%，最高 ROI) ✅ 已完成
@@ -605,21 +605,27 @@ P1 main.c tick 路径 ✅ 完成 (去桩化)                   (SPI 通道)
 
 ---
 
-### 🟡 P2 — 将 `boards/{cuatro,red,tres}.h` 从桩切断恢复
+### 🟡 P2 — 将 `boards/{cuatro,red,tres}.h` 从桩切断恢复 ✅ 已完成
 
-这三个文件定义了**板级 GPIO 映射**（CAN 收发器引脚、电压/电流检测引脚、bootkick 引脚）。当前 e2e 中用 `board_stub` 硬编码替代，真实函数从未编译。
+**2026-07-26 完成**。这三个文件定义了**板级 GPIO 映射**（CAN 收发器引脚、电压/电流检测引脚、bootkick 引脚）。此前 e2e 中用 `board_stubs_e2e.gen.c` 提取函数副本 + `board_stub` 硬编码替代，真实函数从未编译。
 
-**做法**: 修改 e2e `stm32h7_config.h` 桩，从真实 `stm32h7/board.h` 引入 `boards/{cuatro,red,tres}.h`。`detect_board_type()` 仍需桩（依赖 GPIO 引脚检测），但板级函数直接编译真实代码。
+**做法**: 创建 e2e 桩 `board/stm32h7/board.h`，引入真实 `board/boards/{cuatro,red,tres}.h` 生产代码。`detect_board_type()` 保留在 `libpanda.c` 中桩化，但板级函数（`enable_can_transceiver`、`set_bootkick`、`set_amp_enabled`、`set_can_mode`）直接编译真实代码。`libpanda.c` 中的 `e2e_board` 结构体按板型引用真实静态函数，同时保留电压/电流/风扇/IR/警报/SOM GPIO 的 e2e 拦截桩。
 
-| 可覆盖的真实函数 | 所属文件 |
-|-----------------|---------|
-| `cuatro/tres/red_enable_can_transceiver()` | GPIO 引脚映射 |
-| `cuatro/tres/red_read_voltage_mV()` | ADC 通道映射 |
-| `cuatro/tres/red_read_current_mA()` | ADC 通道映射 |
-| `cuatro/tres_set_bootkick()` | GPIO 引脚映射 |
-| `cuatro_set_amp_enabled()` | GPIO 引脚映射 |
+**变更文件**:
+- 新增 `board/stm32h7/board.h` — e2e 桩，替代真实 `board/stm32h7/board.h`
+- 修改 `libpanda.c` — `e2e_board` 替代 `board_stub`，移除 `board_stubs_e2e.gen.c` 引入
+- 修改 `build.sh` — 移除 `board_stubs_e2e.gen.c` 生成步骤
+- 修改 `fake_stm.h`、`harness.h`、`lladc.h`、`pwm.h` — 类型/宏适配
 
-**工作量**: 修改 build.sh / stm32h7_config.h 桩 → 3-5 个场景 (~1-2 天)
+| 可覆盖的真实函数 | 所属文件 | 状态 |
+|-----------------|---------|------|
+| `cuatro/tres/red_enable_can_transceiver()` | GPIO 引脚映射 | ✅ 直接编译，现有场景覆盖 |
+| `cuatro/tres/red_read_voltage_mV()` | ADC 通道映射 | ✅ 直接编译，e2e 拦截桩保持 |
+| `cuatro/tres/red_read_current_mA()` | ADC 通道映射 | ✅ 直接编译，e2e 拦截桩保持 |
+| `cuatro/tres_set_bootkick()` | GPIO 引脚映射 | ✅ 直接编译，现有场景覆盖 |
+| `cuatro_set_amp_enabled()` | GPIO 引脚映射 | ✅ 直接编译，现有场景覆盖 |
+
+**工作量**: ~1 天 ✅
 
 ---
 
@@ -631,11 +637,11 @@ P1 main.c tick 路径 ✅ 完成 (去桩化)                   (SPI 通道)
 
 ---
 
-### P0+P1 实际收益
+### P0+P1+P2 实际收益
 
 ```
 P0 完成前综合行覆盖率: 65.1% (575/884)
 P0 完成后预估:         79.6% (720/905, + can_comms.h 18.4→100%)
-P1 完成后预估:         82-85% (720/905, + main.c tick 路径 4 个新分支, fan.h has_fan=false 路径)
-P2 完成后预估:         86-90%  (+ boards/*.h, llfdcan.h 等首次进入)
+P1 完成后预估:         82-85% (+ main.c tick 路径 4 个新分支, fan.h has_fan=false 路径)
+P2 完成后预估:         86-90% (+ boards/*.h 首次直接编译, llfdcan.h 等首次进入)
 ```

@@ -50,7 +50,6 @@ if [ "${COVERAGE:-}" != "1" ] && [ -f "$OUTPUT" ] \
     && [ "$OUTPUT" -nt "$PROJECT_ROOT/board/drivers/fdcan.h" ] \
     && [ "$OUTPUT" -nt "$PROJECT_ROOT/board/sys/power_saving.h" ] \
     && [ "$OUTPUT" -nt "$SCRIPT_DIR/generate_fdcan_stubs.py" ] \
-    && [ "$OUTPUT" -nt "$SCRIPT_DIR/generate_board_stubs.py" ] \
     && [ "$OUTPUT" -nt "$SCRIPT_DIR/generate_bootkick_stubs.py" ] \
     && [ "$OUTPUT" -nt "$SCRIPT_DIR/generate_harness_stubs.py" ] \
     && [ "$OUTPUT" -nt "$PROJECT_ROOT/board/drivers/bootkick.h" ] \
@@ -68,9 +67,6 @@ python3 "$SCRIPT_DIR/generate_fdcan_stubs.py" > "$SCRIPT_DIR/fdcan_e2e.gen.c"
 
 echo "[build] Generating can_health_e2e.gen.c ..."
 python3 "$SCRIPT_DIR/generate_can_health_stubs.py" > "$SCRIPT_DIR/can_health_e2e.gen.c"
-
-echo "[build] Generating board_stubs_e2e.gen.c ..."
-python3 "$SCRIPT_DIR/generate_board_stubs.py" > "$SCRIPT_DIR/board_stubs_e2e.gen.c"
 
 echo "[build] Generating bootkick_e2e.gen.c ..."
 python3 "$SCRIPT_DIR/generate_bootkick_stubs.py" > "$SCRIPT_DIR/bootkick_e2e.gen.c"

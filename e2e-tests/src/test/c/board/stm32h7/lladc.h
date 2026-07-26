@@ -1,6 +1,7 @@
 // Stub: overrides board/stm32h7/lladc.h for host (e2e) compilation.
 // Intercepts adc_get_mV() calls for harness SBU signals, returning pre-set
 // voltage values from harness.sbu*_voltage_mV instead of reading real ADC registers.
+#pragma once
 
 #include <stdint.h>
 #include <stdbool.h>

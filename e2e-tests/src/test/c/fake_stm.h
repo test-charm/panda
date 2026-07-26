@@ -66,7 +66,31 @@ typedef struct {
 
 // ---- GPIO alternate function constants ----
 #define GPIO_AF1_TIM1       1U
+#define GPIO_AF2_FDCAN3     2U
+#define GPIO_AF2_TIM3       2U
 #define GPIO_AF3_TIM8       3U
+#define GPIO_AF3_DFSDM1     3U
+#define GPIO_AF4_I2C5       4U
+#define GPIO_AF5_FDCAN3     5U
+#define GPIO_AF5_SPI4       5U
+#define GPIO_AF7_UART7      7U
+#define GPIO_AF7_USART2     7U
+#define GPIO_AF8_SAI4       8U
+#define GPIO_AF9_FDCAN1     9U
+#define GPIO_AF9_FDCAN2     9U
+#define GPIO_AF10_OTG1_FS   10U
+#define GPIO_AF10_SAI4      10U
+
+// ---- GPIO output speed register bits ----
+#define GPIO_OSPEEDR_OSPEED11    (0x3UL << 22)
+#define GPIO_OSPEEDR_OSPEED12    (0x3UL << 24)
+#define GPIO_OSPEEDR_OSPEED13    (0x3UL << 26)
+#define GPIO_OSPEEDR_OSPEED14    (0x3UL << 28)
+
+// ---- PWR register bit macros (needed by tres_init) ----
+#define PWR_CR3_USBREGEN         (1UL << 25)
+#define PWR_CR3_USB33DEN         (1UL << 24)
+#define PWR_CR3_USB33RDY         (1UL << 26)
 
 // ---- APB2 timer frequency (200 MHz for STM32H725) ----
 #define APB2_TIMER_FREQ     200000000U

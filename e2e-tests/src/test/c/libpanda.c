@@ -220,7 +220,6 @@ GPIO_TypeDef dummy_gpio;
 
 static uint32_t e2e_voltage_mV = 12000;
 static uint32_t e2e_current_mA = 0;
-void board_set_can_mode_stub(uint8_t mode);
 uint32_t board_read_voltage_mV_stub(void) { return e2e_voltage_mV; }
 uint32_t board_read_current_mA_stub(void) { return e2e_current_mA; }
 
@@ -240,74 +239,103 @@ void board_set_ir_power_stub(uint8_t p) {
 }
 void board_set_fan_enabled_stub(bool en);
 void board_set_siren_stub(bool en);
-static void stub_unused_set_amp_enabled(bool en) { (void)en; }
-// Forward declarations — defined in board_stubs_e2e.gen.c (included after macro overrides)
-void cuatro_set_bootkick(BootState state);
-void cuatro_set_amp_enabled(bool enabled);
-void cuatro_enable_can_transceiver(uint8_t transceiver, bool enabled);
-void tres_set_bootkick(BootState state);
-void tres_enable_can_transceiver(uint8_t transceiver, bool enabled);
-void red_enable_can_transceiver(uint8_t transceiver, bool enabled);
-void tres_set_can_mode(uint8_t mode);
-void red_set_can_mode(uint8_t mode);
 bool board_read_som_gpio_stub(void);
-
-void board_set_can_mode_stub(uint8_t mode) {
-#if defined(E2E_BOARD_RED)
-    red_set_can_mode(mode);
-#else
-    tres_set_can_mode(mode);
-#endif
-}
 
 struct harness_configuration harness_config_stub = {
     .GPIO_SBU1 = (GPIO_TypeDef *)&e2e_GPIOC,
     .GPIO_SBU2 = (GPIO_TypeDef *)&e2e_GPIOA,
+    .GPIO_relay_SBU1 = (GPIO_TypeDef *)&dummy_gpio,
+    .GPIO_relay_SBU2 = (GPIO_TypeDef *)&dummy_gpio,
     .pin_SBU1 = 4,
     .pin_SBU2 = 1,
-    .has_harness = false,
-    .HARNESS_CONNECTED_THRESHOLD = 10000,
+    .pin_relay_SBU1 = 0,
+    .pin_relay_SBU2 = 0,
     .adc_signal_SBU1 = {.adc = (void *)&e2e_ADC1, .channel = 4},
     .adc_signal_SBU2 = {.adc = (void *)&e2e_ADC1, .channel = 17},
 };
-struct board board_stub = {
-    .harness_config = &harness_config_stub,
-    .led_GPIO = {&dummy_gpio, &dummy_gpio, &dummy_gpio},
-#if defined(E2E_BOARD_RED)
-    .has_fan = false,
-    .fan_enable_cooldown_time = 0U,
-    .avdd_mV = 3300U,
-#elif defined(E2E_BOARD_TRES)
+
+// ---- E2E board.h: real board headers (red/tres/cuatro) + init stubs ----
+// Must be included AFTER all GPIO/PWR/macro definitions and AFTER harness_config_stub.
+// Provides static board functions (enable_can_transceiver, set_bootkick, etc.)
+// compiled directly instead of via board_stubs_e2e.gen.c.
+TIM_TypeDef fake_TIM3;
+#include "board/stm32h7/board.h"
+
+// ---- E2E board struct — real functions from board/boards/*.h + test intercepts ----
+// Board functions for enable_can_transceiver, set_bootkick, set_amp_enabled,
+// and set_can_mode come from the real board headers (compiled directly).
+// Voltage, current, fan, IR, siren, and SOM GPIO are intercepted for testing.
+#if defined(E2E_BOARD_CUATRO)
+struct board e2e_board = {
+    .harness_config = &cuatro_harness_config,
+    .led_GPIO = {GPIOC, GPIOC, GPIOC},
+    .led_pin = {6, 7, 9},
+    .led_pwm_channels = {1, 2, 4},
+    .has_spi = true,
     .has_fan = true,
-    .fan_enable_cooldown_time = 3U,
     .avdd_mV = 1800U,
-#else
-    .has_fan = true,
     .fan_enable_cooldown_time = 3U,
-    .avdd_mV = 1800U,
-#endif
-    .set_can_mode = board_set_can_mode_stub,
+    .init = cuatro_init,
+    .init_bootloader = unused_init_bootloader,
+    .enable_can_transceiver = cuatro_enable_can_transceiver,
+    .set_can_mode = tres_set_can_mode,
     .read_voltage_mV = board_read_voltage_mV_stub,
     .read_current_mA = board_read_current_mA_stub,
     .set_ir_power = board_set_ir_power_stub,
     .set_fan_enabled = board_set_fan_enabled_stub,
     .set_siren = board_set_siren_stub,
-#if defined(E2E_BOARD_TRES)
-    .set_bootkick = tres_set_bootkick,
-    .set_amp_enabled = stub_unused_set_amp_enabled,
-    .enable_can_transceiver = tres_enable_can_transceiver,
-#elif defined(E2E_BOARD_RED)
-    .set_bootkick = stub_unused_set_amp_enabled,
-    .set_amp_enabled = stub_unused_set_amp_enabled,
-    .enable_can_transceiver = red_enable_can_transceiver,
-#else
     .set_bootkick = cuatro_set_bootkick,
-    .set_amp_enabled = cuatro_set_amp_enabled,
-    .enable_can_transceiver = cuatro_enable_can_transceiver,
-#endif
     .read_som_gpio = board_read_som_gpio_stub,
+    .set_amp_enabled = cuatro_set_amp_enabled,
 };
-const struct board *current_board = &board_stub;
+#elif defined(E2E_BOARD_TRES)
+struct board e2e_board = {
+    .harness_config = &tres_harness_config,
+    .led_GPIO = {GPIOE, GPIOE, GPIOE},
+    .led_pin = {4, 3, 2},
+    .led_pwm_channels = {0, 0, 0},
+    .has_spi = true,
+    .has_fan = true,
+    .avdd_mV = 1800U,
+    .fan_enable_cooldown_time = 3U,
+    .init = tres_init,
+    .init_bootloader = unused_init_bootloader,
+    .enable_can_transceiver = tres_enable_can_transceiver,
+    .set_can_mode = tres_set_can_mode,
+    .read_voltage_mV = board_read_voltage_mV_stub,
+    .read_current_mA = board_read_current_mA_stub,
+    .set_ir_power = board_set_ir_power_stub,
+    .set_fan_enabled = board_set_fan_enabled_stub,
+    .set_siren = board_set_siren_stub,
+    .set_bootkick = tres_set_bootkick,
+    .read_som_gpio = board_read_som_gpio_stub,
+    .set_amp_enabled = unused_set_amp_enabled,
+};
+#elif defined(E2E_BOARD_RED)
+struct board e2e_board = {
+    .harness_config = &red_harness_config,
+    .led_GPIO = {GPIOE, GPIOE, GPIOE},
+    .led_pin = {4, 3, 2},
+    .led_pwm_channels = {0, 0, 0},
+    .has_spi = false,
+    .has_fan = false,
+    .avdd_mV = 3300U,
+    .fan_enable_cooldown_time = 0U,
+    .init = red_init,
+    .init_bootloader = unused_init_bootloader,
+    .enable_can_transceiver = red_enable_can_transceiver,
+    .set_can_mode = red_set_can_mode,
+    .read_voltage_mV = board_read_voltage_mV_stub,
+    .read_current_mA = board_read_current_mA_stub,
+    .set_ir_power = board_set_ir_power_stub,
+    .set_fan_enabled = board_set_fan_enabled_stub,
+    .set_siren = board_set_siren_stub,
+    .set_bootkick = unused_set_bootkick,
+    .read_som_gpio = board_read_som_gpio_stub,
+    .set_amp_enabled = unused_set_amp_enabled,
+};
+#endif
+board *current_board = &e2e_board;
 
 // ---- Function stubs ----
 // Recording stub: captures last set_intercept_relay call for test verification
@@ -319,20 +347,32 @@ static bool e2e_ignition_line;
 bool harness_check_ignition(void) { return e2e_ignition_line; }
 void harness_tick(void) {}
 void fake_siren_set(bool en) { siren_enabled = en; }
+void fake_i2c_siren_set(bool en) { siren_enabled = en; }
 // can_init is defined in fdcan_e2e.gen.c (generated from real firmware source)
 void can_rx(uint8_t n) { (void)n; }
 void process_can(uint8_t n) { (void)n; }
 void led_init(void) {}
 void led_set(uint8_t led, bool en) { (void)led; (void)en; }
-void pwm_init(void) {}
-void pwm_set(void *tim, uint8_t ch, uint8_t d) { (void)tim; (void)ch; (void)d; }
+void pwm_init(TIM_TypeDef *TIM, uint8_t channel) { (void)TIM; (void)channel; }
+void pwm_set(TIM_TypeDef *TIM, uint8_t channel, uint8_t percentage) { (void)TIM; (void)channel; (void)percentage; }
 void usb_irqhandler(void) {}
 void usb_init(void) {}
 void spi_init(void) {}
 void early_initialization(void) {}
 void clock_init(void) {}
 void peripherals_init(void) {}
-void detect_board_type(void) {}
+void detect_board_type(void) {
+#if defined(E2E_BOARD_CUATRO)
+    hw_type = HW_TYPE_CUATRO;
+    current_board = &e2e_board;
+#elif defined(E2E_BOARD_TRES)
+    hw_type = HW_TYPE_TRES;
+    current_board = &e2e_board;
+#elif defined(E2E_BOARD_RED)
+    hw_type = HW_TYPE_RED_PANDA;
+    current_board = &e2e_board;
+#endif
+}
 void get_provision_chunk(uint8_t *out) { if (out) { for (int i = 0; i < 32; i++) out[i] = fake_provision[i]; } }
 
 // Tracking stub: records last enable_can_transceivers call AND drives real GPIO
@@ -439,8 +479,6 @@ void can_tx_comms_resume_spi(void) {}
 // fan state + llfan_init stub (fan_init from board/drivers/fan.h calls this)
 void llfan_init(void) {}
 struct fan_state_t fan_state;
-TIM_TypeDef fake_TIM3;
-#define TIM3 (&fake_TIM3)
 #include "board/drivers/fan.h"
 
 // ADC
@@ -449,17 +487,7 @@ ADC_TypeDef adc1_inst;
 #define ADC1 (&adc1_inst)
 void adc_init(ADC_TypeDef *adc) { (void)adc; }
 
-// GPIO
-// Forward declarations needed by board/drivers/gpio.h
-void register_set(volatile uint32_t *addr, uint32_t val, uint32_t mask);
-void register_set_bits(volatile uint32_t *addr, uint32_t val);
-void register_clear_bits(volatile uint32_t *addr, uint32_t mask);
-#include "board/drivers/gpio.h"
-
-// ADC stub — intercepts adc_get_mV() for harness SBU reads
-#include "board/stm32h7/lladc.h"
-
-// Production harness_detect_orientation() — included verbatim from board/drivers/harness.h:52-88
+// production bootkick_tick() — included verbatim from board/drivers/bootkick.h
 #include "harness_detect_e2e.gen.c"
 
 #define SCB_SCR_SLEEPDEEP_Msk 0x4U
@@ -569,10 +597,6 @@ void jna_set_som_uart_wptr(uint16_t val) { uart_ring_som_debug.w_ptr_tx = val; }
 #define PWR_CR1_SVOS          (0x3UL << 14U)
 #define PWR_CR1_SVOS_0        (0x1UL << 14U)
 #define PWR_CR1_FLPS          (0x1UL << 9U)
-#define MODE_INPUT 0U
-#define MODE_OUTPUT 1U
-#define MODE_ANALOG 3U
-#define PULL_NONE 0U
 #define GPIO_AF9_FDCAN2    ((uint8_t)0x09)
 #define OUTPUT_TYPE_OPEN_DRAIN 1U
 #define EXTI1_IRQn        7
@@ -585,10 +609,6 @@ void jna_set_som_uart_wptr(uint16_t val) { uart_ring_som_debug.w_ptr_tx = val; }
 void register_set(volatile uint32_t *addr, uint32_t val, uint32_t mask);
 void register_clear_bits(volatile uint32_t *addr, uint32_t mask);
 void register_set_bits(volatile uint32_t *addr, uint32_t val);
-
-// ---- Production board stubs (auto-generated from board/boards/*.h) ----
-// Regenerate: python3 generate_board_stubs.py > board_stubs_e2e.gen.c
-#include "board_stubs_e2e.gen.c"
 
 // enter_stop_mode is a verbatim copy from board/sys/power_saving.h with 'static' stripped.
 #include "enter_stop_mode_e2e.gen.c"

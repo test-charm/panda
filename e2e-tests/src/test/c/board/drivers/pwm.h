@@ -1,4 +1,4 @@
 // Stub: overrides board/drivers/pwm.h
 #include <stdint.h>
-void pwm_init(void);
-void pwm_set(void *tim, uint8_t chan, uint8_t duty);
+void pwm_init(TIM_TypeDef *TIM, uint8_t channel);
+void pwm_set(TIM_TypeDef *TIM, uint8_t channel, uint8_t percentage);
