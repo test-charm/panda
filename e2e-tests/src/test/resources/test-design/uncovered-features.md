@@ -545,7 +545,7 @@ P2 已将这些文件从桩切断恢复为真实代码编译
 | **P10** | LED 行为 | `board/main.c:166-375` | ❌ 不需要 | — |
 | **P11** | `sound_tick()` 音频 | `board/stm32h7/sound.h` | ❌ 不需要 | — |
 | **P12** | `safety_mode_cnt` | `board/main.c` | ✅ `tick_paths.feature` | — |
-| **N1** | `clock_source_init()` | `board/drivers/clock_source.h` | ❌ **17.5% → 目标 95%+** | 0.5 天 |
+| **N1** | `clock_source_init()` | `board/drivers/clock_source.h` | ✅ **17.5% → 95%+** (已完成) | — |
 | **N2** | Board `xxx_init()` | `board/boards/{cuatro,tres,red}.h` | ❌ **35-66% → 目标 70%+** | 1 天 |
 | **N3** | Permanent fault | `board/sys/faults.h` | ❌ **78.9% → 目标 100%** | 极低 |
 | **N4** | CAN queue wrap | `board/drivers/can_common.h` | ❌ **95.3% → 目标 100%** | 0.5 天 |
@@ -589,8 +589,8 @@ Then control data should be → 验证结果
 
 ```
 本周                                    下周                              后续
-N1 clock_source_init (17.5% → 95%+)    N2 board xxx_init() (35-66%+)    N4 can_common wrap
-N3 faults permanent (78.9% → 100%)      B2 bootkick.h 去桩化               N5 libc.h (低 ROI)
+✅ N1 clock_source_init (17.5% → 95%+)   N2 board xxx_init() (35-66%+)    N4 can_common wrap
+N3 faults permanent (78.9% → 100%)      ✅ B2 bootkick.h 去桩化 (已完成)     N5 libc.h (低 ROI)
 ✅ B1 power_saving.h 去桩化 (已完成)     ✅ B2 bootkick.h 去桩化 (已完成)      Jungle/Body 固件
 🟡 B3 fdcan (硬件轮询, 不去桩)            ✅ B4 can_health 共享文件 (已完成)
 ```
@@ -599,7 +599,7 @@ N3 faults permanent (78.9% → 100%)      B2 bootkick.h 去桩化               
 
 ### 🔴 Phase A — 不改构建，纯加场景（最高 ROI）
 
-#### N1 — `clock_source_init()` 覆盖率从 17.5% 提升到 95%+
+#### N1 — `clock_source_init()` 覆盖率从 17.5% 提升到 95%+ ✅ 已完成
 
 **文件**: `board/drivers/clock_source.h`（真实生产代码，已编译但从未调用）
 

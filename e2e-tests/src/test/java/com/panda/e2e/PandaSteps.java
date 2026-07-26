@@ -121,6 +121,16 @@ public class PandaSteps {
         client.endpoint2Write(hexToBytes(hexExpression));
     }
 
+    @When("clock source init with channel1 enabled")
+    public void clockSourceInitEnabled() {
+        client.clockSourceInit(true);
+    }
+
+    @When("clock source init with channel1 disabled")
+    public void clockSourceInitDisabled() {
+        client.clockSourceInit(false);
+    }
+
     public static class ControlSetup {
         public int timerValue;
         public int fanRpm;

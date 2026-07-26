@@ -133,6 +133,7 @@ e2e-tests/
 | CAN FD Non-ISO | `can_fd_non_iso.feature` | 3 | FDCAN CCCR |
 | CAN FD 数据率 | `can_fd_data_bitrate.feature` | 3 | FDCAN DBTP/CCCR/IE/TXBC/RXF0C |
 | 时钟源 | `clock_source.feature` | 3 | clockSource (TIM1/TIM8 CCR) |
+| 时钟源初始化 | `clock_source_init.feature` | 6 | clockSourceInit (TIM1×12, TIM8×8, GPIO×4, NVIC×2) |
 | 定时器/风扇 | `timer_fan.feature` | 2 | respBuffer (little-endian) |
 | 风扇功率 | `fan_power.feature` | 5 | fanPower |
 | 风扇冷却 | `fan_cooldown.feature` | 3 | fanCooldownCounter + fanPower 通过 jna_call_tick_handler |
@@ -171,13 +172,13 @@ e2e-tests/
 | `board/libc.h` | **61.3%** (38/62) | 3/5 | 最小化 libc 替代 |
 | `board/drivers/fan.h` | **100%** (27/27) | 3/3 | 风扇 PWM + 冷却 |
 | `board/can_comms.h` | **100%** (76/76) | 4/4 | CAN 通信序列化 |
-| `board/drivers/clock_source.h` | **17.5%** (7/40) | 1/2 | 时钟源选择 |
+| `board/drivers/clock_source.h` | **95.0%** (38/40) | 2/2 | ✅ N1 完成 (`clock_source_init` 全覆盖) |
 | `board/utils.h` | **100%** (10/10) | 1/1 | 工具函数 |
 | `board/sys/power_saving.h` | **95.8%** (92/96) | — | ✅ B1 |
 | `board/drivers/bootkick.h` | **~98%** (预估) | — | ✅ B2 |
 | `board/drivers/can_health_pkt.h` | **~95%** (预估) | — | ✅ B4 (共享文件) |
 | `board/boards/*.h` | **P2 已编译** | — | 板级 GPIO 映射直接编译 |
-| **合计** | **81.6%** (1459/1789 lines, 29 files) | — | B1/B2/B4 去桩化完成 |
+| **合计** | **86.4%** (1545/1789 lines, 29 files) | — | B1/B2/B4 去桩化 + N1 完成 |
 
 > ⚠️ `main.c` 中未覆盖的函数：`sound_tick`。P1-P8 已全部覆盖。详见 `e2e-tests/src/test/resources/test-design/uncovered-features.md`。
 

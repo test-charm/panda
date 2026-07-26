@@ -138,6 +138,10 @@ public class PandaClient {
 
         int jna_get_ir_power_value_at(int index);
 
+        // NVIC disable IRQ tracking
+        int jna_get_nvic_disable_irq_count();
+        int jna_get_nvic_disable_irq_at(int index);
+
         int jna_get_fan_power();
 
         int jna_get_fan_cooldown_counter();
@@ -186,6 +190,51 @@ public class PandaClient {
         int jna_get_TIM1_ARR();
 
         int jna_get_TIM1_CCR4();
+
+        void jna_clock_source_init(int enable_channel1);
+
+        // TIM1 extended register getters
+        int jna_get_TIM1_PSC();
+
+        int jna_get_TIM1_SMCR();
+
+        int jna_get_TIM1_BDTR();
+
+        int jna_get_TIM1_CR1();
+
+        int jna_get_TIM1_CR2();
+
+        int jna_get_TIM1_CCMR1();
+
+        int jna_get_TIM1_CCMR2();
+
+        int jna_get_TIM1_CCER();
+
+        int jna_get_TIM1_DIER();
+
+        // TIM8 extended register getters
+        int jna_get_TIM8_PSC();
+
+        int jna_get_TIM8_ARR();
+
+        int jna_get_TIM8_SMCR();
+
+        int jna_get_TIM8_BDTR();
+
+        int jna_get_TIM8_CR1();
+
+        int jna_get_TIM8_CCMR2();
+
+        int jna_get_TIM8_CCER();
+
+        // GPIO AFR register getters
+        long jna_get_reg_GPIOA_AFR0();
+
+        long jna_get_reg_GPIOA_AFR1();
+
+        long jna_get_reg_GPIOB_AFR0();
+
+        long jna_get_reg_GPIOB_AFR1();
 
 
         // Microsecond timer and fan RPM
@@ -828,6 +877,76 @@ public class PandaClient {
                 lib.jna_get_TIM8_CCR3(),
                 lib.jna_get_TIM1_ARR(),
                 lib.jna_get_TIM1_CCR4()
+        );
+    }
+
+    @AllArgsConstructor
+    @Getter
+    public static class ClockSourceInitState {
+        private final int tim1Psc;
+        private final int tim1Arr;
+        private final int tim1Ccmr1;
+        private final int tim1Ccmr2;
+        private final int tim1Ccer;
+        private final int tim1Ccr1;
+        private final int tim1Ccr2;
+        private final int tim1Ccr4;
+        private final int tim1Dier;
+        private final int tim1Smcr;
+        private final int tim1Cr1;
+        private final int tim1Cr2;
+        private final int tim1Bdtr;
+        private final int tim8Psc;
+        private final int tim8Arr;
+        private final int tim8Ccmr2;
+        private final int tim8Ccr3;
+        private final int tim8Ccer;
+        private final int tim8Smcr;
+        private final int tim8Cr1;
+        private final int tim8Bdtr;
+        private final long gpioAModer;
+        private final long gpioAAfr1;
+        private final long gpioBModer;
+        private final long gpioBAfr1;
+        private final int nvicDisableIrqCount;
+        private final int nvicDisableIrq0;
+        private final int nvicDisableIrq1;
+    }
+
+    public void clockSourceInit(boolean enableChannel1) {
+        lib.jna_clock_source_init(enableChannel1 ? 1 : 0);
+    }
+
+    public ClockSourceInitState getClockSourceInit() {
+        return new ClockSourceInitState(
+                lib.jna_get_TIM1_PSC(),
+                lib.jna_get_TIM1_ARR(),
+                lib.jna_get_TIM1_CCMR1(),
+                lib.jna_get_TIM1_CCMR2(),
+                lib.jna_get_TIM1_CCER(),
+                lib.jna_get_TIM1_CCR1(),
+                lib.jna_get_TIM1_CCR2(),
+                lib.jna_get_TIM1_CCR4(),
+                lib.jna_get_TIM1_DIER(),
+                lib.jna_get_TIM1_SMCR(),
+                lib.jna_get_TIM1_CR1(),
+                lib.jna_get_TIM1_CR2(),
+                lib.jna_get_TIM1_BDTR(),
+                lib.jna_get_TIM8_PSC(),
+                lib.jna_get_TIM8_ARR(),
+                lib.jna_get_TIM8_CCMR2(),
+                lib.jna_get_TIM8_CCR3(),
+                lib.jna_get_TIM8_CCER(),
+                lib.jna_get_TIM8_SMCR(),
+                lib.jna_get_TIM8_CR1(),
+                lib.jna_get_TIM8_BDTR(),
+                lib.jna_get_reg_GPIOA_MODER(),
+                lib.jna_get_reg_GPIOA_AFR1(),
+                lib.jna_get_reg_GPIOB_MODER(),
+                lib.jna_get_reg_GPIOB_AFR1(),
+                lib.jna_get_nvic_disable_irq_count(),
+                lib.jna_get_nvic_disable_irq_at(0),
+                lib.jna_get_nvic_disable_irq_at(1)
         );
     }
 

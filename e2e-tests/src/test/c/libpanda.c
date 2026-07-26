@@ -125,7 +125,17 @@ FDCAN_GlobalTypeDef *cans[3] = {FDCAN1, FDCAN2, FDCAN3};
 
 // Hardware stubs needed by can_init code path
 #define NVIC_EnableIRQ(x) e2e_nvic_enable_irq(x)
-#define NVIC_DisableIRQ(x) do {} while(0)
+#define NVIC_DisableIRQ(x) e2e_nvic_disable_irq(x)
+
+// NVIC_DisableIRQ tracking — records IRQ numbers that were disabled
+#define MAX_NVIC_DISABLE_CALLS 16
+static int nvic_disabled_irqs[MAX_NVIC_DISABLE_CALLS];
+static int nvic_disable_irq_count;
+static void e2e_nvic_disable_irq(int irq) {
+    if (nvic_disable_irq_count < MAX_NVIC_DISABLE_CALLS) {
+        nvic_disabled_irqs[nvic_disable_irq_count++] = irq;
+    }
+}
 
 // Tracking stubs for llcan_irq_enable/disable — records last CAN bus operated on
 static int last_irq_enabled_bus = -1;
@@ -970,6 +980,13 @@ void jna_reset_power_save_tracking(void) {
     last_irq_disabled_bus[0] = -1;
     last_irq_disabled_bus[1] = -1;
     last_irq_disabled_bus[2] = -1;
+    nvic_disable_irq_count = 0;
+}
+
+int jna_get_nvic_disable_irq_count(void) { return nvic_disable_irq_count; }
+int jna_get_nvic_disable_irq_at(int index) {
+    if ((index < 0) || (index >= nvic_disable_irq_count)) return -1;
+    return nvic_disabled_irqs[index];
 }
 
 // ---- JNA API: CAN comms buffer inspection (comms_can_reset) ----
@@ -1095,6 +1112,38 @@ uint32_t jna_get_TIM1_CCR2(void) { return fake_TIM1.CCR2; }
 uint32_t jna_get_TIM8_CCR3(void) { return fake_TIM8.CCR3; }
 uint32_t jna_get_TIM1_ARR(void)  { return fake_TIM1.ARR; }
 uint32_t jna_get_TIM1_CCR4(void) { return fake_TIM1.CCR4; }
+
+// TIM1 extended register getters
+uint32_t jna_get_TIM1_PSC(void)   { return fake_TIM1.PSC; }
+uint32_t jna_get_TIM1_SMCR(void)  { return fake_TIM1.SMCR; }
+uint32_t jna_get_TIM1_BDTR(void)  { return fake_TIM1.BDTR; }
+uint32_t jna_get_TIM1_CR1(void)   { return fake_TIM1.CR1; }
+uint32_t jna_get_TIM1_CR2(void)   { return fake_TIM1.CR2; }
+uint32_t jna_get_TIM1_CCMR1(void) { return fake_TIM1.CCMR1; }
+uint32_t jna_get_TIM1_CCMR2(void) { return fake_TIM1.CCMR2; }
+uint32_t jna_get_TIM1_CCER(void)  { return fake_TIM1.CCER; }
+uint32_t jna_get_TIM1_DIER(void)  { return fake_TIM1.DIER; }
+
+// TIM8 extended register getters
+uint32_t jna_get_TIM8_PSC(void)   { return fake_TIM8.PSC; }
+uint32_t jna_get_TIM8_ARR(void)   { return fake_TIM8.ARR; }
+uint32_t jna_get_TIM8_SMCR(void)  { return fake_TIM8.SMCR; }
+uint32_t jna_get_TIM8_BDTR(void)  { return fake_TIM8.BDTR; }
+uint32_t jna_get_TIM8_CR1(void)   { return fake_TIM8.CR1; }
+uint32_t jna_get_TIM8_CCMR2(void) { return fake_TIM8.CCMR2; }
+uint32_t jna_get_TIM8_CCER(void)  { return fake_TIM8.CCER; }
+
+// GPIO AFR register getters
+uint32_t jna_get_reg_GPIOA_AFR0(void) { return e2e_GPIOA.AFR[0]; }
+uint32_t jna_get_reg_GPIOA_AFR1(void) { return e2e_GPIOA.AFR[1]; }
+uint32_t jna_get_reg_GPIOB_AFR0(void) { return e2e_GPIOB.AFR[0]; }
+uint32_t jna_get_reg_GPIOB_AFR1(void) { return e2e_GPIOB.AFR[1]; }
+
+// ---- JNA API: clock_source_init() ----
+void jna_clock_source_init(int enable_channel1) {
+    clock_source_init(enable_channel1 != 0);
+}
+
 void jna_reset_TIM_regs(void) {
     fake_TIM1 = (e2e_TIM_TypeDef){0};
     fake_TIM8 = (e2e_TIM_TypeDef){0};
