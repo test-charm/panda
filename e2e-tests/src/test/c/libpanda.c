@@ -178,14 +178,23 @@ struct harness_t harness = {.sbu1_voltage_mV = 3300U, .sbu2_voltage_mV = 3300U};
 #include "board/drivers/uart.h"
 uart_ring uart_ring_debug = {0};
 uart_ring uart_ring_som_debug = {0};
-static char uart_debug_buf[256];
+static uint8_t uart_debug_rx_buf[256];
+static uint8_t uart_debug_tx_buf[256];
+static uint8_t uart_som_debug_tx_buf[256];
 uart_ring *get_ring_by_number(int a) {
     if (a == 0) {
-        uart_ring_debug.elems_rx = (uint8_t *)uart_debug_buf;
+        uart_ring_debug.elems_rx = uart_debug_rx_buf;
         uart_ring_debug.rx_fifo_size = 256;
+        uart_ring_debug.elems_tx = uart_debug_tx_buf;
+        uart_ring_debug.tx_fifo_size = 256;
         return &uart_ring_debug;
     }
-    return (a == 4) ? &uart_ring_som_debug : NULL;
+    if (a == 4) {
+        uart_ring_som_debug.elems_tx = uart_som_debug_tx_buf;
+        uart_ring_som_debug.tx_fifo_size = 256;
+        return &uart_ring_som_debug;
+    }
+    return NULL;
 }
 
 #include "boards/board_declarations.h"
@@ -500,7 +509,14 @@ bool get_char(uart_ring *q, char *elem) {
     q->r_ptr_rx = (q->r_ptr_rx + 1U) % q->rx_fifo_size;
     return true;
 }
-int put_char(uart_ring *q, char c) { (void)q; (void)c; return 0; }
+int put_char(uart_ring *q, char c) {
+    if ((q == NULL) || (q->elems_tx == ((void *)0))) return 0;
+    uint32_t next_w = (q->w_ptr_tx + 1U) % q->tx_fifo_size;
+    if (next_w == q->r_ptr_tx) return 0; // full
+    q->elems_tx[q->w_ptr_tx] = (uint8_t)c;
+    q->w_ptr_tx = next_w;
+    return 1;
+}
 
 // ---- Real firmware headers ----
 #include "board/health.h"
@@ -1020,6 +1036,34 @@ bool jna_can_check_checksum(const uint8_t *pkt_data, uint32_t len) {
     return can_check_checksum(&pkt);
 }
 
+// ---- JNA API: comms_endpoint2_write (SPI + USB endpoint 2 write path) ----
+// Calls real comms_endpoint2_write from board/main_comms.h.
+// Captures written data from the ring's tx buffer for verification.
+static uint8_t endpoint2_capture_buf[256];
+static int endpoint2_capture_len;
+
+void jna_comms_endpoint2_write(const uint8_t *data, uint32_t len) {
+    uart_ring *ur = get_ring_by_number(data[0]);
+    endpoint2_capture_len = 0;
+    if ((ur != NULL) && (len > 1U) && ((data[0] < 2U) || (data[0] >= 4U))) {
+        uint32_t start_w = ur->w_ptr_tx;
+        comms_endpoint2_write(data, len);
+        uint32_t end_w = ur->w_ptr_tx;
+        for (uint32_t i = start_w; i != end_w; i = (i + 1U) % ur->tx_fifo_size) {
+            if (endpoint2_capture_len < 256) {
+                endpoint2_capture_buf[endpoint2_capture_len++] = ur->elems_tx[i];
+            }
+        }
+    } else {
+        comms_endpoint2_write(data, len);
+    }
+}
+int jna_get_endpoint2_debug_len(void) { return endpoint2_capture_len; }
+int jna_get_endpoint2_debug_byte(int index) {
+    if ((index < 0) || (index >= endpoint2_capture_len)) return 0;
+    return (int)endpoint2_capture_buf[index];
+}
+
 // ---- JNA API: Packet versions (read from response after 0xdd) ----
 // Returns the two uint32 values from the last control response buffer.
 // Call after controlWrite(0xdd, 0, 0).
@@ -1099,7 +1143,7 @@ uint32_t jna_get_enter_bootloader_mode(void) { return enter_bootloader_mode; }
 void jna_reset_enter_bootloader_mode(void) { enter_bootloader_mode = 0U; }
 void jna_uart_push(const char *data, size_t len) {
     if (uart_ring_debug.elems_rx == NULL) {
-        uart_ring_debug.elems_rx = (uint8_t *)uart_debug_buf;
+        uart_ring_debug.elems_rx = (uint8_t *)uart_debug_rx_buf;
         uart_ring_debug.rx_fifo_size = 256;
     }
     for (size_t i = 0U; (i < len) && (i < 256U); i++) {

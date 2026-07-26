@@ -116,6 +116,11 @@ public class PandaSteps {
         client.checkCanChecksum(hexToBytes(hexExpression));
     }
 
+    @When("endpoint2 write with hex:")
+    public void endpoint2Write(String hexExpression) {
+        client.endpoint2Write(hexToBytes(hexExpression));
+    }
+
     public static class ControlSetup {
         public int timerValue;
         public int fanRpm;

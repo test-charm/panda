@@ -262,6 +262,13 @@ public class PandaClient {
 
         int jna_get_resp_byte(int index);
 
+        // comms_endpoint2_write (SPI endpoint 2 / USB endpoint 2 bulk write)
+        void jna_comms_endpoint2_write(byte[] data, int len);
+
+        int jna_get_endpoint2_debug_len();
+
+        int jna_get_endpoint2_debug_byte(int index);
+
         // Setup for read-request tests
         void jna_set_hw_type(int val);
 
@@ -1160,6 +1167,28 @@ public class PandaClient {
             list.add((byte) lib.jna_get_resp_byte(i));
         }
         return new RespBuffer(AdaptiveList.staticList(list), len);
+    }
+
+    // ---- comms_endpoint2_write (SPI/USB endpoint 2 bulk write) ----
+
+    @AllArgsConstructor
+    @Getter
+    public static class Endpoint2WriteResult {
+        private final AdaptiveList<Byte> bytes;
+        private final int len;
+    }
+
+    public void endpoint2Write(byte[] data) {
+        lib.jna_comms_endpoint2_write(data, data.length);
+    }
+
+    public Endpoint2WriteResult getEndpoint2WriteResult() {
+        int len = lib.jna_get_endpoint2_debug_len();
+        var list = new ArrayList<Byte>();
+        for (int i = 0; i < len; i++) {
+            list.add((byte) lib.jna_get_endpoint2_debug_byte(i));
+        }
+        return new Endpoint2WriteResult(AdaptiveList.staticList(list), len);
     }
 
     public int getFanPower() {

@@ -22,8 +22,8 @@ Feature: CAN Communications Serialization/Deserialization
     Then control data should be:
       """
       txQueue[0]: [{
-        address: 256,
-        data: [1, 2, 3, 4, 5, 6, 7, 8],
+        address: 256
+        data: [0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08]
         rejected: false
       }]
       """
@@ -40,8 +40,8 @@ Feature: CAN Communications Serialization/Deserialization
     Then control data should be:
       """
       txQueue[1]: [{
-        address: 512,
-        data: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14],
+        address: 512
+        data: [0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E]
         rejected: false
       }]
       """
@@ -59,7 +59,7 @@ Feature: CAN Communications Serialization/Deserialization
       """
       : {
         canCommsBuffers: {
-          writeBufferPtr: 10,
+          writeBufferPtr: 10
           writeBufferTail: 4
         }
         txQueue[0]: []
@@ -73,12 +73,12 @@ Feature: CAN Communications Serialization/Deserialization
       """
       : {
         canCommsBuffers: {
-          writeBufferPtr: 0,
+          writeBufferPtr: 0
           writeBufferTail: 0
         }
         txQueue[0]: [{
-          address: 256,
-          data: [1, 2, 3, 4, 5, 6, 7, 8],
+          address: 256
+          data: [0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08]
           rejected: false
         }]
       }
@@ -97,7 +97,7 @@ Feature: CAN Communications Serialization/Deserialization
       """
       : {
         canCommsBuffers: {
-          writeBufferPtr: 10,
+          writeBufferPtr: 10
           writeBufferTail: 4
         }
         txQueue[0]: []
@@ -111,7 +111,7 @@ Feature: CAN Communications Serialization/Deserialization
       """
       : {
         canCommsBuffers: {
-          writeBufferPtr: 12,
+          writeBufferPtr: 12
           writeBufferTail: 2
         }
         txQueue[0]: []
@@ -125,12 +125,12 @@ Feature: CAN Communications Serialization/Deserialization
       """
       : {
         canCommsBuffers: {
-          writeBufferPtr: 0,
+          writeBufferPtr: 0
           writeBufferTail: 0
         }
         txQueue[0]: [{
-          address: 256,
-          data: [1, 2, 3, 4, 5, 6, 7, 8],
+          address: 256
+          data: [0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08]
           rejected: false
         }]
       }
@@ -172,8 +172,8 @@ Feature: CAN Communications Serialization/Deserialization
     Then control data should be:
       """
       txQueue[0]: [{
-        address: 256,
-        data: [1, 2, 3, 4, 5, 6, 7, 8],
+        address: 256
+        data: [0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08]
         rejected: false
       }]
       """
@@ -184,8 +184,8 @@ Feature: CAN Communications Serialization/Deserialization
     Then control data should be:
       """
       txQueue[0]: [{
-        address: 512,
-        data: [9, 10, 11, 12, 13, 14, 15, 16],
+        address: 512
+        data: [0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10]
         rejected: false
       }]
       """

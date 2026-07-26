@@ -68,7 +68,7 @@ board/boards/board_declarations.h     — board 结构体、HW_TYPE_* 常量
 
 | 源文件 | 行覆盖 | 函数覆盖 | 未覆盖原因 |
 |--------|--------|---------|-----------|
-| `board/main_comms.h` | 93.3% | 2/3 | `spi_cmd` 函数 (SPI 通道, 非 USB 路径) |
+| `board/main_comms.h` | 100% | 3/3 | 全部覆盖（`endpoint2_write.feature` 覆盖了 `comms_endpoint2_write`） |
 | `board/main.c` | 46.9% | 4/7 | 主循环 tick 路径 (P1 ✅ 已完成: has_fan=false, heartbeat_counter 溢出, safety_mode_cnt 溢出, harness reinit) |
 | `board/drivers/can_common.h` | 86.8% | 10/12 | can_clear_rx 未遍历路径, can_set_speed 未遍历比特率 |
 | `board/drivers/gpio.h` | 72.1% | 5/7 | set_gpio_analog, restore_gpio 仅 deep_sleep 覆盖 |
@@ -567,7 +567,7 @@ Then control data should be → 验证结果
 
 ```
 本周                        下周                        后续
-P0 can_comms.h ✅ 完成    → P2 boards/*.h ✅ 完成    → P3 spi_cmd
+P0 can_comms.h ✅ 完成    → P2 boards/*.h ✅ 完成    → P3 spi_cmd ✅ 完成
 P1 main.c tick 路径 ✅ 完成 (去桩化)                   (SPI 通道)
 (不改构建，纯加场景)        (板级生产代码直接编译)       (ROI 偏低)
 ```
@@ -629,11 +629,12 @@ P1 main.c tick 路径 ✅ 完成 (去桩化)                   (SPI 通道)
 
 ---
 
-### 🟢 P3 — `main_comms.h` 缺失的 `spi_cmd` (唯一未覆盖的 USB 命令)
+### 🟢 P3 — `main_comms.h` 缺失的 `spi_cmd` (唯一未覆盖的 USB 命令) ✅
 
-33/34 USB 命令已覆盖，`spi_cmd` 是 SPI 通道的命令处理，仅在 SPI 传输模式下触发。
+33/34 USB 命令已覆盖，`spi_cmd` 即 `comms_endpoint2_write`（USB/SPI endpoint 2 批量写入函数）。
+已在 `endpoint2_write.feature` (6 场景) 中通过直接调用真实生产代码完成覆盖。
 
-**工作量**: 需要模拟 SPI 通道 (~1 天)，ROI 偏低
+**工作量**: ✅ 已完成
 
 ---
 
