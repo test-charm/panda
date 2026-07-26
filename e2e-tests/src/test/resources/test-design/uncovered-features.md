@@ -1,9 +1,11 @@
 # 端到端测试未覆盖功能清单
 
 > 最后更新: 2026-07-26
-> 基准 e2e 场景数: 172（包含 P0 `can_comms.feature` +8 场景、P1 `tick_paths.feature` +6 场景）
+> 基准 e2e 场景数: 190+（含 P0 `can_comms.feature`、P1 `tick_paths.feature`、P2 真实 board 头文件编译、`endpoint2_write.feature` 等）
 > 综合行覆盖率: **79.6%** (720/905 lines), 函数覆盖率: **76.1%** (35/46 functions)
 > 数据来源: `e2e-tests/run_all_coverage.sh` (cuatro + tres + red 合并)
+>
+> **本次更新**: 刷新覆盖率数据（P0/P1/P2/P3/P8 已完成后），新增 clock_source_init / board init / libc.h / 去桩化机会分析
 
 ---
 
@@ -68,18 +70,24 @@ board/boards/board_declarations.h     — board 结构体、HW_TYPE_* 常量
 
 | 源文件 | 行覆盖 | 函数覆盖 | 未覆盖原因 |
 |--------|--------|---------|-----------|
-| `board/main_comms.h` | 100% | 3/3 | 全部覆盖（`endpoint2_write.feature` 覆盖了 `comms_endpoint2_write`） |
-| `board/main.c` | 46.9% | 4/7 | 主循环 tick 路径 (P1 ✅ 已完成: has_fan=false, heartbeat_counter 溢出, safety_mode_cnt 溢出, harness reinit) |
-| `board/drivers/can_common.h` | 86.8% | 10/12 | can_clear_rx 未遍历路径, can_set_speed 未遍历比特率 |
-| `board/drivers/gpio.h` | 72.1% | 5/7 | set_gpio_analog, restore_gpio 仅 deep_sleep 覆盖 |
-| `board/sys/faults.h` | 78.9% | 2/2 | `fault_occurred` Temporary fault 路径已由 watchdog 覆盖 |
-| `board/libc.h` | 60.7% | 3/5 | memset/memcpy 大量路径 |
-| `board/drivers/fan.h` | 37.0% | 2/3 | fan cooldown 逻辑 (P8 ✅) + has_fan=false 路径 (P1 ✅) |
-| `board/can_comms.h` | 18.4% | 2/4 | CAN 接收/发送内层路径 |
-| `board/drivers/clock_source.h` | 18.4% | 1/2 | TIM8 外部时钟模式未覆盖 |
-| `board/drivers/registers.h` | — | — | 头文件 (声明) |
-| `board/boards/board_declarations.h` | — | — | 头文件 (宏/声明) |
-| `board/sys/sys.h` | — | — | 头文件 (声明) |
+| `board/main_comms.h` | 97.0% | 3/3 | 仅 default handler print + ALLOW_DEBUG 条件未覆盖 |
+| `board/can_comms.h` | 100% | 4/4 | ✅ P0 已完成，全部覆盖 |
+| `board/main.c` | 64.2% | 4/7 | 主循环 main()/LED fade 不可达；tick_handler 路径 (P1+P3-P9) ✅ |
+| `board/drivers/can_common.h` | 95.3% | 10/12 | 队列指针回绕边界条件 (5 lines) |
+| `board/drivers/fan.h` | 100% | 3/3 | ✅ P8 已完成，全部覆盖 |
+| `board/drivers/gpio.h` | 70.4% | 5/7 | `set_gpio_analog`、`restore_gpio` 仅 deep_sleep 覆盖 |
+| `board/sys/faults.h` | 78.9% | 2/2 | Permanent fault 路径未覆盖 (4 lines) |
+| `board/drivers/clock_source.h` | 17.5% | 1/2 | `clock_source_init()` 从未被调用 — **最高 ROI 未覆盖** |
+| `board/libc.h` | 61.3% | 3/5 | `delay()`、`assert_fatal()`、`memcmp()` 未覆盖 |
+| `board/drivers/registers.h` | 97.8% | — | 仅 1 行未覆盖 (hash collision fallback) |
+| `board/drivers/simple_watchdog.h` | 100% | — | ✅ P3 已完成 |
+| `board/sys/sys.h` | 83.3% | — | 头文件 (声明) |
+| `board/utils.h` | 100% | — | 全部覆盖 |
+| `board/boards/cuatro.h` | 34.8% | — | `cuatro_init()` GPIO 配置路径未调用 (P2 首次编译) |
+| `board/boards/tres.h` | 58.7% | — | `tres_init()` GPIO 配置路径未调用 (P2 首次编译) |
+| `board/boards/red.h` | 65.7% | — | `red_init()` GPIO 配置路径未调用 (P2 首次编译) |
+| `board/boards/unused_funcs.h` | 26.1% | — | 大量未使用空函数 |
+| `board/boards/board_declarations.h` | 50.0% | — | 板型特定声明 |
 
 ---
 
@@ -381,7 +389,7 @@ board/bootstub.c      → bootstub      ❌ 无 e2e
 
 ### 🔴 高优先级（行为显著、可测）
 
-#### P1 — `bootkick_tick()` SOM 启动/复位 FSM
+#### P1 — `bootkick_tick()` SOM 启动/复位 FSM ✅ 已完成
 
 ```
 文件: board/drivers/bootkick.h
@@ -397,9 +405,9 @@ BOOT_BOOTKICK → BOOT_STANDBY → (STANDBY→BOOTKICK edge) → 20 tick 等待 
 - 复位倒计时、串口活动检测、SOM GPIO 检测
 - 3 种中止路径：串口活动、SOM GPIO 高、非 BOOTKICK 状态
 
-**状态：** ✅ `bootkick.feature` (14 场景，含 @cuatro × 11 + @tres × 3) + `bootkick.md` 设计文档，全部通过，通过 `jna_call_tick_handler`（完整生产代码 `tick_handler()`）调用真实 `bootkick_tick()` 代码。
+**状态：** ✅ `bootkick.feature` (14 场景，含 @cuatro × 11 + @tres × 3)，全部通过，通过 `jna_call_tick_handler` 调用真实生产代码 `tick_handler()`。
 
-#### P2 — 心跳丢失自动行为
+#### P2 — 心跳丢失自动行为 ✅ 已完成
 
 ```
 文件: board/main.c:185-244
@@ -410,105 +418,112 @@ BOOT_BOOTKICK → BOOT_STANDBY → (STANDBY→BOOTKICK edge) → 20 tick 等待 
 | `controls_allowed` → false（3 次 heartbeat_engaged 不匹配） | main.c:201-208 | ✅ `heartbeat_loss.feature` Scenario 1 |
 | 心跳超时 2-5 秒 → SILENT + 省电 | main.c:210-245 | ✅ `heartbeat_loss.feature` Scenario 2,3 |
 | `siren_countdown` 3 秒触发 | main.c:217-220 | ✅ `heartbeat_loss.feature` Scenario 4 |
-| `controls_allowed_countdown` 5 秒宽限期 | main.c:192-196 | ✅ `heartbeat_loss.feature` Scenario 5（countdown 过期后不触发 siren） |
+| `controls_allowed_countdown` 5 秒宽限期 | main.c:192-196 | ✅ `heartbeat_loss.feature` Scenario 5 |
 | 心跳丢失时 IR 关闭 + 风扇按 SOM GPIO 调整 | main.c:238-243 | ✅ `heartbeat_loss.feature` Scenario 6,7,8 |
 | `heartbeat_disabled` 旁路 | main.c:210 | ✅ `heartbeat_loss.feature` Scenario 9 |
 
-**状态：** ✅ `heartbeat_loss.feature` (9 场景)，全部通过，通过 `jna_call_tick_handler` 调用真实生产代码。
+**状态：** ✅ `heartbeat_loss.feature` (9 场景)，全部通过。
 
-#### P3 — `simple_watchdog_kick()` 看门狗
+#### P3 — `simple_watchdog_kick()` 看门狗 ✅ 已完成
 
-```
-文件: board/drivers/simple_watchdog.h
-调用: main.c:131 (8Hz tick_handler)
-```
+**状态：** ✅ `watchdog.feature` (3 场景)，直接 include 真实 `board/drivers/simple_watchdog.h`。
 
-- 375ms 超时阈值 (`3*1000000/8` μs) → `FAULT_HEARTBEAT_LOOP_WATCHDOG` (bit 26)
-- 测试通过 `timerValue` 控制微秒定时器，在 tick 之间推进时间
-- **状态：** ✅ `watchdog.feature` (3 场景)，直接 include 真实 `board/drivers/simple_watchdog.h` 生产代码
+#### P4 — `relay_malfunction` 故障边沿检测 ✅ 已完成
 
-#### P4 — `relay_malfunction` 故障边沿检测
+**状态：** ✅ `relay_malfunction.feature`（3 场景），通过 `jna_call_tick_handler` 调用真实 `tick_handler()`。
 
-```
-文件: board/main.c:134-141
-调用: 8Hz tick_handler
-```
+#### P5 — `check_registers()` 寄存器发散检测 ✅ 已完成
 
-- **状态：** ✅ `relay_malfunction.feature`（3 个场景，通过 `jna_call_tick_handler` 调用真实生产代码 `tick_handler()`）
-
-#### P5 — `check_registers()` 寄存器发散检测
-
-```
-文件: board/drivers/registers.h
-调用: main.c:248 (1Hz)
-```
-
-- 影子寄存器校验 → `FAULT_REGISTER_DIVERGENT`
-- **状态：** ✅ `register_divergence.feature` (3 场景)，全部通过
-- **实现方式：** e2e `stm32h7_config.h` 引入真实 `registers.h`（替换原有空存根），`jna_set_register_divergent()` 直接注入 `register_map` 制造发散状态，`init_registers()` 在 `jna_panda_init()` 末尾调用清除初始化噪音
-- **行覆盖：** `check_registers()` 内部 100% 行 + 分支覆盖
+**状态：** ✅ `register_divergence.feature` (3 场景)，全部通过，行 + 分支覆盖 100%。
 
 ### 🟡 中优先级（状态变量 / 辅助路径）
 
-#### P6 — WFI 空闲路径
+#### P6 — WFI 空闲路径 ✅ 已完成
+#### P7 — `ignition_can_cnt` / `ignition_can` 自动复位 ✅ 已完成
+#### P8 — `fan_state.cooldown_counter` 冷却保持 ✅ 已完成
+#### P9 — `harness_detect_orientation()` 线束翻转检测 ✅ 已完成
+
+---
+
+### 🆕 新增未覆盖项（本次分析发现）
+
+#### N1 — `clock_source_init()` 覆盖率仅 17.5% 🔴 最高 ROI
 
 ```
-文件: board/main.c:377-385
+文件: board/drivers/clock_source.h (真实代码，已编译)
 ```
 
-- CUATRO `enter_stop_mode()` ✅ 已覆盖
-- 非 CUATRO 的 `__WFI()` 空闲路径 ✅ 已覆盖 (`wfi_idle.feature`, 3 场景，通过 `jna_process_wfi_idle` 调用生产代码)
+`clock_source_init(bool enable_channel1)` 是整个 `clock_source.h` 的核心函数，配置 TIM1 为主定时器、TIM8 为从定时器（外部时钟模式）。e2e 中该函数从未被调用 — 仅 `clock_source_set_timer_params()` 被 `clock_source.feature` 调用。
 
-#### P7 — `ignition_can_cnt` / `ignition_can` 自动复位
+| 路径 | 行号 | 说明 |
+|------|------|------|
+| `enable_channel1=true` 分支 | 33-35 | TIM1 CH1 输出使能 (GPIOA8 alternate) |
+| `enable_channel1=false` 分支 | — | 仅 CH2N 输出 (GPIOB14) |
+| TIM1 PSC/ARR/CCMR/CCER/CCR 配置 | 18-25 | 0.1ms tick 基础配置 |
+| TIM1 BDTR/SMCR/CR2 主模式 | 43-47 | 主定时器触发输出配置 |
+| TIM8 SMCR 从模式 | 48 | 外部时钟模式 1，ITR0 触发源 |
+| TIM8 PSC/ARR/CCMR2/CCR3/CCER 复制 | 51-55 | 从定时器参数复制 |
+| TIM8 BDTR + GPIOB15 alternate | 58-61 | 从定时器输出使能 |
+| TIM1+TIM8 CR1 CEN 启动 | 64-65 | 两个定时器同时启动 |
+
+**测试方式**: 直接调用 `clock_source_init(true)` 和 `clock_source_init(false)`，验证 fake TIM1/TIM8 寄存器值 + GPIO alternate 配置。
+
+**工作量**: ~3 场景，0.5 天
+
+#### N2 — Board `xxx_init()` 函数覆盖率偏低 🔴
 
 ```
-文件: board/main.c:251-253
+文件: board/boards/cuatro.h (34.8%), tres.h (58.7%), red.h (65.7%)
+P2 已将这些文件从桩切断恢复为真实代码编译
 ```
 
-- CAN 流量停止后 `ignition_can_cnt` 递增，超过 2 后 `ignition_can = false`
-- 测试通过 `jna_set_ignition_can` 设置初始状态 + `jna_call_tick_handler` 驱动 tick 累积验证
-- **状态：** ✅ `ignition_can.feature` (2 场景)，全部通过
+各板型的 `xxx_init()` 函数设置 GPIO 模式、输出类型、上下拉。这些函数被 `main()` 调用，但 e2e 中从未执行。未覆盖行：
 
-#### P8 — `fan_state.cooldown_counter` 冷却保持
+| 板型 | 未覆盖行 | 核心未覆盖内容 |
+|------|---------|---------------|
+| `cuatro_init()` | 23-24, 28-30, 32-34, 36-38, 50-51, 54-55, 58-59, 62-64 | GPIO MODER/OTYPER/PUPDR 配置 |
+| `tres_init()` | 11-19, 26-30, 49-50, 95-107 | GPIO + ADC 配置 |
+| `red_init()` | 23-24, 65-99 | GPIO 配置 |
 
-- 风扇断电后继续运行 `cooldown_time * 8` 个 tick
-- **状态：** ✅ `fan_cooldown.feature` (3 场景) + 设计文档 (`fan-cooldown.md`)，全部通过，通过 `jna_call_tick_handler` 调用真实 `fan_tick()` 代码
+**测试方式**: 调用 `xxx_init()` 后验证 GPIO MODER/OTYPER/PUPDR/OSPEEDR 寄存器值。
 
-#### P9 — `harness_detect_orientation()` 线束翻转检测
+**工作量**: ~6 场景（3 板型 × 2），1 天
+
+#### N3 — `faults.h` Permanent fault 路径 🟡
 
 ```
-文件: board/drivers/harness.h:52-88
+文件: board/sys/faults.h
+未覆盖: lines 9-10 (permanent fault 打印), 23-24 ("Cannot recover")
 ```
 
-- SBU ADC 电压检测逻辑
-- **状态：** ✅ `harness_detect.feature` (8 场景) + 设计文档 (`harness-detect.md`)，通过 `generate_harness_stubs.py` 逐字提取生产代码，`lladc.h` 桩拦截 `adc_get_mV()`
+当前仅 temporary fault 路径被 watchdog 覆盖。Permanent fault 状态转换未测试。
+
+**工作量**: 1 场景，极低
+
+#### N4 — `can_common.h` 队列指针回绕 🟡
+
+```
+文件: board/drivers/can_common.h (95.3%)
+未覆盖: lines 47, 64, 90, 101-102 — 队列满时 w_ptr/r_ptr 回绕到 0
+```
+
+**工作量**: ~2 场景，0.5 天
+
+#### N5 — `libc.h` `delay()` / `assert_fatal()` / `memcmp()` 🟢
+
+```
+文件: board/libc.h (61.3%)
+```
+
+`delay()` 是忙等待循环，`assert_fatal()` 是死循环，`memcmp()` 是标准比较。低业务价值。
+
+**工作量**: ~2 场景，低 ROI
 
 ### 🟢 低优先级（仅初始化 / 调试）
 
-#### P10 — LED 行为
-
-| LED | 行为 | 代码位置 |
-|-----|------|----------|
-| 绿灯 | `controls_allowed` | main.c:166 |
-| 蓝灯 | 省电模式闪烁 | main.c:170 |
-| 红灯 | 呼吸渐变（非省电）/ 慢闪（故障） | main.c:354-375 |
-
-> 仅调试指示，无功能影响。**状态：** ❌ 无测试需求
-
-#### P11 — `sound_tick()` / `sound_init()` 音频子系统
-
-```
-文件: board/stm32h7/sound.h
-```
-
-- 麦克风空闲超时、功放空闲超时
-- `sound_output_level` 出现在 health packet，但未驱动
-- **状态：** ❌ 无测试
-
-#### P12 — `safety_mode_cnt` 递增计数器
-
-- 每秒自增，仅在 safety hooks 内部使用
-- **状态：** ❌ 无测试需求
+#### P10 — LED 行为 ❌ 不需要
+#### P11 — `sound_tick()` / `sound_init()` 音频子系统 ❌ 不需要
+#### P12 — `safety_mode_cnt` 递增计数器 ✅ 已完成
 
 ---
 
@@ -516,18 +531,23 @@ BOOT_BOOTKICK → BOOT_STANDBY → (STANDBY→BOOTKICK edge) → 20 tick 等待 
 
 | 优先级 | 项目 | 代码文件 | 覆盖状态 | 工作量估算 |
 |--------|------|---------|----------|-----------|
-| **P1** | `bootkick_tick()` FSM | `board/drivers/bootkick.h` | ✅ feature 已有 (`bootkick.feature`，14 场景) + 设计文档 (`bootkick.md`)，全部通过，通过 `jna_tick_handler` 调用真实代码 | — |
-| **P2** | 心跳丢失自动行为 | `board/main.c:185-244` | ✅ `heartbeat_loss.feature` (9 场景) + 设计文档 (`heartbeat-loss.md`)，全部通过，通过 `jna_call_tick_handler` 调用真实生产代码 | — |
-| **P3** | `simple_watchdog` 看门狗 | `board/drivers/simple_watchdog.h` | ✅ `watchdog.feature` (3 场景) + 设计文档 (`watchdog.md`)，直接 include 生产代码 | — |
-| **P4** | `relay_malfunction` 故障检测 | `board/main.c:134-141` | ✅ feature 已有 (`relay_malfunction.feature`，3 场景) + 设计文档 (`relay-malfunction.md`) | — |
-| **P5** | `check_registers()` | `board/drivers/registers.h` | ✅ `register_divergence.feature` (3 场景) + 设计文档 (`register-divergence.md`)，通过 `jna_set_register_divergent` 注入 + `init_registers` 在 init 末尾清噪音 | 小 |
-| **P6** | WFI 空闲路径 | `board/main.c:377-385` | ✅ 已覆盖 (`wfi_idle.feature`, 3 场景) + 设计文档 (`wfi-idle.md`) | 小 |
-| **P7** | `ignition_can_cnt` 复位 | `board/main.c:251-253` | ✅ `ignition_can.feature` (2 场景) + 设计文档 (`ignition-can.md`) | 小 |
-| **P8** | `fan_state.cooldown` | `board/drivers/fan.h` | ✅ `fan_cooldown.feature` (3 场景) + 设计文档 (`fan-cooldown.md`)，通过 `jna_call_tick_handler` 调用真实 `fan_tick()` 代码 | 小 |
-| **P9** | `harness_detect_orientation` | `board/drivers/harness.h:52-88` | ✅ `harness_detect.feature` (8 场景) + 设计文档 (`harness-detect.md`)，通过 `generate_harness_stubs.py` 逐字提取生产代码，`lladc.h` 桩拦截 `adc_get_mV()` | 小 |
+| **P1** | `bootkick_tick()` FSM | `board/drivers/bootkick.h` | ✅ `bootkick.feature` (14 场景) | — |
+| **P2** | 心跳丢失自动行为 | `board/main.c:185-244` | ✅ `heartbeat_loss.feature` (9 场景) | — |
+| **P3** | `simple_watchdog` 看门狗 | `board/drivers/simple_watchdog.h` | ✅ `watchdog.feature` (3 场景) | — |
+| **P4** | `relay_malfunction` 故障检测 | `board/main.c:134-141` | ✅ `relay_malfunction.feature` (3 场景) | — |
+| **P5** | `check_registers()` | `board/drivers/registers.h` | ✅ `register_divergence.feature` (3 场景) | — |
+| **P6** | WFI 空闲路径 | `board/main.c:377-385` | ✅ `wfi_idle.feature` (3 场景) | — |
+| **P7** | `ignition_can_cnt` 复位 | `board/main.c:251-253` | ✅ `ignition_can.feature` (2 场景) | — |
+| **P8** | `fan_state.cooldown` | `board/drivers/fan.h` | ✅ `fan_cooldown.feature` (3 场景) | — |
+| **P9** | `harness_detect_orientation` | `board/drivers/harness.h:52-88` | ✅ `harness_detect.feature` (8 场景) | — |
 | **P10** | LED 行为 | `board/main.c:166-375` | ❌ 不需要 | — |
 | **P11** | `sound_tick()` 音频 | `board/stm32h7/sound.h` | ❌ 不需要 | — |
-| **P12** | `safety_mode_cnt` | `board/main.c` | ✅ `tick_paths.feature` (通过 `jna_set_safety_mode_cnt` + `jna_call_tick_handler`) | 小 |
+| **P12** | `safety_mode_cnt` | `board/main.c` | ✅ `tick_paths.feature` | — |
+| **N1** | `clock_source_init()` | `board/drivers/clock_source.h` | ❌ **17.5% → 目标 95%+** | 0.5 天 |
+| **N2** | Board `xxx_init()` | `board/boards/{cuatro,tres,red}.h` | ❌ **35-66% → 目标 70%+** | 1 天 |
+| **N3** | Permanent fault | `board/sys/faults.h` | ❌ **78.9% → 目标 100%** | 极低 |
+| **N4** | CAN queue wrap | `board/drivers/can_common.h` | ❌ **95.3% → 目标 100%** | 0.5 天 |
+| **N5** | `libc.h` 未覆盖路径 | `board/libc.h` | ❌ **61.3%** (低 ROI) | 0.5 天 |
 | — | Flasher 命令 (3 个) | `board/flasher.h` | ❌ 新 e2e 目标 | 大 |
 | — | Jungle 命令 (8 个) | `board/jungle/main_comms.h` | ❌ 新 e2e 目标 | 大 |
 | — | Body 命令 (2 个) | `board/body/main_comms.h` | ❌ 新 e2e 目标 | 小 |
@@ -566,83 +586,177 @@ Then control data should be → 验证结果
 ### 优先级路线图
 
 ```
-本周                        下周                        后续
-P0 can_comms.h ✅ 完成    → P2 boards/*.h ✅ 完成    → P3 spi_cmd ✅ 完成
-P1 main.c tick 路径 ✅ 完成 (去桩化)                   (SPI 通道)
-(不改构建，纯加场景)        (板级生产代码直接编译)       (ROI 偏低)
+本周                                    下周                              后续
+N1 clock_source_init (17.5% → 95%+)    N2 board xxx_init() (35-66%+)    N4 can_common wrap
+N3 faults permanent (78.9% → 100%)      B1 power_saving.h 去桩化          N5 libc.h (低 ROI)
+                                        B2 bootkick.h 去桩化               Jungle/Body 固件
 ```
 
-### 🔴 P0 — 提升 `can_comms.h` 覆盖率 (当前 18.4%，最高 ROI) ✅ 已完成
+---
 
-**2026-07-25 完成**，新增 `can_comms.feature` 8 个场景，覆盖率从 18.4% → 97.4%。所有 4 个函数 100% 覆盖，可执行行 76/76 (100%)。
+### 🔴 Phase A — 不改构建，纯加场景（最高 ROI）
 
-已覆盖路径：
-- ✅ CAN FD 64 字节帧打包/解包 → DLC=15 正确解析
-- ✅ 跨 chunk 分片传输 — write 端 (二次分片、tail > remaining、tail ≤ remaining)
-- ✅ 跨 chunk 分片传输 — read 端 (max_len 截断、overflow 排空)
-- ✅ `returned` / `rejected` 标志位 — wire format 编解码验证
-- ✅ 校验和 mismatch → `can_check_checksum` 返回 false
-- ✅ 连续多帧批量读写 — 帧边界正确识别
+#### N1 — `clock_source_init()` 覆盖率从 17.5% 提升到 95%+
 
-剩余未覆盖：`refresh_can_tx_slots_available()` 中 `can_tx_check_min_slots_free` 返回 false 的 4 个分支（队列满边界），需硬件层模拟，ROI 偏低。
+**文件**: `board/drivers/clock_source.h`（真实生产代码，已编译但从未调用）
+
+`clock_source_init(bool enable_channel1)` 配置 TIM1（主模式）和 TIM8（从模式/外部时钟）寄存器。e2e 中仅 `clock_source_set_timer_params()` 被调用（33% 覆盖），`clock_source_init()` 从未执行。
+
+| 场景 | 测试内容 |
+|------|---------|
+| 初始化 (channel1 使能) | `clock_source_init(true)` → 验证 TIM1 PSC/ARR/CCMR1/CCER, TIM8 SMCR/PSC/ARR/CCR3, GPIOA8 + GPIOB14 alternate |
+| 初始化 (channel1 禁用) | `clock_source_init(false)` → 验证 GPIOA8 alternate 未使能，GPIOB14 仍使能 |
+| 寄存器完整性 | 验证 BDTR/MOE, CR2/MMS, BDTR/MOE for TIM8, CR1/CEN for both TIMs |
+
+**JNA 接口**：现有 `jna_get_TIM1_CCR1()` 等函数可复用。需额外暴露 TIM1 SMCR/BDTR/CR2/DIER 和 TIM8 PSC/ARR/SMCR/CCR3/BDTR。
+
+**预估收益**: `clock_source.h` 从 17.5% → 90%+（~33 uncovered lines）
+
+**工作量**: ~3 场景，0.5 天
 
 ---
 
-### 🟡 P1 — 提升 `main.c` tick 路径覆盖率 (当前 46.9%) ✅ 已完成
+#### N2 — Board `xxx_init()` 覆盖率提升
 
-**不改构建，`jna_call_tick_handler` + 新增 `jna_set_heartbeat_counter`/`jna_set_safety_mode_cnt` JNA 桥接。**
+**文件**: `board/boards/{cuatro,tres,red}.h`（P2 已首次编译为真实代码，但从未调用 init 函数）
 
-| 未覆盖路径 | 代码位置 | 测试思路 | 覆盖场景 |
-|-----------|---------|---------|---------|
-| `current_board->has_fan` 为 false 跳过 `fan_tick` | fan.h:22 | red panda (无风扇) 下验证 fan_state 不变 | `@red` 风扇状态不变 |
-| ~~`power_save_enabled` 与 `controls_allowed` 组合分支~~ → 修正为 harness reinit 路径 | main.c:144-152 | harness 状态变更触发 `set_safety_mode` + `set_power_save_state` | harness reinit 重置心跳计数器 + harness reinit 省电状态保持 |
-| `heartbeat_counter` 溢出封顶 | main.c:179-181 | 设 heartbeat_counter = UINT32_MAX(-1)，触发 tick 验证不递增 | heartbeat 计数器封顶 + heartbeat 计数器递增 |
-| `safety_mode_cnt` 溢出回绕 | main.c:257 | 设 safety_mode_cnt = UINT32_MAX(-1)，验证回绕到 0 | 安全模式计数器溢出回绕 |
+| 板型 | 当前覆盖 | 未覆盖核心路径 |
+|------|---------|---------------|
+| `cuatro_init()` | 34.8% | GPIO MODER/OTYPER/PUPDR for CAN transceiver, bootkick, fan, relay pins |
+| `tres_init()` | 58.7% | GPIO + ADC 配置, clock source TIM 配置 |
+| `red_init()` | 65.7% | GPIO 配置, 电压/电流 ADC 通道 |
 
-**实现**: `tick_paths.feature` (6 场景)，新增 JNA 函数 `jna_set_heartbeat_counter`、`jna_set_safety_mode_cnt`、`jna_get_safety_mode_cnt`，设计文档 `tick-paths.md`
+**测试方式**: 每种板型 2 场景（调用 init + 验证寄存器，验证不崩溃）
 
-**工作量**: ~0.5 天 ✅
+**预估收益**: 3 个文件从 35-66% → 70-85%（~25 uncovered lines）
 
----
-
-### 🟡 P2 — 将 `boards/{cuatro,red,tres}.h` 从桩切断恢复 ✅ 已完成
-
-**2026-07-26 完成**。这三个文件定义了**板级 GPIO 映射**（CAN 收发器引脚、电压/电流检测引脚、bootkick 引脚）。此前 e2e 中用 `board_stubs_e2e.gen.c` 提取函数副本 + `board_stub` 硬编码替代，真实函数从未编译。
-
-**做法**: 创建 e2e 桩 `board/stm32h7/board.h`，引入真实 `board/boards/{cuatro,red,tres}.h` 生产代码。`detect_board_type()` 保留在 `libpanda.c` 中桩化，但板级函数（`enable_can_transceiver`、`set_bootkick`、`set_amp_enabled`、`set_can_mode`）直接编译真实代码。`libpanda.c` 中的 `e2e_board` 结构体按板型引用真实静态函数，同时保留电压/电流/风扇/IR/警报/SOM GPIO 的 e2e 拦截桩。
-
-**变更文件**:
-- 新增 `board/stm32h7/board.h` — e2e 桩，替代真实 `board/stm32h7/board.h`
-- 修改 `libpanda.c` — `e2e_board` 替代 `board_stub`，移除 `board_stubs_e2e.gen.c` 引入
-- 修改 `build.sh` — 移除 `board_stubs_e2e.gen.c` 生成步骤
-- 修改 `fake_stm.h`、`harness.h`、`lladc.h`、`pwm.h` — 类型/宏适配
-
-| 可覆盖的真实函数 | 所属文件 | 状态 |
-|-----------------|---------|------|
-| `cuatro/tres/red_enable_can_transceiver()` | GPIO 引脚映射 | ✅ 直接编译，现有场景覆盖 |
-| `cuatro/tres/red_read_voltage_mV()` | ADC 通道映射 | ✅ 直接编译，e2e 拦截桩保持 |
-| `cuatro/tres/red_read_current_mA()` | ADC 通道映射 | ✅ 直接编译，e2e 拦截桩保持 |
-| `cuatro/tres_set_bootkick()` | GPIO 引脚映射 | ✅ 直接编译，现有场景覆盖 |
-| `cuatro_set_amp_enabled()` | GPIO 引脚映射 | ✅ 直接编译，现有场景覆盖 |
-
-**工作量**: ~1 天 ✅
+**工作量**: ~6 场景，1 天
 
 ---
 
-### 🟢 P3 — `main_comms.h` 缺失的 `spi_cmd` (唯一未覆盖的 USB 命令) ✅
+#### N3 — `faults.h` Permanent fault 路径
 
-33/34 USB 命令已覆盖，`spi_cmd` 即 `comms_endpoint2_write`（USB/SPI endpoint 2 批量写入函数）。
-已在 `endpoint2_write.feature` (6 场景) 中通过直接调用真实生产代码完成覆盖。
+**文件**: `board/sys/faults.h`，当前 78.9%，仅 4 行未覆盖
 
-**工作量**: ✅ 已完成
+| 场景 | 测试内容 |
+|------|---------|
+| Permanent fault 不可恢复 | 触发 permanent fault → 再次 `fault_occurred()` → 验证 "Cannot recover" 消息 |
+
+**工作量**: 1 场景，极低
 
 ---
 
-### P0+P1+P2 实际收益
+#### N4 — `can_common.h` 队列指针回绕
+
+**文件**: `board/drivers/can_common.h`，当前 95.3%，5 行未覆盖
+
+| 场景 | 测试内容 |
+|------|---------|
+| w_ptr 回绕 | 填充队列使 `w_ptr` 回绕到 0 → 验证 `next_w_ptr` 计算 |
+| r_ptr 回绕 | `can_clear_rx()` 但 `r_ptr` 已经为 0 → 验证边界 |
+| can_tx_check_min_slots_free 回绕 | w_ptr < r_ptr → 容量计算正确 |
+
+**工作量**: ~2 场景，0.5 天
+
+---
+
+### 🟡 Phase B — 减少测试桩，引用更多生产代码
+
+#### B1 — 合并 `power_save_e2e.gen.c` + `enter_stop_mode_e2e.gen.c` → 真实 `board/sys/power_saving.h`
+
+**当前状态**:
+```
+board/sys/power_saving.h (e2e 桩, 仅 3 行声明)
+  ↓ 手工维护
+power_save_e2e.gen.c         — 手写 `set_power_save_state()` 副本 (26 lines, 92.3% 覆盖)
+enter_stop_mode_e2e.gen.c    — 手写 `enter_stop_mode()` 副本（去掉 static, 60 lines, 96.7% 覆盖）
+```
+
+**目标**: 直接 `#include "board/sys/power_saving.h"` 真实生产代码
+
+**障碍**: `enter_stop_mode()` 在真实代码中为 `static`，JNA 无法直接调用。解决方案：
+- 方案 A: 在 `libpanda.c` 中添加非 static 包装函数 `void jna_enter_stop_mode(void) { enter_stop_mode(); }`
+- 方案 B: 在 `build.sh` 编译选项中用 `-Dstatic=` 去掉 static 关键字
+
+**收益**: 消除 2 个手写副本文件（~86 lines），真实 `power_saving.h` 进入覆盖率
+
+**工作量**: ~0.5 天
+
+---
+
+#### B2 — 替换 `bootkick_e2e.gen.c` → 真实 `board/drivers/bootkick.h`
+
+**当前状态**: `bootkick_e2e.gen.c`（58 lines, 98.3% 覆盖）由 `generate_bootkick_stubs.py` 从真实 `bootkick.h` 提取生成
+
+**目标**: 直接 `#include "board/drivers/bootkick.h"` 真实生产代码
+
+**障碍**: 真实 `bootkick.h` 使用 `USART_TypeDef`。解决方案：在 `fake_stm.h` 中添加最小化 `USART_TypeDef` 定义（仅需包含 bootkick 用到的寄存器字段）。
+
+**收益**: 消除 1 个生成文件 + 1 个生成脚本
+
+**工作量**: ~0.5 天
+
+---
+
+### 预估总收益
 
 ```
-P0 完成前综合行覆盖率: 65.1% (575/884)
-P0 完成后预估:         79.6% (720/905, + can_comms.h 18.4→100%)
-P1 完成后预估:         82-85% (+ main.c tick 路径 4 个新分支, fan.h has_fan=false 路径)
-P2 完成后预估:         86-90% (+ boards/*.h 首次直接编译, llfdcan.h 等首次进入)
+Phase A 完成后:  79.6% → ~85%   (770/905 lines)
+Phase B 完成后:  ~85% → ~87%   (消除手写副本，真实代码进入覆盖)
 ```
+
+---
+
+## 十、`libpanda.c` 桩库存与去桩化机会
+
+### 当前状态：哪些已是真实代码，哪些还是桩
+
+```
+libpanda.c (1348 lines) 编译模型:
+  #include "board/main.c"                    ← ✅ 完整固件
+  #include "board/drivers/fan.h"             ← ✅ 真实代码 (100% 覆盖)
+  #include "board/drivers/clock_source.h"    ← ✅ 真实代码 (17.5% 覆盖 — 仅 set_timer_params 被调用)
+  #include "board/drivers/simple_watchdog.h" ← ✅ 真实代码 (100% 覆盖)
+  #include "board/libc.h"                    ← ✅ 真实代码 (61.3% 覆盖)
+  #include "board/drivers/registers.h"       ← ✅ 真实代码 (97.8% 覆盖)
+  #include "board/sys/faults.h"              ← ✅ 真实代码 (78.9% 覆盖)
+  #include "board/drivers/harness.h"         ← ✅ 真实代码 (struct + 声明)
+  #include "board/drivers/uart.h"            ← ✅ 真实代码
+  #include "boards/board_declarations.h"     ← ✅ 真实代码
+  #include "board/boards/{cuatro,tres,red}.h" ← ✅ 真实代码 (P2, 35-66% 覆盖)
+  #include "board/drivers/gpio.h"            ← ✅ 真实代码 (70.4% 覆盖)
+  #include "board/drivers/interrupts.h"      ← ⚠️ e2e 桩 (空实现)
+  #include "board/stm32h7/stm32h7_config.h"  ← ⚠️ e2e 桩 (最小化)
+  #include "board/stm32h7/lladc.h"           ← ⚠️ e2e 桩 (拦截 adc_get_mV)
+  #include "board/drivers/pwm.h"             ← ⚠️ e2e 桩 (空实现)
+  #include "board/drivers/led.h"             ← ⚠️ e2e 桩 (空实现)
+  #include "board/drivers/timers.h"          ← ⚠️ e2e 桩 (空实现)
+  #include "board/drivers/spi.h"             ← ⚠️ e2e 桩 (空实现)
+  #include "board/drivers/usb.h"             ← ⚠️ e2e 桩 (空实现)
+  #include "board/drivers/fake_siren.h"      ← ⚠️ e2e 桩 (空实现)
+  #include "fdcan_e2e.gen.c"                 ← 🔧 从 llfdcan.h 提取 (93.6% 覆盖)
+  #include "can_health_e2e.gen.c"            ← 🔧 从 fdcan.h 提取 (94.6% 覆盖)
+  #include "bootkick_e2e.gen.c"              ← 🔧 从 bootkick.h 提取 (98.3% 覆盖)
+  #include "harness_detect_e2e.gen.c"        ← 🔧 从 harness.h 提取 (100% 覆盖)
+  #include "power_save_e2e.gen.c"            ← 📝 手写副本 (92.3% 覆盖)
+  #include "enter_stop_mode_e2e.gen.c"       ← 📝 手写副本 (96.7% 覆盖)
+```
+
+### 去桩化机会排序
+
+| 优先级 | 桩/Gen 文件 | 替换目标 | 收益 | 障碍 |
+|--------|-----------|---------|------|------|
+| 🔴 B1 | `power_save_e2e.gen.c` + `enter_stop_mode_e2e.gen.c` | `board/sys/power_saving.h` | 消除 2 个手写文件 (~86 lines) | `enter_stop_mode` 为 static |
+| 🔴 B2 | `bootkick_e2e.gen.c` | `board/drivers/bootkick.h` | 消除 1 个生成文件 + 生成脚本 | 需 USART_TypeDef stub |
+| 🟡 B3 | `fdcan_e2e.gen.c` | `board/stm32h7/llfdcan.h` | 消除最大的生成文件 (140 lines) | 依赖大量 STM32 HAL 头 |
+| 🟡 B4 | `can_health_e2e.gen.c` | `board/drivers/fdcan.h` | 消除 1 个生成文件 (37 lines) | fdcan.h 已有 e2e 桩 |
+| 🟢 B5 | `harness_detect_e2e.gen.c` | `board/drivers/harness.h` | 消除 1 个生成文件 (29 lines) | 函数为 static，低优先级 |
+
+### 不可去桩化的文件
+
+| 文件 | 理由 |
+|------|------|
+| `interrupts.h`, `timers.h`, `usb.h`, `spi.h`, `led.h`, `pwm.h` | 纯 STM32 外设初始化，无独立业务逻辑 |
+| `stm32h7_config.h` | 中央配置枢纽，必须桩化以切断 CMSIS/HAL 依赖链 |
+| `lladc.h` | 必须拦截 `adc_get_mV()` 以注入测试数据 |
+| `early_init.h`, `provision.h`, `crc.h` | 硬件特定功能 |
