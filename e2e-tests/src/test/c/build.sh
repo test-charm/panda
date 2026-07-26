@@ -26,6 +26,7 @@ CFLAGS="-std=gnu11 -fPIC -shared -O0 -g \
   -Dmain=panda_main \
   -DALLOW_DEBUG \
   -DE2E_BOARD_$BOARD_UPPER \
+  -DE2E_TEST \
   -Wno-unused-function \
   -Wno-unused-variable \
   -Wno-int-conversion \
@@ -67,9 +68,6 @@ python3 "$SCRIPT_DIR/generate_fdcan_stubs.py" > "$SCRIPT_DIR/fdcan_e2e.gen.c"
 
 echo "[build] Generating can_health_e2e.gen.c ..."
 python3 "$SCRIPT_DIR/generate_can_health_stubs.py" > "$SCRIPT_DIR/can_health_e2e.gen.c"
-
-echo "[build] Generating bootkick_e2e.gen.c ..."
-python3 "$SCRIPT_DIR/generate_bootkick_stubs.py" > "$SCRIPT_DIR/bootkick_e2e.gen.c"
 
 echo "[build] Generating harness_detect_e2e.gen.c ..."
 python3 "$SCRIPT_DIR/generate_harness_stubs.py" > "$SCRIPT_DIR/harness_detect_e2e.gen.c"

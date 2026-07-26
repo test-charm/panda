@@ -108,7 +108,7 @@ board/boards/board_declarations.h     — board 结构体、HW_TYPE_* 常量
 | `board/sys/power_saving.h` | ✅ **B1 已完成 — 真实生产代码直接编译** | — | `enter_stop_mode()`, `set_power_save_state()`, `enable_can_transceivers()` |
 | `board/early_init.h` | 空桩 | STM32 早期初始化无意义 | `early_initialization()` |
 | `board/crc.h` | 空桩 | CRC 硬件不可用 | CRC 校验 (`crc_calc`, `crc_check`) |
-| `board/drivers/bootkick.h` | `bootkick_e2e.gen.c` (生成代码) | 无真实 GPIO | SOM 启动/复位状态机 |
+| `board/drivers/bootkick.h` | ✅ **B2 已完成 — 真实生产代码直接编译** | — | SOM 启动/复位状态机 |
 | `board/drivers/fdcan.h` | `fdcan_e2e.gen.c` (从真实源码生成) | 无 FDCAN 外设 | `can_init()`, `can_send()`, `can_rx()` 等 FDCAN 核心函数 |
 | `board/drivers/usb.h` | 空桩 | 无真实 USB OTG | `usb_init()`, `usb_irqhandler()` |
 | `board/drivers/spi.h` | 空桩 | 无真实 SPI | `spi_init()`, SPI DMA 传输 |
@@ -131,7 +131,7 @@ board/boards/board_declarations.h     — board 结构体、HW_TYPE_* 常量
 | 优先级 | 文件 | 理由 |
 |--------|------|------|
 | 🔴 高 | `drivers/fdcan.h` | FDCAN 核心驱动 (500+ 行)，已通过 gen 脚本部分覆盖 |
-| 🔴 高 | `drivers/bootkick.h` | SOM 启动状态机 (5 态 FSM)，已通过 gen 脚本部分覆盖 |
+| 🔴 高 | `drivers/bootkick.h` | ✅ B2 已完成 — 真实代码直接编译，覆盖率进入主报告 |
 | 🟡 中 | `sys/power_saving.h` | ✅ B1 已完成 — 真实生产代码直接编译，覆盖率 95.8% |
 | 🟡 中 | `drivers/harness.h` | SBU 检测逻辑，已通过 gen 脚本提取 |
 | 🟢 低 | `drivers/gpio.h`, `drivers/pwm.h`, `drivers/led.h` | 纯 GPIO 操作，无业务逻辑 |
@@ -590,7 +590,7 @@ Then control data should be → 验证结果
 本周                                    下周                              后续
 N1 clock_source_init (17.5% → 95%+)    N2 board xxx_init() (35-66%+)    N4 can_common wrap
 N3 faults permanent (78.9% → 100%)      B2 bootkick.h 去桩化               N5 libc.h (低 ROI)
-✅ B1 power_saving.h 去桩化 (已完成)                                       Jungle/Body 固件
+✅ B1 power_saving.h 去桩化 (已完成)     ✅ B2 bootkick.h 去桩化 (已完成)      Jungle/Body 固件
 ```
 
 ---
@@ -696,17 +696,16 @@ B1 揭示的模式：`libpanda.c` 中的调用计数 / 状态保存跟踪变量�
 
 ---
 
-#### B2 — 替换 `bootkick_e2e.gen.c` → 真实 `board/drivers/bootkick.h`
+#### B2 ✅ — 替换 `bootkick_e2e.gen.c` → 真实 `board/drivers/bootkick.h`（已完成 2026-07-26）
 
-**当前状态**: `bootkick_e2e.gen.c`（58 lines, 98.3% 覆盖）由 `generate_bootkick_stubs.py` 从真实 `bootkick.h` 提取生成
-
-**目标**: 直接 `#include "board/drivers/bootkick.h"` 真实生产代码
-
-**障碍**: 真实 `bootkick.h` 使用 `USART_TypeDef`。解决方案：在 `fake_stm.h` 中添加最小化 `USART_TypeDef` 定义（仅需包含 bootkick 用到的寄存器字段）。
-
-**收益**: 消除 1 个生成文件 + 1 个生成脚本
-
-**工作量**: ~0.5 天
+**实施结果**:
+- 删除 `e2e-tests/src/test/c/board/drivers/bootkick.h`（e2e 桩）
+- 删除 `bootkick_e2e.gen.c`（94 行生成代码）
+- 删除 `generate_bootkick_stubs.py`（生成脚本）
+- 真实 `board/drivers/bootkick.h` 添加 `#pragma once` + `#ifdef E2E_TEST` 状态暴露（6 个 static local → 文件作用域全局变量）
+- `-DE2E_TEST` 重新加入 `build.sh` CFLAGS
+- `board/main.c` 的 include 链自然引入真实 bootkick 代码
+- 综合覆盖率: 81.6% → **82.2%** (预估, bootkick.h 94 lines 进入覆盖率)
 
 ---
 
@@ -715,7 +714,7 @@ B1 揭示的模式：`libpanda.c` 中的调用计数 / 状态保存跟踪变量�
 ```
 Phase A 完成后:  79.6% → ~85%   (770/905 lines)
 ✅ B1 完成:       power_saving.h 进入覆盖率 (95.8%), 综合 81.6%
-Phase B 剩余:     ~81.6% → ~83%  (完成 B2 bootkick 去桩化)
+Phase B 剩余:     ~81.6% → ~83%  (完成 B3/B4/B5 去桩化)
 ```
 
 ---
@@ -749,7 +748,6 @@ libpanda.c (精简后) 编译模型:
   #include "board/drivers/fake_siren.h"      ← ⚠️ e2e 桩 (空实现)
   #include "fdcan_e2e.gen.c"                 ← 🔧 从 llfdcan.h 提取 (93.6% 覆盖)
   #include "can_health_e2e.gen.c"            ← 🔧 从 fdcan.h 提取 (94.6% 覆盖)
-  #include "bootkick_e2e.gen.c"              ← 🔧 从 bootkick.h 提取 (98.3% 覆盖)
   #include "harness_detect_e2e.gen.c"        ← 🔧 从 harness.h 提取 (100% 覆盖)
 ```
 
@@ -758,7 +756,7 @@ libpanda.c (精简后) 编译模型:
 | 优先级 | 桩/Gen 文件 | 替换目标 | 收益 | 障碍 |
 |--------|-----------|---------|------|------|
 | ✅ B1 | `power_save_e2e.gen.c` + `enter_stop_mode_e2e.gen.c` | `board/sys/power_saving.h` | ✅ 已完成 — 真实代码覆盖率 95.8% | `enter_stop_mode` 为 static (通过文本 include 解决) |
-| 🔴 B2 | `bootkick_e2e.gen.c` | `board/drivers/bootkick.h` | 消除 1 个生成文件 + 生成脚本 | 需 USART_TypeDef stub |
+| ✅ B2 | `bootkick_e2e.gen.c` | `board/drivers/bootkick.h` | ✅ 已完成 — 真实代码进入覆盖率 | `static` locals 通过 `#ifdef E2E_TEST` 暴露 |
 | 🟡 B3 | `fdcan_e2e.gen.c` | `board/stm32h7/llfdcan.h` | 消除最大的生成文件 (140 lines) | 依赖大量 STM32 HAL 头 |
 | 🟡 B4 | `can_health_e2e.gen.c` | `board/drivers/fdcan.h` | 消除 1 个生成文件 (37 lines) | fdcan.h 已有 e2e 桩 |
 | 🟢 B5 | `harness_detect_e2e.gen.c` | `board/drivers/harness.h` | 消除 1 个生成文件 (29 lines) | 函数为 static，低优先级 |

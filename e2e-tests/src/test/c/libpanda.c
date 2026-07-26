@@ -81,7 +81,6 @@ struct e2e_SCB_Regs    e2e_SCB;
 float interrupt_load;
 uint16_t sound_output_level;
 uint32_t enter_bootloader_mode;
-bool bootkick_reset_triggered;
 uint16_t spi_error_count;
 
 // _app_start used by main_comms.h header
@@ -564,10 +563,32 @@ void __WFI(void) { wfi_entered = true; }
 
 #include "board/main.c"
 
-// ---- AUTO-GENERATED bootkick stub ----
-// Extracted & transformed from board/drivers/bootkick.h and board/main.c.
-// Regenerate: python3 generate_bootkick_stubs.py > bootkick_e2e.gen.c
-#include "bootkick_e2e.gen.c"
+// ---- Real bootkick FSM from board/drivers/bootkick.h ----
+// Static locals promoted to e2e_* file-scope variables via #ifdef E2E_TEST.
+// bootkick_reset_triggered is already a real global.
+#include "board/drivers/bootkick.h"
+
+// JNA accessors for promoted state (static locals in production code)
+int jna_get_bootkick_state(void)            { return (int)e2e_boot_state; }
+int jna_get_bootkick_reset_triggered(void)   { return (int)bootkick_reset_triggered; }
+int jna_get_bootkick_waiting_countdown(void) { return (int)e2e_waiting_to_boot_countdown; }
+int jna_get_bootkick_reset_countdown(void)   { return (int)e2e_boot_reset_countdown; }
+
+void jna_reset_bootkick(void) {
+  e2e_boot_state = BOOT_BOOTKICK;
+  e2e_bootkick_ign_prev = false;
+  e2e_bootkick_harness_status_prev = HARNESS_STATUS_NC;
+  e2e_bootkick_last_serial_ptr = 0;
+  e2e_waiting_to_boot_countdown = 0;
+  e2e_boot_reset_countdown = 0;
+  bootkick_reset_triggered = false;
+  e2e_ignition_line = false;
+#if defined(E2E_BOARD_TRES)
+  e2e_GPIOB.IDR &= ~(1U << 1);
+#elif !defined(E2E_BOARD_RED)
+  e2e_GPIOC.IDR |= (1U << 3);
+#endif
+}
 
 // ---- Harness control (e2e-specific, not in generated code) ----
 void jna_set_ignition_line(uint8_t val)  { e2e_ignition_line = (val != 0U); }

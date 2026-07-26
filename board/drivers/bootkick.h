@@ -1,14 +1,35 @@
+#pragma once
+
 #include "board/drivers/drivers.h"
 
 bool bootkick_reset_triggered = false;
 
+#ifdef E2E_TEST
+// Promoted to file scope for e2e JNA access (normally static locals in bootkick_tick)
+static uint16_t e2e_bootkick_last_serial_ptr = 0;
+static uint8_t e2e_waiting_to_boot_countdown = 0;
+static uint8_t e2e_boot_reset_countdown = 0;
+static uint8_t e2e_bootkick_harness_status_prev = HARNESS_STATUS_NC;
+static bool e2e_bootkick_ign_prev = false;
+static BootState e2e_boot_state = BOOT_BOOTKICK;
+#endif
+
 void bootkick_tick(bool ignition, bool recent_heartbeat) {
+#ifdef E2E_TEST
+  #define bootkick_last_serial_ptr     e2e_bootkick_last_serial_ptr
+  #define waiting_to_boot_countdown    e2e_waiting_to_boot_countdown
+  #define boot_reset_countdown         e2e_boot_reset_countdown
+  #define bootkick_harness_status_prev e2e_bootkick_harness_status_prev
+  #define bootkick_ign_prev            e2e_bootkick_ign_prev
+  #define boot_state                   e2e_boot_state
+#else
   static uint16_t bootkick_last_serial_ptr = 0;
   static uint8_t waiting_to_boot_countdown = 0;
   static uint8_t boot_reset_countdown = 0;
   static uint8_t bootkick_harness_status_prev = HARNESS_STATUS_NC;
   static bool bootkick_ign_prev = false;
   static BootState boot_state = BOOT_BOOTKICK;
+#endif
   BootState boot_state_prev = boot_state;
   const bool harness_inserted = (harness.status != bootkick_harness_status_prev) && (harness.status != HARNESS_STATUS_NC);
 
@@ -66,3 +87,11 @@ void bootkick_tick(bool ignition, bool recent_heartbeat) {
   }
   current_board->set_bootkick(boot_state);
 }
+#ifdef E2E_TEST
+#undef bootkick_last_serial_ptr
+#undef waiting_to_boot_countdown
+#undef boot_reset_countdown
+#undef bootkick_harness_status_prev
+#undef bootkick_ign_prev
+#undef boot_state
+#endif
