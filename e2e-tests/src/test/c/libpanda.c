@@ -235,13 +235,9 @@ void jna_set_current_mA(int val) { e2e_current_mA = (uint32_t)val; }
 // Tracking stub for set_ir_power — records all calls
 #define MAX_IR_POWER_CALLS 16
 static uint8_t ir_power_values[MAX_IR_POWER_CALLS];
-static int ir_power_call_count;
 void board_set_ir_power_stub(uint8_t p) {
-    // Write IR power percentage to fake PWM register (TIM CCR)
-    // Real implementations use pwm_set(TIMx, channel, percentage)
-    // For e2e testing, record in TIM CCR for verification
     fake_TIM1.CCR1 = p;  // IR PWM duty cycle
-    ir_power_call_count++;
+    ir_power_values[0] = p;
 }
 void board_set_fan_enabled_stub(bool en);
 void board_set_siren_stub(bool en);
@@ -645,15 +641,14 @@ bool board_read_som_gpio_stub(void) {
 }
 
 // Siren stub (after GPIO macro overrides)
-static bool last_siren_state;
 static bool siren_was_active;
 void board_set_siren_stub(bool en) {
-    last_siren_state = en;
     if (en) siren_was_active = true;
     set_gpio_output(GPIOB, 14, en);
 }
 int jna_get_siren_active(void) {
-    return last_siren_state ? 1 : 0;
+    // sirenActive replaced by stopModeRegs.gpioBOdr bit14 — return value from GPIO
+    return (GPIOB->ODR & (1UL << 14)) ? 1 : 0;
 }
 int jna_get_siren_was_active(void) {
     return siren_was_active ? 1 : 0;
@@ -921,7 +916,6 @@ void jna_reset_alternative_experience(void) {
 // ---- JNA API: Siren state inspection ----
 void jna_reset_siren(void) {
     siren_enabled = false;
-    last_siren_state = false;
     siren_was_active = false;
 }
 
@@ -935,9 +929,10 @@ int jna_get_irq_disabled_bus(int bus) {
     return last_irq_disabled_bus[bus] > 0 ? 1 : 0;
 }
 // set_ir_power tracking
-int jna_get_ir_power_call_count(void) { return ir_power_call_count; }
+// set_ir_power tracking — call count removed (redundant with TIM1.CCR1 register assertion).
+// ir_power_values[0] stores the last set value for PowerSaveTracking.irPowerValue.
 int jna_get_ir_power_value_at(int index) {
-    if ((index < 0) || (index >= ir_power_call_count) || (index >= MAX_IR_POWER_CALLS)) return -1;
+    if ((index < 0) || (index >= MAX_IR_POWER_CALLS)) return -1;
     return (int)ir_power_values[index];
 }
 
@@ -955,7 +950,6 @@ void jna_reset_power_save_tracking(void) {
     last_irq_disabled_bus[0] = -1;
     last_irq_disabled_bus[1] = -1;
     last_irq_disabled_bus[2] = -1;
-    ir_power_call_count = 0;
 }
 
 // ---- JNA API: CAN comms buffer inspection (comms_can_reset) ----

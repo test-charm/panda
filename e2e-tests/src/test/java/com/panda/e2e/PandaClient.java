@@ -92,8 +92,6 @@ public class PandaClient {
 
         int jna_get_siren_enabled();
 
-        int jna_get_siren_active();
-
         int jna_get_siren_was_active();
 
         // safety_mode_cnt (declared in opendbc/safety/safety.h)
@@ -137,8 +135,6 @@ public class PandaClient {
         int jna_get_last_irq_enabled_bus();
 
         int jna_get_irq_disabled_bus(int bus);
-
-        int jna_get_ir_power_call_count();
 
         int jna_get_ir_power_value_at(int index);
 
@@ -650,7 +646,6 @@ public class PandaClient {
         private final int safetyMode;
         private final int sirenCountdown;
         private final int sirenEnabled;
-        private final int sirenActive;
         private final int sirenWasActive;
     }
 
@@ -660,7 +655,6 @@ public class PandaClient {
                 lib.jna_get_current_safety_mode(),
                 lib.jna_get_siren_countdown(),
                 lib.jna_get_siren_enabled(),
-                lib.jna_get_siren_active(),
                 lib.jna_get_siren_was_active()
         );
     }
@@ -689,7 +683,6 @@ public class PandaClient {
         private final boolean irqDisabledBus1;
         private final boolean irqDisabledBus2;
         private final int irPowerValue;
-        private final int irPowerCallCount;
     }
 
     public PowerSaveTracking getPowerSaveTracking() {
@@ -700,8 +693,7 @@ public class PandaClient {
                 lib.jna_get_irq_disabled_bus(0) != 0,
                 lib.jna_get_irq_disabled_bus(1) != 0,
                 lib.jna_get_irq_disabled_bus(2) != 0,
-                lib.jna_get_ir_power_value_at(0),
-                lib.jna_get_ir_power_call_count()
+                lib.jna_get_ir_power_value_at(0)
         );
     }
 

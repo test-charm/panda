@@ -675,6 +675,24 @@ N3 faults permanent (78.9% → 100%)      B2 bootkick.h 去桩化               
 - 新增 3 个翻转线束场景（`@cuatro/@tres/@red`），覆盖 `harness.status == HARNESS_STATUS_FLIPPED` → `main_bus = 3U` 分支
 - `power_saving.h` 覆盖率: 0% → **95.8%** (92/96 lines)
 - 综合覆盖率: 79.6% → **81.6%**
+- 同步清理: `ir_power_call_count` / `last_siren_state` / `canTransceiversCallCount` 等冗余跟踪变量（用寄存器断言替代）
+
+#### 跟踪桩 → 寄存器断言 对照表
+
+B1 揭示的模式：`libpanda.c` 中的调用计数 / 状态保存跟踪变量，可通过假寄存器直接读取来替代。
+
+| 跟踪变量 | 来源 | 寄存器断言 | 状态 |
+|---------|------|-----------|------|
+| `ir_power_call_count` | `board_set_ir_power_stub` | `irPowerValue` (TIM1.CCR1) | ✅ 已清理 |
+| `last_siren_state` | `board_set_siren_stub` | `gpioBOdr` bit14 (GPIOB 14) | ✅ 已清理 |
+| `canTransceiversCallCount` | `enable_can_transceivers` | `gpio*Odr` (板级 GPIO) | ✅ 已清理 |
+| `canTransceiversEnabled` | `enable_can_transceivers` | `gpio*Odr` (板级 GPIO) | ✅ 已清理 |
+| `siren_was_active` | `board_set_siren_stub` (latch) | — 无寄存器等价 | ✗ 不可替代 |
+| `irqEnableCount` | `llcan_irq_enable` | — NVIC ICER/ISER 未暴露 | ✗ 需先加 NVIC 状态 |
+| `irqDisableCount` | `llcan_irq_disable` | — 同上 | ✗ |
+| `lastIrqEnabledBus` | `llcan_irq_enable` | — 同上 | ✗ |
+| `irqDisabledBus*` | `llcan_irq_disable` | — 同上 | ✗ |
+| `nvicResetCount` | `NVIC_SystemReset` | — SCB AIRCR 未暴露 | ✗ 低 ROI |
 
 ---
 
