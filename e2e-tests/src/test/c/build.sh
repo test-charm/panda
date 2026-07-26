@@ -66,9 +66,6 @@ fi
 echo "[build] Generating fdcan_e2e.gen.c ..."
 python3 "$SCRIPT_DIR/generate_fdcan_stubs.py" > "$SCRIPT_DIR/fdcan_e2e.gen.c"
 
-echo "[build] Generating can_health_e2e.gen.c ..."
-python3 "$SCRIPT_DIR/generate_can_health_stubs.py" > "$SCRIPT_DIR/can_health_e2e.gen.c"
-
 echo "[build] Generating harness_detect_e2e.gen.c ..."
 python3 "$SCRIPT_DIR/generate_harness_stubs.py" > "$SCRIPT_DIR/harness_detect_e2e.gen.c"
 

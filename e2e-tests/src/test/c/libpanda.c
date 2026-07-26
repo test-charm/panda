@@ -711,9 +711,8 @@ void set_intercept_relay(bool a, bool b) {
 // Uses fake TIM1/TIM8 instances defined above.
 #include "board/drivers/clock_source.h"
 
-// ---- update_can_health_pkt (auto-generated from board/drivers/fdcan.h) ----
-// Regenerate: python3 generate_can_health_stubs.py > can_health_e2e.gen.c
-#include "can_health_e2e.gen.c"
+// ---- update_can_health_pkt from board/drivers/can_health_pkt.h (B4 — shared with production) ----
+#include "board/drivers/can_health_pkt.h"
 
 // ---- fan_set_power from board/drivers/fan.h (already included above) ----
 

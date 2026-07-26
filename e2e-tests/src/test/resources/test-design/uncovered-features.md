@@ -5,7 +5,7 @@
 > 综合行覆盖率: **81.6%** (1459/1789 lines), 29 files
 > 数据来源: `e2e-tests/run_all_coverage.sh` (cuatro + tres + red 合并)
 >
-> **本次更新**: B1 power_saving.h 去桩化完成 — 真实生产代码进入覆盖率 (95.8%), 消除 2 个手写副本文件
+> **本次更新**: B2 bootkick.h 去桩化 + B4 can_health_pkt.h 共享文件完成
 
 ---
 
@@ -82,6 +82,7 @@ board/boards/board_declarations.h     — board 结构体、HW_TYPE_* 常量
 | `board/drivers/registers.h` | 97.8% | — | 仅 1 行未覆盖 (hash collision fallback) |
 | `board/drivers/simple_watchdog.h` | 100% | — | ✅ P3 已完成 |
 | `board/sys/power_saving.h` | 95.8% | — | ✅ B1 完成，真实生产代码直接编译 |
+| `board/drivers/bootkick.h` | ~98% | — | ✅ B2 完成，FSM 逻辑直接编译 |
 | `board/sys/sys.h` | 83.3% | — | 头文件 (声明) |
 | `board/utils.h` | 100% | — | 全部覆盖 |
 | `board/boards/cuatro.h` | 34.8% | — | `cuatro_init()` GPIO 配置路径未调用 (P2 首次编译) |
@@ -109,7 +110,7 @@ board/boards/board_declarations.h     — board 结构体、HW_TYPE_* 常量
 | `board/early_init.h` | 空桩 | STM32 早期初始化无意义 | `early_initialization()` |
 | `board/crc.h` | 空桩 | CRC 硬件不可用 | CRC 校验 (`crc_calc`, `crc_check`) |
 | `board/drivers/bootkick.h` | ✅ **B2 已完成 — 真实生产代码直接编译** | — | SOM 启动/复位状态机 |
-| `board/drivers/fdcan.h` | `fdcan_e2e.gen.c` (从真实源码生成) | 无 FDCAN 外设 | `can_init()`, `can_send()`, `can_rx()` 等 FDCAN 核心函数 |
+| `board/drivers/fdcan.h` | `fdcan_e2e.gen.c` (从真实源码生成) + ✅ `can_health_pkt.h` (B4 共享文件) | 无 FDCAN 外设 | `can_init()`, `can_rx()` 等；`update_can_health_pkt()` 已提取为共享 |
 | `board/drivers/usb.h` | 空桩 | 无真实 USB OTG | `usb_init()`, `usb_irqhandler()` |
 | `board/drivers/spi.h` | 空桩 | 无真实 SPI | `spi_init()`, SPI DMA 传输 |
 | `board/drivers/fake_siren.h` | 空桩 | 无真实蜂鸣器 GPIO | 蜂鸣器控制 |
@@ -591,6 +592,7 @@ Then control data should be → 验证结果
 N1 clock_source_init (17.5% → 95%+)    N2 board xxx_init() (35-66%+)    N4 can_common wrap
 N3 faults permanent (78.9% → 100%)      B2 bootkick.h 去桩化               N5 libc.h (低 ROI)
 ✅ B1 power_saving.h 去桩化 (已完成)     ✅ B2 bootkick.h 去桩化 (已完成)      Jungle/Body 固件
+🟡 B3 fdcan (硬件轮询, 不去桩)            ✅ B4 can_health 共享文件 (已完成)
 ```
 
 ---
@@ -709,12 +711,26 @@ B1 揭示的模式：`libpanda.c` 中的调用计数 / 状态保存跟踪变量�
 
 ---
 
+#### B4 ✅ — 提取 `can_health_e2e.gen.c` → 共享文件 `board/drivers/can_health_pkt.h`（已完成 2026-07-26）
+
+**实施结果**:
+- 创建 `board/drivers/can_health_pkt.h`（52 行，含 `update_can_health_pkt()`，`#pragma once`）
+- `board/drivers/fdcan.h` 中原函数体替换为 `#include "board/drivers/can_health_pkt.h"`
+- 删除 `can_health_e2e.gen.c`（57 行）和 `generate_can_health_stubs.py`
+- e2e stub `board/drivers/fdcan.h` 添加 `#include "board/drivers/can_health_pkt.h"`
+- `libpanda.c` 替换 gen 文件为真实 `can_health_pkt.h`
+
+> 注意：B4 与 B1/B2 模式不同。`fdcan.h` 包含硬件轮询循环无法整文件 include，
+> 但 `update_can_health_pkt()` 本身是纯业务逻辑。提取为独立文件后生产和 e2e 共享。
+
+---
+
 ### 预估总收益
 
 ```
 Phase A 完成后:  79.6% → ~85%   (770/905 lines)
 ✅ B1 完成:       power_saving.h 进入覆盖率 (95.8%), 综合 81.6%
-Phase B 剩余:     ~81.6% → ~83%  (完成 B3/B4/B5 去桩化)
+Phase B 剩余:     ~81.6% → ~82%  (B5 harness 去桩化)
 ```
 
 ---
@@ -747,7 +763,6 @@ libpanda.c (精简后) 编译模型:
   #include "board/drivers/usb.h"             ← ⚠️ e2e 桩 (空实现)
   #include "board/drivers/fake_siren.h"      ← ⚠️ e2e 桩 (空实现)
   #include "fdcan_e2e.gen.c"                 ← 🔧 从 llfdcan.h 提取 (93.6% 覆盖)
-  #include "can_health_e2e.gen.c"            ← 🔧 从 fdcan.h 提取 (94.6% 覆盖)
   #include "harness_detect_e2e.gen.c"        ← 🔧 从 harness.h 提取 (100% 覆盖)
 ```
 
@@ -757,8 +772,8 @@ libpanda.c (精简后) 编译模型:
 |--------|-----------|---------|------|------|
 | ✅ B1 | `power_save_e2e.gen.c` + `enter_stop_mode_e2e.gen.c` | `board/sys/power_saving.h` | ✅ 已完成 — 真实代码覆盖率 95.8% | `enter_stop_mode` 为 static (通过文本 include 解决) |
 | ✅ B2 | `bootkick_e2e.gen.c` | `board/drivers/bootkick.h` | ✅ 已完成 — 真实代码进入覆盖率 | `static` locals 通过 `#ifdef E2E_TEST` 暴露 |
-| 🟡 B3 | `fdcan_e2e.gen.c` | `board/stm32h7/llfdcan.h` | 消除最大的生成文件 (140 lines) | 依赖大量 STM32 HAL 头 |
-| 🟡 B4 | `can_health_e2e.gen.c` | `board/drivers/fdcan.h` | 消除 1 个生成文件 (37 lines) | fdcan.h 已有 e2e 桩 |
+| 🟡 B3 | `fdcan_e2e.gen.c` | `board/stm32h7/llfdcan.h` | 硬件轮询循环 — 不去桩 (gen 脚本是正确方案) | 需自变异寄存器 |
+| ✅ B4 | `can_health_e2e.gen.c` | `board/drivers/can_health_pkt.h` | ✅ 已完成 — 提取为共享文件 | `fdcan.h` 含硬件轮询，仅提取纯业务函数 |
 | 🟢 B5 | `harness_detect_e2e.gen.c` | `board/drivers/harness.h` | 消除 1 个生成文件 (29 lines) | 函数为 static，低优先级 |
 
 ### 不可去桩化的文件

@@ -199,7 +199,7 @@ static bool e2e_can_set_speed(uint8_t can_number) {
   return ret;
 }
 
-// From /Users/joseph/Documents/opensource_workspace/panda/board/drivers/fdcan.h:255
+// From /Users/joseph/Documents/opensource_workspace/panda/board/drivers/fdcan.h:208
 bool can_init(uint8_t can_number) {
   bool ret = false;
 
