@@ -1,8 +1,8 @@
 # 端到端测试未覆盖功能清单
 
-> 生成时间: 2026-07-25
-> 基准 e2e 场景数: 148（覆盖 `board/main.c` → 34 个 USB 命令中 33 个）
-> 综合行覆盖率: **65.1%** (575/884 lines), 函数覆盖率: **67.4%** (31/46 functions)
+> 最后更新: 2026-07-26
+> 基准 e2e 场景数: 172（包含 P0 `can_comms.feature` +8 场景、P1 `tick_paths.feature` +6 场景）
+> 综合行覆盖率: **79.6%** (720/905 lines), 函数覆盖率: **76.1%** (35/46 functions)
 > 数据来源: `e2e-tests/run_all_coverage.sh` (cuatro + tres + red 合并)
 
 ---
@@ -69,12 +69,12 @@ board/boards/board_declarations.h     — board 结构体、HW_TYPE_* 常量
 | 源文件 | 行覆盖 | 函数覆盖 | 未覆盖原因 |
 |--------|--------|---------|-----------|
 | `board/main_comms.h` | 93.3% | 2/3 | `spi_cmd` 函数 (SPI 通道, 非 USB 路径) |
-| `board/main.c` | 46.9% | 4/7 | 主循环 tick 路径 (fan cooldown, sound_tick, safety_mode_cnt) |
+| `board/main.c` | 46.9% | 4/7 | 主循环 tick 路径 (P1 ✅ 已完成: has_fan=false, heartbeat_counter 溢出, safety_mode_cnt 溢出, harness reinit) |
 | `board/drivers/can_common.h` | 86.8% | 10/12 | can_clear_rx 未遍历路径, can_set_speed 未遍历比特率 |
 | `board/drivers/gpio.h` | 72.1% | 5/7 | set_gpio_analog, restore_gpio 仅 deep_sleep 覆盖 |
 | `board/sys/faults.h` | 78.9% | 2/2 | `fault_occurred` Temporary fault 路径已由 watchdog 覆盖 |
 | `board/libc.h` | 60.7% | 3/5 | memset/memcpy 大量路径 |
-| `board/drivers/fan.h` | 37.0% | 2/3 | fan cooldown 逻辑 (P8) |
+| `board/drivers/fan.h` | 37.0% | 2/3 | fan cooldown 逻辑 (P8 ✅) + has_fan=false 路径 (P1 ✅) |
 | `board/can_comms.h` | 18.4% | 2/4 | CAN 接收/发送内层路径 |
 | `board/drivers/clock_source.h` | 18.4% | 1/2 | TIM8 外部时钟模式未覆盖 |
 | `board/drivers/registers.h` | — | — | 头文件 (声明) |
@@ -527,7 +527,7 @@ BOOT_BOOTKICK → BOOT_STANDBY → (STANDBY→BOOTKICK edge) → 20 tick 等待 
 | **P9** | `harness_detect_orientation` | `board/drivers/harness.h:52-88` | ✅ `harness_detect.feature` (8 场景) + 设计文档 (`harness-detect.md`)，通过 `generate_harness_stubs.py` 逐字提取生产代码，`lladc.h` 桩拦截 `adc_get_mV()` | 小 |
 | **P10** | LED 行为 | `board/main.c:166-375` | ❌ 不需要 | — |
 | **P11** | `sound_tick()` 音频 | `board/stm32h7/sound.h` | ❌ 不需要 | — |
-| **P12** | `safety_mode_cnt` | `board/main.c` | ❌ 不需要 | — |
+| **P12** | `safety_mode_cnt` | `board/main.c` | ✅ `tick_paths.feature` (通过 `jna_set_safety_mode_cnt` + `jna_call_tick_handler`) | 小 |
 | — | Flasher 命令 (3 个) | `board/flasher.h` | ❌ 新 e2e 目标 | 大 |
 | — | Jungle 命令 (8 个) | `board/jungle/main_comms.h` | ❌ 新 e2e 目标 | 大 |
 | — | Body 命令 (2 个) | `board/body/main_comms.h` | ❌ 新 e2e 目标 | 小 |
@@ -546,6 +546,7 @@ BOOT_BOOTKICK → BOOT_STANDBY → (STANDBY→BOOTKICK edge) → 20 tick 等待 
 | `heartbeat_loss.feature` | ✅ 9 场景全部通过 | 9 |
 | `register_divergence.feature` | ✅ 3 场景全部通过 | 3 |
 | `ignition_can.feature` | ✅ 2 场景全部通过 | 2 |
+| `tick_paths.feature` | ✅ 6 场景全部通过 (P1: has_fan, heartbeat_counter, safety_mode_cnt, harness reinit) | 6 |
 
 8 次 `jna_call_tick_handler()` 调用 = 1 次 1Hz tick（`loop_counter` 每 8 次归零）。
 使用 `When call tick handler {int} times` 批量触发多个 tick。
@@ -567,7 +568,7 @@ Then control data should be → 验证结果
 ```
 本周                        下周                        后续
 P0 can_comms.h ✅ 完成    → P2 boards/*.h ──────────→ P3 spi_cmd
-P1 main.c tick 路径        (去桩化)                   (SPI 通道)
+P1 main.c tick 路径 ✅ 完成 (去桩化)                   (SPI 通道)
 (不改构建，纯加场景)        (首个真实板级代码)          (ROI 偏低)
 ```
 
@@ -587,18 +588,20 @@ P1 main.c tick 路径        (去桩化)                   (SPI 通道)
 
 ---
 
-### 🟡 P1 — 提升 `main.c` tick 路径覆盖率 (当前 46.9%)
+### 🟡 P1 — 提升 `main.c` tick 路径覆盖率 (当前 46.9%) ✅ 已完成
 
-**不改构建，当前 `jna_call_tick_handler` 框架已可用。**
+**不改构建，`jna_call_tick_handler` + 新增 `jna_set_heartbeat_counter`/`jna_set_safety_mode_cnt` JNA 桥接。**
 
-| 未覆盖路径 | 代码位置 | 测试思路 |
-|-----------|---------|---------|
-| `current_board->has_fan` 为 false 跳过 `fan_tick` | main.c:160 | red panda (无风扇) 下验证 fan_state 不变 |
-| `power_save_enabled` 与 `controls_allowed` 组合分支 | main.c:150-157 | 四象限组合测试 |
-| `heartbeat_counter` 溢出回绕 | main.c:182 | 设 heartbeat_counter = UINT32_MAX-1，触发 tick 验证 |
-| `safety_mode_cnt` 边界 | main.c:246 | 设 safety_mode_cnt = UINT32_MAX，验证回绕 |
+| 未覆盖路径 | 代码位置 | 测试思路 | 覆盖场景 |
+|-----------|---------|---------|---------|
+| `current_board->has_fan` 为 false 跳过 `fan_tick` | fan.h:22 | red panda (无风扇) 下验证 fan_state 不变 | `@red` 风扇状态不变 |
+| ~~`power_save_enabled` 与 `controls_allowed` 组合分支~~ → 修正为 harness reinit 路径 | main.c:144-152 | harness 状态变更触发 `set_safety_mode` + `set_power_save_state` | harness reinit 重置心跳计数器 + harness reinit 省电状态保持 |
+| `heartbeat_counter` 溢出封顶 | main.c:179-181 | 设 heartbeat_counter = UINT32_MAX(-1)，触发 tick 验证不递增 | heartbeat 计数器封顶 + heartbeat 计数器递增 |
+| `safety_mode_cnt` 溢出回绕 | main.c:257 | 设 safety_mode_cnt = UINT32_MAX(-1)，验证回绕到 0 | 安全模式计数器溢出回绕 |
 
-**工作量**: 2-3 个场景 (~0.5 天)
+**实现**: `tick_paths.feature` (6 场景)，新增 JNA 函数 `jna_set_heartbeat_counter`、`jna_set_safety_mode_cnt`、`jna_get_safety_mode_cnt`，设计文档 `tick-paths.md`
+
+**工作量**: ~0.5 天 ✅
 
 ---
 
@@ -628,11 +631,11 @@ P1 main.c tick 路径        (去桩化)                   (SPI 通道)
 
 ---
 
-### P0+P1 预期收益
+### P0+P1 实际收益
 
 ```
-当前综合行覆盖率: 79.6% (720/905)
-P0 已完成 (can_comms.h 18.4→100%, 76/76 可执行行)
-P1 完成后预估:   82-85%  (+ main.c 64.2→75%+)
-P2 完成后预估:   86-90%  (+ boards/*.h, llfdcan.h 等首次进入)
+P0 完成前综合行覆盖率: 65.1% (575/884)
+P0 完成后预估:         79.6% (720/905, + can_comms.h 18.4→100%)
+P1 完成后预估:         82-85% (720/905, + main.c tick 路径 4 个新分支, fan.h has_fan=false 路径)
+P2 完成后预估:         86-90%  (+ boards/*.h, llfdcan.h 等首次进入)
 ```

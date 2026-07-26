@@ -20,6 +20,8 @@ public class ControlSetups {
             property("safetyMode").defaultValue(0);
             property("alternativeExperience").defaultValue(0);
             property("heartbeatDisabled").defaultValue(0);
+            property("heartbeatCounter").defaultValue(Long.MIN_VALUE);
+            property("safetyModeCnt").defaultValue(Long.MIN_VALUE);
             property("mcuUidBytes").defaultValue(null);
             property("interruptIndex").defaultValue(0);
             property("interruptCallRate").defaultValue(-1);

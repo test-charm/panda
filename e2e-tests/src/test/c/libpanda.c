@@ -849,6 +849,9 @@ void jna_set_fdcan_ecr(int can_number, uint32_t val) {
 uint32_t jna_get_heartbeat_counter(void) {
     return heartbeat_counter;
 }
+void jna_set_heartbeat_counter(uint32_t val) {
+    heartbeat_counter = val;
+}
 int jna_get_heartbeat_lost(void) {
     return heartbeat_lost ? 1 : 0;
 }
@@ -874,6 +877,14 @@ int jna_get_siren_countdown(void) {
 }
 int jna_get_siren_enabled(void) {
     return siren_enabled ? 1 : 0;
+}
+
+// ---- JNA API: safety_mode_cnt (declared in opendbc/safety/safety.h) ----
+uint32_t jna_get_safety_mode_cnt(void) {
+    return safety_mode_cnt;
+}
+void jna_set_safety_mode_cnt(uint32_t val) {
+    safety_mode_cnt = val;
 }
 
 // ---- JNA API: Power save state inspection ----

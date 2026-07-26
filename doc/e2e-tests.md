@@ -156,11 +156,12 @@ e2e-tests/
 | WFI 空闲路径 | `wfi_idle.feature` | 3 | stopModeRegs (wfiEntered + scbScr, 通过 `jna_process_wfi_idle`) |
 | ignition_can 自动复位 | `ignition_can.feature` | 2 | ignitionCan (通过 `jna_set_ignition_can` + `jna_call_tick_handler`) |
 | 线束翻转检测 | `harness_detect.feature` | 8 | harnessStatus (生产 `harness_detect_orientation()` + ADC 拦截桩) |
+| Tick 路径 | `tick_paths.feature` | 6 | has_fan=false, heartbeat_counter 溢出, safety_mode_cnt 溢出, harness reinit (P1) |
 
 ## C 代码覆盖率
 
 > 数据来源: `e2e-tests/run_all_coverage.sh` 合并报告 (cuatro + tres + red)
-> 生成时间: 2026-07-25
+> 生成时间: 2026-07-25 (P0 can_comms 完成时) → P1 tick_paths 已于 2026-07-26 完成 (覆盖增加, 待重跑覆盖率)
 
 | 源文件 | 行覆盖 | 函数覆盖 | 说明 |
 |--------|--------|---------|------|
@@ -176,7 +177,7 @@ e2e-tests/
 | `board/utils.h` | **100%** (10/10) | 1/1 (100%) | 工具函数 |
 | **合计** | **79.6%** (720/905) | **35/46** (76.1%) | |
 
-> ⚠️ `main.c` 中未覆盖的函数：`sound_tick`、`safety_mode_cnt`。P1-P8 已全部覆盖。详见 `e2e-tests/src/test/resources/test-design/uncovered-features.md`。
+> ⚠️ `main.c` 中未覆盖的函数：`sound_tick`。P1-P8 已全部覆盖。详见 `e2e-tests/src/test/resources/test-design/uncovered-features.md`。
 
 ## 设计原则
 

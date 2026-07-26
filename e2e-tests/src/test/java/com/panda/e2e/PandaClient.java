@@ -76,6 +76,8 @@ public class PandaClient {
         // Heartbeat state inspection
         int jna_get_heartbeat_counter();
 
+        void jna_set_heartbeat_counter(int val);
+
         int jna_get_heartbeat_lost();
 
         int jna_get_heartbeat_disabled();
@@ -95,6 +97,11 @@ public class PandaClient {
         int jna_get_siren_active();
 
         int jna_get_siren_was_active();
+
+        // safety_mode_cnt (declared in opendbc/safety/safety.h)
+        int jna_get_safety_mode_cnt();
+
+        void jna_set_safety_mode_cnt(int val);
 
         void jna_reset_heartbeat();
 
@@ -947,6 +954,18 @@ public class PandaClient {
 
     public void setHeartbeatDisabled(int val) {
         lib.jna_set_heartbeat_disabled(val);
+    }
+
+    public void setHeartbeatCounter(int val) {
+        lib.jna_set_heartbeat_counter(val);
+    }
+
+    public int getSafetyModeCnt() {
+        return lib.jna_get_safety_mode_cnt();
+    }
+
+    public void setSafetyModeCnt(int val) {
+        lib.jna_set_safety_mode_cnt(val);
     }
 
     public int getNvicResetCount() {

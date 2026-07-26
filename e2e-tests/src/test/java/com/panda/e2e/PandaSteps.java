@@ -130,6 +130,8 @@ public class PandaSteps {
         public int safetyMode;
         public int alternativeExperience;
         public int heartbeatDisabled;
+        public long heartbeatCounter;
+        public long safetyModeCnt;
         public String mcuUidBytes;
         public int interruptIndex;
         public int interruptCallRate;

@@ -103,6 +103,12 @@ public class Factories {
             if (setup.heartbeatDisabled != 0) {
                 client.setHeartbeatDisabled(setup.heartbeatDisabled);
             }
+            if (setup.heartbeatCounter != Long.MIN_VALUE) {
+                client.setHeartbeatCounter((int) setup.heartbeatCounter);
+            }
+            if (setup.safetyModeCnt != Long.MIN_VALUE) {
+                client.setSafetyModeCnt((int) setup.safetyModeCnt);
+            }
             if (setup.mcuUidBytes != null) {
                 client.setMcuUid(hexToBytes(setup.mcuUidBytes));
             }
