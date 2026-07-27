@@ -52,10 +52,8 @@ if [ "${COVERAGE:-}" != "1" ] && [ -f "$OUTPUT" ] \
     && [ "$OUTPUT" -nt "$PROJECT_ROOT/board/sys/power_saving.h" ] \
     && [ "$OUTPUT" -nt "$SCRIPT_DIR/generate_fdcan_stubs.py" ] \
     && [ "$OUTPUT" -nt "$SCRIPT_DIR/generate_bootkick_stubs.py" ] \
-    && [ "$OUTPUT" -nt "$SCRIPT_DIR/generate_harness_stubs.py" ] \
     && [ "$OUTPUT" -nt "$PROJECT_ROOT/board/drivers/bootkick.h" ] \
     && [ "$OUTPUT" -nt "$SCRIPT_DIR/board/stm32h7/lladc.h" ] \
-    && [ "$OUTPUT" -nt "$SCRIPT_DIR/harness_detect_e2e.gen.c" ] \
     && [ "$OUTPUT" -nt "$PROJECT_ROOT/board/drivers/harness.h" ]; then
     echo "[build] libpanda_${BOARD}.dylib is up to date"
     ls -la "$OUTPUT"
@@ -65,9 +63,6 @@ fi
 # Generate e2e FDCAN stubs from real firmware source
 echo "[build] Generating fdcan_e2e.gen.c ..."
 python3 "$SCRIPT_DIR/generate_fdcan_stubs.py" > "$SCRIPT_DIR/fdcan_e2e.gen.c"
-
-echo "[build] Generating harness_detect_e2e.gen.c ..."
-python3 "$SCRIPT_DIR/generate_harness_stubs.py" > "$SCRIPT_DIR/harness_detect_e2e.gen.c"
 
 echo "[build] Compiling full board/main.c → libpanda_${BOARD}.dylib ..."
 $CC $CFLAGS -o "$OUTPUT" "$SCRIPT_DIR/libpanda.c"

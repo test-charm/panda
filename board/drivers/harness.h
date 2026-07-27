@@ -1,6 +1,10 @@
+#pragma once
+
 #include "board/drivers/drivers.h"
 
+#ifndef E2E_TEST
 struct harness_t harness;
+#endif
 
 // The ignition relay is only used for testing purposes
 void set_intercept_relay(bool intercept, bool ignition_relay) {
@@ -49,7 +53,11 @@ bool harness_check_ignition(void) {
   return ret;
 }
 
+#ifdef E2E_TEST
+uint8_t harness_detect_orientation(void) {
+#else
 static uint8_t harness_detect_orientation(void) {
+#endif
   uint8_t ret = harness.status;
 
   #ifndef BOOTSTUB
@@ -88,7 +96,9 @@ static uint8_t harness_detect_orientation(void) {
 }
 
 void harness_tick(void) {
+#ifndef E2E_TEST
   harness.status = harness_detect_orientation();
+#endif
 }
 
 void harness_init(void) {
@@ -98,8 +108,10 @@ void harness_init(void) {
   set_gpio_output(current_board->harness_config->GPIO_relay_SBU1, current_board->harness_config->pin_relay_SBU1, 1);
   set_gpio_output(current_board->harness_config->GPIO_relay_SBU2, current_board->harness_config->pin_relay_SBU2, 1);
 
+#ifndef E2E_TEST
   // detect initial orientation
   harness.status = harness_detect_orientation();
+#endif
 
   // keep buses connected by default
   set_intercept_relay(false, false);

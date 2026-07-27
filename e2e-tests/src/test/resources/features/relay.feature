@@ -20,6 +20,12 @@ Feature: Intercept Relay Control
       """
 
   Scenario: Relay A on with param1=1
+    Given exists data:
+      """
+      ControlSetup: {
+        harnessStatus: 1
+      }
+      """
     When control write:
       """
       DriveRelay: {
@@ -36,6 +42,12 @@ Feature: Intercept Relay Control
       """
 
   Scenario: Relay B on with param1=2
+    Given exists data:
+      """
+      ControlSetup: {
+        harnessStatus: 1
+      }
+      """
     When control write:
       """
       DriveRelay: {
@@ -52,6 +64,12 @@ Feature: Intercept Relay Control
       """
 
   Scenario: Both relays on with param1=3
+    Given exists data:
+      """
+      ControlSetup: {
+        harnessStatus: 1
+      }
+      """
     When control write:
       """
       DriveRelay: {
@@ -68,6 +86,12 @@ Feature: Intercept Relay Control
       """
 
   Scenario: Higher bits ignored — param1=0xFF behaves as both on
+    Given exists data:
+      """
+      ControlSetup: {
+        harnessStatus: 1
+      }
+      """
     When control write:
       """
       DriveRelay: {

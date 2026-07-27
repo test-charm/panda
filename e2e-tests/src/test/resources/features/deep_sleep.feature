@@ -227,7 +227,7 @@ Feature: Deep Sleep Request
       """
       : {
         stopModeRegs: {
-          gpioAOdr: 521L            # PA0→bootkick=1 + PA3+PA9→relay off (set by SILENT mode via set_intercept_relay)
+          gpioAOdr: 265L            # PA0→bootkick=1 + PA3+PA8→relay off (set by SILENT mode via set_intercept_relay)
           gpioBOdr: 3072L          # PB10+PB11: CAN2/4 disable=high
           gpioCOdr: 4096L          # PC12: bootkick = high
           gpioDOdr: 128L           # PD7: tied-CAN = high

@@ -5,7 +5,7 @@ Feature: Bootkick SOM Reset FSM
   Uses callTickHandler() — the full production tick_handler() from board/main.c.
   The 1Hz block fires every 8th call, so 8 × N calls advances N ticks.
   heartbeatDisabled prevents the heartbeat timeout from interfering.
-  Control via: ignitionLine (harness_check_ignition), harnessStatus (harness.status),
+  Control via: ignitionLine + harnessStatus (both required for harness_check_ignition),
   somUartWptr (serial activity).
 
   Background:
@@ -21,6 +21,7 @@ Feature: Bootkick SOM Reset FSM
       """
       ControlSetup: {
         ignitionLine: 1
+        harnessStatus: 1
       }
       """
     When call tick handler 8 times
@@ -53,6 +54,7 @@ Feature: Bootkick SOM Reset FSM
       """
       ControlSetup: {
         ignitionLine: 1
+        harnessStatus: 1
       }
       """
     When call tick handler 8 times
@@ -72,6 +74,7 @@ Feature: Bootkick SOM Reset FSM
       """
       ControlSetup: {
         ignitionLine: 1
+        harnessStatus: 1
       }
       """
     # 21 more 1Hz ticks: 1 rising edge + 20 waiting countdown → BOOT_RESET
@@ -91,6 +94,7 @@ Feature: Bootkick SOM Reset FSM
       """
       ControlSetup: {
         ignitionLine: 1
+        harnessStatus: 1
       }
       """
     When call tick handler 200 times
@@ -108,6 +112,7 @@ Feature: Bootkick SOM Reset FSM
       """
       ControlSetup: {
         ignitionLine: 1
+        harnessStatus: 1
         somUartWptr: 42
       }
       """
@@ -127,6 +132,7 @@ Feature: Bootkick SOM Reset FSM
       """
       ControlSetup: {
         ignitionLine: 1
+        harnessStatus: 1
       }
       """
     When call tick handler 184 times
@@ -135,6 +141,7 @@ Feature: Bootkick SOM Reset FSM
       """
       ControlSetup: {
         ignitionLine: 0
+        harnessStatus: 1
       }
       """
     When call tick handler 8 times
@@ -142,6 +149,7 @@ Feature: Bootkick SOM Reset FSM
       """
       ControlSetup: {
         ignitionLine: 1
+        harnessStatus: 1
       }
       """
     When call tick handler 8 times
@@ -177,7 +185,7 @@ Feature: Bootkick SOM Reset FSM
     Given exists data:
       """
       ControlSetup: {
-        ignitionLine: 1
+        ignitionCan: 1
       }
       """
     When call tick handler 8 times
@@ -208,7 +216,7 @@ Feature: Bootkick SOM Reset FSM
     Given exists data:
       """
       ControlSetup: {
-        ignitionLine: 1
+        ignitionCan: 1
       }
       """
     When call tick handler 176 times
@@ -226,7 +234,7 @@ Feature: Bootkick SOM Reset FSM
     Given exists data:
       """
       ControlSetup: {
-        ignitionLine: 1
+        ignitionCan: 1
       }
       """
     When call tick handler 8 times
@@ -257,7 +265,7 @@ Feature: Bootkick SOM Reset FSM
     Given exists data:
       """
       ControlSetup: {
-        ignitionLine: 1
+        ignitionCan: 1
       }
       """
     When call tick handler 176 times

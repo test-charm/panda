@@ -50,6 +50,12 @@ Feature: CAN Communications Reset
   Scenario: Reset preserves ALLOUTPUT safety mode relay state
     Given exists data:
       """
+      ControlSetup: {
+        harnessStatus: 1
+      }
+      """
+    Given exists data:
+      """
       SetSafetyMode: {
         param1: 17
       }

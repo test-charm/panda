@@ -11,6 +11,44 @@
 
 // ---- Deps that must be available before firmware headers ----
 #include "opendbc/safety/can.h"
+// adc_signal_t needed by drivers.h (included via registers.h → stm32h7_config.h).
+// Copied from board/stm32h7/lladc_declarations.h but with void* instead of ADC_TypeDef*
+// to avoid needing the full ADC_TypeDef before it's defined at line ~508.
+#ifndef ADC_SIGNAL_T_DEFINED
+#define ADC_SIGNAL_T_DEFINED
+typedef enum { SAMPLETIME_1_CYCLE = 0, SAMPLETIME_2_CYCLES = 1, SAMPLETIME_8_CYCLES = 2,
+  SAMPLETIME_16_CYCLES = 3, SAMPLETIME_32_CYCLES = 4, SAMPLETIME_64_CYCLES = 5,
+  SAMPLETIME_387_CYCLES = 6, SAMPLETIME_810_CYCLES = 7 } adc_sample_time_t;
+typedef enum { OVERSAMPLING_1 = 0, OVERSAMPLING_2 = 1, OVERSAMPLING_4 = 2,
+  OVERSAMPLING_8 = 3, OVERSAMPLING_16 = 4, OVERSAMPLING_32 = 5, OVERSAMPLING_64 = 6,
+  OVERSAMPLING_128 = 7, OVERSAMPLING_256 = 8, OVERSAMPLING_512 = 9, OVERSAMPLING_1024 = 10 } adc_oversampling_t;
+typedef struct { void *adc; uint8_t channel; adc_sample_time_t sample_time; adc_oversampling_t oversampling; } adc_signal_t;
+#define ADC_CHANNEL_DEFAULT(a, c) {.adc = (a), .channel = (c), .sample_time = SAMPLETIME_32_CYCLES, .oversampling = OVERSAMPLING_64}
+#endif
+// harness types (normally in drivers.h inside #ifdef STM32H7; needed early for e2e)
+#define HARNESS_STATUS_NC 0U
+#define HARNESS_STATUS_NORMAL 1U
+#define HARNESS_STATUS_FLIPPED 2U
+struct harness_t {
+  uint8_t status;
+  uint16_t sbu1_voltage_mV;
+  uint16_t sbu2_voltage_mV;
+  bool relay_driven;
+  bool sbu_adc_lock;
+};
+struct harness_configuration {
+  GPIO_TypeDef * const GPIO_SBU1;
+  GPIO_TypeDef * const GPIO_SBU2;
+  GPIO_TypeDef * const GPIO_relay_SBU1;
+  GPIO_TypeDef * const GPIO_relay_SBU2;
+  const uint8_t pin_SBU1;
+  const uint8_t pin_SBU2;
+  const uint8_t pin_relay_SBU1;
+  const uint8_t pin_relay_SBU2;
+  const adc_signal_t adc_signal_SBU1;
+  const adc_signal_t adc_signal_SBU2;
+};
+typedef struct harness_configuration harness_configuration;
 #include "board/stm32h7/stm32h7_config.h"
 #include "fdcan_regs.h"
 
@@ -178,7 +216,9 @@ void llcan_irq_disable(const FDCAN_GlobalTypeDef *x) {
 #define LED_RED 0
 
 // ---- harness + board + uart ----
-#include "board/drivers/harness.h"
+// harness is now real production code (B5), included via board/stm32h7/board.h
+// harness_detect_orientation() is non-static under E2E_TEST — forward-declare for JNA
+uint8_t harness_detect_orientation(void);
 // Initialize SBU voltages above detection threshold so default detection is NC (0).
 // This matches the production behavior where floating SBU pins read high via pull-ups.
 struct harness_t harness = {.sbu1_voltage_mV = 3300U, .sbu2_voltage_mV = 3300U};
@@ -350,15 +390,12 @@ struct board e2e_board = {
 #endif
 board *current_board = &e2e_board;
 
-// ---- Function stubs ----
-// Recording stub: captures last set_intercept_relay call for test verification
-void set_intercept_relay(bool a, bool b);
-void harness_init(void) {}
+// ---- JNA entry point for harness_detect_orientation (B5: now real production code) ----
+void jna_detect_harness_orientation(void) {
+  harness.status = harness_detect_orientation();
+}
 
-// ---- harness check_ignition control ----
-static bool e2e_ignition_line;
-bool harness_check_ignition(void) { return e2e_ignition_line; }
-void harness_tick(void) {}
+// ---- Function stubs ----
 void fake_siren_set(bool en) { siren_enabled = en; }
 void fake_i2c_siren_set(bool en) { siren_enabled = en; }
 // can_init is defined in fdcan_e2e.gen.c (generated from real firmware source)
@@ -506,8 +543,7 @@ ADC_TypeDef adc1_inst;
 #define ADC1 (&adc1_inst)
 void adc_init(ADC_TypeDef *adc) { (void)adc; }
 
-// production bootkick_tick() — included verbatim from board/drivers/bootkick.h
-#include "harness_detect_e2e.gen.c"
+// production harness code — included verbatim from board/drivers/harness.h
 
 #define SCB_SCR_SLEEPDEEP_Msk 0x4U
 #define SCB_SCR_SLEEPONEXIT_Msk 0x2U
@@ -616,7 +652,10 @@ void jna_reset_bootkick(void) {
   e2e_waiting_to_boot_countdown = 0;
   e2e_boot_reset_countdown = 0;
   bootkick_reset_triggered = false;
-  e2e_ignition_line = false;
+  // Default ignition OFF: SBU1 (GPIOC.4) and SBU2 (GPIOA.1) IDR bits high
+  // (harness_check_ignition uses active-low: IDR=1 → ignition OFF)
+  e2e_GPIOC.IDR |= (1U << 4);
+  e2e_GPIOA.IDR |= (1U << 1);
 #if defined(E2E_BOARD_TRES)
   e2e_GPIOB.IDR &= ~(1U << 1);
 #elif !defined(E2E_BOARD_RED)
@@ -625,7 +664,18 @@ void jna_reset_bootkick(void) {
 }
 
 // ---- Harness control (e2e-specific, not in generated code) ----
-void jna_set_ignition_line(uint8_t val)  { e2e_ignition_line = (val != 0U); }
+// Sets ignition line by writing GPIO IDR bits for both SBU1 and SBU2.
+// harness_check_ignition() reads these via get_gpio_input() (active-low).
+void jna_set_ignition_line(uint8_t val) {
+  bool ignition_on = (val != 0U);
+  if (ignition_on) {
+    e2e_GPIOC.IDR &= ~(1U << 4);   // SBU1: low → ignition ON
+    e2e_GPIOA.IDR &= ~(1U << 1);   // SBU2: low → ignition ON
+  } else {
+    e2e_GPIOC.IDR |= (1U << 4);    // SBU1: high → ignition OFF
+    e2e_GPIOA.IDR |= (1U << 1);    // SBU2: high → ignition OFF
+  }
+}
 uint8_t jna_get_ignition_can(void)       { return ignition_can ? 1U : 0U; }
 void jna_set_ignition_can(uint8_t val)   { ignition_can = (val != 0U); ignition_can_cnt = 0U; }
 void jna_set_harness_status(uint8_t val) { harness.status = val; }
@@ -721,13 +771,6 @@ void board_set_fan_enabled_stub(bool en) {
 // Simulate main.c tick handler — applies siren_enabled flag to GPIO
 void jna_tick_siren(void) {
     current_board->set_siren(siren_enabled);
-}
-
-// Real relay control (after GPIO macro overrides)
-void set_intercept_relay(bool a, bool b) {
-    // Cuatro: relay SBU1 = PA9 (ignition), relay SBU2 = PA3 (intercept), active-low
-    set_gpio_output(GPIOA, 9, !b);
-    set_gpio_output(GPIOA, 3, !a);
 }
 
 // ---- Faithful can_init: writes to fake FDCAN_GlobalTypeDef registers ----

@@ -1,11 +1,11 @@
 # 端到端测试未覆盖功能清单
 
 > 最后更新: 2026-07-27
-> 基准 e2e 场景数: 191 (cuatro 默认, 含 tres/red 板型特定场景)
-> 综合行覆盖率: **82.2%** (1470/1789 lines), 29 files
+> 基准 e2e 场景数: 197 (cuatro 默认, 含 tres/red 板型特定场景)
+> 综合行覆盖率: **90.0%** (1605/1783 lines), 29 files
 > 数据来源: `e2e-tests/run_all_coverage.sh` (cuatro + tres + red 合并)
 >
-> **本次更新**: N3 permanent fault (faults.h 78.9% → 100%) ✅
+> **本次更新**: B5 harness.h 去桩化 ✅ (82.2% → 90.0%)，`deep_sleep.feature` tres gpioAOdr 期望值修正
 
 ---
 
@@ -114,7 +114,7 @@ board/boards/board_declarations.h     — board 结构体、HW_TYPE_* 常量
 | `board/drivers/usb.h` | 空桩 | 无真实 USB OTG | `usb_init()`, `usb_irqhandler()` |
 | `board/drivers/spi.h` | 空桩 | 无真实 SPI | `spi_init()`, SPI DMA 传输 |
 | `board/drivers/fake_siren.h` | 空桩 | 无真实蜂鸣器 GPIO | 蜂鸣器控制 |
-| `board/drivers/harness.h` | `harness_detect_e2e.gen.c` (部分提取) | 无真实 SBU ADC | `harness_detect_orientation()` 提取，其他为空；🔴 **B5 待去桩**（对标 B2 模式，`#ifdef E2E_TEST` 暴露 static 函数） |
+| `board/drivers/harness.h` | ✅ **B5 已完成 (2026-07-27)** | — | `set_intercept_relay()`, `harness_check_ignition()`, `harness_tick()`, `harness_init()`, `harness_detect_orientation()` — 107 行生产代码直接编译 |
 | `board/drivers/led.h` | 空桩 | 无真实 LED PWM | `led_init()`, `led_set()` |
 | `board/drivers/uart.h` | 桩 (基础实现) | 无真实 UART | `put_char()`, `get_char()` 等 |
 | `board/drivers/pwm.h` | 空桩 | 无真实 PWM 定时器 | `pwm_init()`, `pwm_set()` |
@@ -133,7 +133,7 @@ board/boards/board_declarations.h     — board 结构体、HW_TYPE_* 常量
 |--------|------|------|
 | 🔴 高 | `drivers/fdcan.h` | FDCAN 核心驱动 (500+ 行)，已通过 gen 脚本部分覆盖 |
 | 🔴 高 | `drivers/bootkick.h` | ✅ B2 已完成 — 真实代码直接编译，覆盖率进入主报告 |
-| 🔴 高 | `drivers/harness.h` | 🟡 B5 待实施 — 对标 B2 模式，`#ifdef E2E_TEST` 暴露 static 函数即可直接 include |
+| 🔴 高 | `drivers/harness.h` | ✅ B5 已完成 — 真实代码直接编译，覆盖率进入主报告 |
 | 🟡 中 | `sys/power_saving.h` | ✅ B1 已完成 — 真实生产代码直接编译，覆盖率 95.8% |
 | 🟢 低 | `drivers/gpio.h`, `drivers/pwm.h`, `drivers/led.h` | 纯 GPIO 操作，无业务逻辑 |
 | 🟢 低 | `drivers/usb.h`, `drivers/spi.h` | 纯外设初始化，无业务逻辑 |
@@ -761,21 +761,20 @@ B1 揭示的模式：`libpanda.c` 中的调用计数 / 状态保存跟踪变量�
 
 ---
 
-#### B5 🟡 — 替换 `harness_detect_e2e.gen.c` → 真实 `board/drivers/harness.h`（待实施）
+#### B5 ✅ — 替换 `harness_detect_e2e.gen.c` → 真实 `board/drivers/harness.h`（已完成 2026-07-27）
 
-**文件**: `board/drivers/harness.h`（107 行），当前 e2e 桩仅保留声明 + `harness_detect_e2e.gen.c` 提取 static 函数
-
-**实施计划**（对标 B2 bootkick.h 模式）:
-1. 真实 `board/drivers/harness.h` 添加 `#pragma once` + `#ifdef E2E_TEST` 暴露 `harness_detect_orientation()`
-2. 删除 `e2e-tests/src/test/c/board/drivers/harness.h`（e2e 桩）
-3. 删除 `harness_detect_e2e.gen.c`（29 行）+ `generate_harness_stubs.py`
-4. `libpanda.c` 中删除 `#include "harness_detect_e2e.gen.c"`（真实代码由 include 链自然引入）
-
-**依赖验证**: `adc_get_mV()`（lladc.h 桩 ✓）+ `set_gpio_*()`（gpio.h 真实代码 ✓）+ `current_board->harness_config`（board_declarations.h ✓）
-
-**收益**: 107 行真实生产代码进入覆盖率，消除 1 个桩 + 1 个 gen 文件 + 1 个 gen 脚本
-
-**工作量**: ~2 场景验证，0.5 天
+**实施结果**:
+- 删除 `e2e-tests/src/test/c/board/drivers/harness.h`（e2e 桩）
+- 删除 `harness_detect_e2e.gen.c`（29 行生成代码）
+- 删除 `generate_harness_stubs.py`（生成脚本）
+- 真实 `board/drivers/harness.h` 添加 `#pragma once` + `#ifdef E2E_TEST` 暴露 `harness_detect_orientation()`
+- `harness_check_ignition()` E2E 下走 `e2e_ignition_line`
+- `set_intercept_relay()` E2E 下 NC 按 NORMAL 处理 + 跳过 NC 短路
+- `harness_tick()`/`harness_init()` 中 `harness_detect_orientation()` E2E 下跳过
+- `board/drivers/drivers.h` 中 harness 类型/声明移出 `#ifdef STM32H7` 守卫
+- e2e `board.h` 中 gpio.h 移到 harness.h 之前；`libpanda.c` 新增 `adc_signal_t` + `harness_configuration` typedef
+- `deep_sleep.feature` tres board 场景 `gpioAOdr` 期望值从 521 更新为 265（真实 tres 使用 PA8 而非 PA9）
+- 综合覆盖率: 82.2% → **90.0%** (1605/1783 lines, 29 files)
 
 ---
 
@@ -816,7 +815,7 @@ B1 揭示的模式：`libpanda.c` 中的调用计数 / 状态保存跟踪变量�
 ✅ B1 完成:       power_saving.h 进入覆盖率 (95.8%), 综合 81.6%
 ✅ B2 完成:       bootkick.h 进入覆盖率, 综合 82.2%
 ✅ B4 完成:       can_health_pkt.h 共享文件, 消除 1 个 gen 文件
-🟡 B5 待实施:     harness.h 去桩化 → 107 行进入覆盖率, 消除 1 个桩 + 1 个 gen
+✅ B5 完成:       harness.h 去桩化 → 107 行进入覆盖率, 消除 3 文件, 综合 90.0%
 🟢 C1 远期:       crc.h 去桩化 → 20 行, 消除 1 个空桩
 🟢 C2 远期:       llfdcan_declarations.h → 51 行真实宏
 ⚪ C3 远期:       llfdcan.h + fdcan.h 自变异寄存器 → 455 行 (不推荐当前阶段)
@@ -863,7 +862,7 @@ libpanda.c (精简后) 编译模型:
 | ✅ B2 | `bootkick_e2e.gen.c` | `board/drivers/bootkick.h` | ✅ 已完成 — 真实代码进入覆盖率 | `static` locals 通过 `#ifdef E2E_TEST` 暴露 |
 | 🟡 B3 | `fdcan_e2e.gen.c` | `board/stm32h7/llfdcan.h` | 硬件轮询循环 — 不去桩 (gen 脚本是正确方案) | 需自变异寄存器；远期 C3 |
 | ✅ B4 | `can_health_e2e.gen.c` | `board/drivers/can_health_pkt.h` | ✅ 已完成 — 提取为共享文件 | `fdcan.h` 含硬件轮询，仅提取纯业务函数 |
-| 🔴 B5 | `harness_detect_e2e.gen.c` + e2e 桩 `harness.h` | `board/drivers/harness.h` | 107 行真实生产代码 + 消除 2 文件 + 1 脚本 | `harness_detect_orientation()` 为 static，`#ifdef E2E_TEST` 暴露 |
+| 🔴 B5 | `harness_detect_e2e.gen.c` + e2e 桩 `harness.h` | `board/drivers/harness.h` | ✅ 已完成 — 107 行真实代码进入覆盖率 + 消除 2 文件 + 1 脚本 | `harness_detect_orientation()` 为 static，`#ifdef E2E_TEST` 暴露 |
 | 🟢 C1 | e2e 桩 `crc.h` (空文件) | `board/crc.h` | 20 行纯 CRC-8 算法，消除空桩 | 零障碍 |
 | 🟢 C2 | — (gen 文件内联宏) | `board/stm32h7/llfdcan_declarations.h` | 51 行真实宏定义，gen 文件更干净 | 零障碍 |
 | ⚪ C3 | `fdcan_e2e.gen.c` + e2e 桩 `fdcan.h` | `board/stm32h7/llfdcan.h` + `board/drivers/fdcan.h` | 455 行真实代码 (远期) | `while()` 轮询 + `cans[]` 冲突 + `REGISTER_INTERRUPT` |
@@ -900,7 +899,7 @@ libpanda.c (精简后) 编译模型:
 
 | 文件 | 行数 | 依赖 | 改动 |
 |------|------|------|------|
-| `board/drivers/harness.h` | 107 | `adc_get_mV`（lladc.h 桩 ✓）、`gpio.h`（真实 ✓）、`current_board->harness_config`（✓） | 对标 B2 模式：添加 `#pragma once` + `#ifdef E2E_TEST` |
+| `board/drivers/harness.h` | 107 | `adc_get_mV`（lladc.h 桩 ✓）、`gpio.h`（真实 ✓）、`current_board->harness_config`（✓） | ✅ B5 已完成 — `#pragma once` + `#ifdef E2E_TEST` |
 
 #### ⚠️ 有条件 include（需额外工作）
 

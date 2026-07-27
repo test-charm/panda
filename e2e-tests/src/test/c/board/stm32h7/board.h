@@ -38,8 +38,8 @@ extern board *current_board;
 
 // ---- Include stubs BEFORE board headers (they provide types the boards need) ----
 #include "board/stm32h7/lladc.h"        // e2e stub: adc_signal_t, adc_get_mV
-#include "board/drivers/harness.h"      // e2e stub: harness_configuration, harness_t
 #include "board/drivers/gpio.h"         // real: set_gpio_output, set_gpio_pullup, set_gpio_mode, set_gpio_alternate, etc.
+#include "board/drivers/harness.h"      // real (B5): needs gpio.h types before it
 
 // pwm_init/pwm_set — forward declarations matching real signatures
 // (e2e pwm.h uses simplified void arg, not suitable for board init compilation)

@@ -72,6 +72,12 @@ Feature: Safety Mode Switching
   Scenario: ALLOUTPUT mode allows all CAN TX through safety pipeline
     Given exists data:
       """
+      ControlSetup: {
+        harnessStatus: 1
+      }
+      """
+    Given exists data:
+      """
       SetSafetyMode: {
         param1: 17     # SAFETY_ALLOUTPUT
       }
@@ -177,6 +183,12 @@ Feature: Safety Mode Switching
       """
 
   Scenario: TOYOTA car-safety mode blocks non-TOYOTA CAN TX
+    Given exists data:
+      """
+      ControlSetup: {
+        harnessStatus: 1
+      }
+      """
     Given exists data:
       """
       SetSafetyMode: {

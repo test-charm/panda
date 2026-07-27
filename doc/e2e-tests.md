@@ -38,11 +38,10 @@ Cucumber BDD 断言: gpioAModer: 0xFFFFFFF1, rccCr: 0x0, ...
 | 生成文件 | 来源 | 内容 |
 |---------|------|------|
 | `fdcan_e2e.gen.c` | `board/stm32h7/llfdcan.h` | FDCAN 初始化代码 (B3: 硬件轮询，暂不去桩) |
-| `harness_detect_e2e.gen.c` | `board/drivers/harness.h:52-88` | `harness_detect_orientation()` |
 
 覆盖率报告排除全部 `.gen.c` 文件。
 
-> B1 ✅: `power_saving.h` 去桩化。B2 ✅: `bootkick.h` 去桩化。B4 ✅: `can_health_pkt.h` 提取共享。
+> B1 ✅: `power_saving.h` 去桩化。B2 ✅: `bootkick.h` 去桩化。B4 ✅: `can_health_pkt.h` 提取共享。B5 ✅: `harness.h` 去桩化（107 行生产代码直接编译）。
 
 > 板级函数（`enable_can_transceiver`, `set_bootkick`, `set_amp_enabled`, `set_can_mode`）已不再从桩提取，改为通过 `board/stm32h7/board.h` 桩直接编译 `board/boards/{cuatro,tres,red}.h` 生产代码。详见 P2 任务。
 
@@ -93,9 +92,9 @@ e2e-tests/
 │   │   ├── build.sh                 # 编译（支持 BOARD 参数）
 │   │   ├── fake_stm.h               # GPIO_TypeDef 完整结构体
 │   │   ├── libpanda.c               # 假寄存器实例 + JNA 访问器
-│   │   ├── generate_*.py            # 自动生成脚本（2 个）
-│   │   ├── *_e2e.gen.c              # 自动生成文件（2 个，不纳入版本管理）
-│   │   └── board/drivers/           # 仅保留 harness.h 测试桩
+│   │   ├── generate_*.py            # 自动生成脚本（1 个: fdcan）
+│   │   ├── *_e2e.gen.c              # 自动生成文件（1 个, 不纳入版本管理）
+│   │   └── board/drivers/           # e2e 桩文件 + simple_watchdog 委托桩
 │   ├── java/com/panda/e2e/
 │   │   ├── PandaClient.java         # JNA 接口 + StopModeRegs DTO
 │   │   ├── SafetyModeSteps.java     # BDD 步骤定义 + ControlSetup
@@ -159,13 +158,13 @@ e2e-tests/
 | 寄存器发散 | `register_divergence.feature` | 3 | readFaults (FAULT_REGISTER_DIVERGENT, 真实 `registers.h` + `jna_set_register_divergent` 注入) |
 | WFI 空闲路径 | `wfi_idle.feature` | 3 | stopModeRegs (wfiEntered + scbScr, 通过 `jna_process_wfi_idle`) |
 | ignition_can 自动复位 | `ignition_can.feature` | 2 | ignitionCan (通过 `jna_set_ignition_can` + `jna_call_tick_handler`) |
-| 线束翻转检测 | `harness_detect.feature` | 8 | harnessStatus (生产 `harness_detect_orientation()` + ADC 拦截桩) |
+| 线束翻转检测 | `harness_detect.feature` | 8 | harnessStatus (生产 `harness_detect_orientation()` ✅ B5 + ADC 拦截桩) |
 | Tick 路径 | `tick_paths.feature` | 6 | has_fan=false, heartbeat_counter 溢出, safety_mode_cnt 溢出, harness reinit (P1) |
 
 ## C 代码覆盖率
 
 > 数据来源: `e2e-tests/run_all_coverage.sh` 合并报告 (cuatro + tres + red)
-> 生成时间: 2026-07-27 (N5 libc 完成)
+> 生成时间: 2026-07-27 (B5 harness 去桩化完成)
 
 | 源文件 | 行覆盖 | 函数覆盖 | 说明 |
 |--------|--------|---------|------|
@@ -182,8 +181,9 @@ e2e-tests/
 | `board/sys/power_saving.h` | **95.8%** (92/96) | — | ✅ B1 |
 | `board/drivers/bootkick.h` | **~98%** (预估) | — | ✅ B2 |
 | `board/drivers/can_health_pkt.h` | **~95%** (预估) | — | ✅ B4 (共享文件) |
+| `board/drivers/harness.h` | **~90%** (预估) | — | ✅ B5 (107 行，set_intercept_relay/harness_check_ignition/harness_tick/harness_init/harness_detect_orientation) |
 | `board/boards/*.h` | **95.0%** (57/60) | — | ✅ N2 完成 + 去桩化 (board_init.feature 7 场景) |
-| **合计** | **90.1%** (1631/1810 lines, 30 files) | — | B1/B2/B4 去桩化 + N1-N5 完成 |
+| **合计** | **90.0%** (1605/1783 lines, 29 files) | — | B1/B2/B4/B5 去桩化 + N1-N5 完成 |
 
 > ⚠️ `main.c` 中未覆盖的函数：`sound_tick`。P1-P9 全部覆盖，N1-N5 全部完成。详见 `e2e-tests/src/test/resources/test-design/uncovered-features.md`。
 
@@ -199,7 +199,7 @@ e2e-tests/
 
 **所有功能均已通过寄存器级别验证覆盖**，无需函数调用计数或参数追踪。
 
-> B1/B2/N2 完成后，`enable_can_transceivers` / `bootkick_tick` / `xxx_init()` 使用纯生产代码。
+> B1/B2/N2/B5 完成后，`enable_can_transceivers` / `bootkick_tick` / `xxx_init()` / `set_intercept_relay` / `harness_check_ignition` / `harness_tick` / `harness_init` / `harness_detect_orientation` 使用纯生产代码。
 > 冗余跟踪变量（`canTransceivers*`, `irPowerCallCount`, `last_siren_state`）已移除，
 > 改为 `stopModeRegs` / `boardInit` 和 TIM1.CCR1 寄存器直接验证。
 > B4: `update_can_health_pkt()` 提取为共享文件 `can_health_pkt.h`。
@@ -216,7 +216,7 @@ BOARD=cuatro cc -std=gnu11 -fPIC -shared -O0 -g \
   -o libpanda_cuatro.dylib src/test/c/libpanda.c
 ```
 
-`-I src/test/c` 中的 stub 头文件提供板级适配（`board/stm32h7/board.h` — 引入真实 `board/boards/*.h` 生产代码，并包含 `common_init_gpio()` / `gpio_uart7_init()` 的真实实现复制自 `peripherals.h`）以及 `harness.h`（结构体定义）、`lladc.h`（ADC 拦截桩）。其他头文件（`gpio.h`, `led.h`, `pwm.h` 等）统一使用 `board/` 下的生产代码。
+`-I src/test/c` 中的 stub 头文件提供板级适配（`board/stm32h7/board.h` — 引入真实 `board/boards/*.h` 生产代码，并包含 `common_init_gpio()` / `gpio_uart7_init()` 的真实实现复制自 `peripherals.h`）以及 `lladc.h`（ADC 拦截桩）。其他头文件（`gpio.h`, `harness.h`, `led.h`, `pwm.h` 等）统一使用 `board/` 下的生产代码。
 
 ## 运行命令
 
