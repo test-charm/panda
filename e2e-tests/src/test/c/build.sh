@@ -53,6 +53,8 @@ if [ "${COVERAGE:-}" != "1" ] && [ -f "$OUTPUT" ] \
     && [ "$OUTPUT" -nt "$SCRIPT_DIR/generate_fdcan_stubs.py" ] \
     && [ "$OUTPUT" -nt "$SCRIPT_DIR/generate_bootkick_stubs.py" ] \
     && [ "$OUTPUT" -nt "$PROJECT_ROOT/board/drivers/bootkick.h" ] \
+    && [ "$OUTPUT" -nt "$SCRIPT_DIR/fdcan_regs.h" ] \
+    && [ "$OUTPUT" -nt "$SCRIPT_DIR/board/stm32h7/llfdcan_declarations.h" ] \
     && [ "$OUTPUT" -nt "$SCRIPT_DIR/board/stm32h7/lladc.h" ] \
     && [ "$OUTPUT" -nt "$PROJECT_ROOT/board/drivers/harness.h" ]; then
     echo "[build] libpanda_${BOARD}.dylib is up to date"
