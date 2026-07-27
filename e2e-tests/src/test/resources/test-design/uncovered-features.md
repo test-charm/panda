@@ -521,14 +521,12 @@ BOOT_BOOTKICK → BOOT_STANDBY → (STANDBY→BOOTKICK edge) → 20 tick 等待 
 
 **工作量**: 2 场景，极低 ✅ 已完成
 
-#### N4 — `can_common.h` 队列指针回绕 🟡
+#### N4 — `can_common.h` 队列指针回绕 ✅ 已完成
 
 ```
-文件: board/drivers/can_common.h (95.3%)
-未覆盖: lines 47, 64, 90, 101-102 — 队列满时 w_ptr/r_ptr 回绕到 0
+文件: board/drivers/can_common.h (95.3% → 100%)
+已完成: lines 47, 64, 90, 101-102 — `can_queue_wrap.feature` (5 场景)
 ```
-
-**工作量**: ~2 场景，0.5 天
 
 #### N5 — `libc.h` `delay()` / `assert_fatal()` / `memcmp()` 🟢
 
@@ -567,7 +565,7 @@ BOOT_BOOTKICK → BOOT_STANDBY → (STANDBY→BOOTKICK edge) → 20 tick 等待 
 | **N1** | `clock_source_init()` | `board/drivers/clock_source.h` | ✅ **17.5% → 95%+** (已完成) | — |
 | **N2** | Board `xxx_init()` | `board/boards/{cuatro,tres,red}.h` | ✅ **35-66% → 95%+** (已完成) | — |
 | **N3** | Permanent fault | `board/sys/faults.h` | ✅ **100%** (已完成 2026-07-27) | 极低 |
-| **N4** | CAN queue wrap | `board/drivers/can_common.h` | ❌ **95.3% → 目标 100%** | 0.5 天 |
+| **N4** | CAN queue wrap | `board/drivers/can_common.h` | ✅ **100%** (已完成 2026-07-27) | 0.5 天 |
 | **N5** | `libc.h` 未覆盖路径 | `board/libc.h` | ❌ **61.3%** (低 ROI) | 0.5 天 |
 | — | Flasher 命令 (3 个) | `board/flasher.h` | ❌ 新 e2e 目标 | 大 |
 | — | Jungle 命令 (8 个) | `board/jungle/main_comms.h` | ❌ 新 e2e 目标 | 大 |
@@ -682,17 +680,21 @@ Then control data should be → 验证结果
 
 ---
 
-#### N4 — `can_common.h` 队列指针回绕
+#### N4 — `can_common.h` 队列指针回绕 ✅ 已完成
 
-**文件**: `board/drivers/can_common.h`，当前 95.3%，5 行未覆盖
+**文件**: `board/drivers/can_common.h`，**95.3% → 100%** (107/107 lines)，新增 5 场景
 
 | 场景 | 测试内容 |
 |------|---------|
-| w_ptr 回绕 | 填充队列使 `w_ptr` 回绕到 0 → 验证 `next_w_ptr` 计算 |
-| r_ptr 回绕 | `can_clear_rx()` 但 `r_ptr` 已经为 0 → 验证边界 |
-| can_tx_check_min_slots_free 回绕 | w_ptr < r_ptr → 容量计算正确 |
+| r_ptr 回绕 | 设置 w_ptr=1, r_ptr=415 → push + pop → r_ptr 从 415 回绕到 0 |
+| w_ptr 回绕 | 设置 w_ptr=415, r_ptr=1 → push → w_ptr 从 415 回绕到 0 |
+| push 失败 | 设置 w_ptr=415, r_ptr=0 (满) → push → 返回 false，w_ptr 不变 |
+| slots_empty 回绕 | 设置 w_ptr=100, r_ptr=200 → can_slots_empty → 返回 r_ptr-w_ptr-1=99 |
+| slots_empty 正常 | 设置 w_ptr=200, r_ptr=100 → 回归验证 |
 
-**工作量**: ~2 场景，0.5 天
+**实施**: 新增 JNA 函数 `jna_set_can_queue_state` / `jna_can_push_direct` / `jna_can_pop_direct` / `jna_can_slots_empty`，通过 `CanQueue` 表驱动 Given 前置设置队列状态。
+
+**工作量**: 0.5 天 ✅ 已完成
 
 ---
 

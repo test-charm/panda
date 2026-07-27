@@ -1,5 +1,6 @@
 package com.panda.e2e;
 
+import com.panda.e2e.spec.CanQueues;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.testcharm.jfactory.CompositeDataRepository;
@@ -17,6 +18,7 @@ public class Factories {
                 .registerByType(PandaSteps.UsbControlRequest.class, new UsbControlRequestDataRepository(client))
                 .registerByType(PandaSteps.CanSendRequest.class, new CanSendRequestDataRepository(client))
                 .registerByType(PandaSteps.ControlSetup.class, new ControlSetupDataRepository(client))
+                .registerByType(CanQueues.CanQueueData.class, new CanQueueDataRepository(client))
         );
         Classes.subTypesOf(Spec.class, "com.panda.e2e.spec")
                 .forEach(spec -> jFactory.register((Class) spec));
@@ -172,6 +174,21 @@ public class Factories {
             if (setup.registerDivergent != -1) {
                 client.setRegisterDivergent(setup.registerDivergent);
             }
+        }
+    }
+
+    public static class CanQueueDataRepository extends MemoryDataRepository {
+        private final PandaClient client;
+
+        public CanQueueDataRepository(PandaClient client) {
+            this.client = client;
+        }
+
+        @Override
+        public void save(Object object) {
+            super.save(object);
+            var queue = (CanQueues.CanQueueData) object;
+            client.setCanQueueState(queue.getQueueNum(), queue.getW_ptr(), queue.getR_ptr());
         }
     }
 }

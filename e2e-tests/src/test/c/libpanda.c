@@ -1070,6 +1070,84 @@ bool jna_can_check_checksum(const uint8_t *pkt_data, uint32_t len) {
     return can_check_checksum(&pkt);
 }
 
+// ---- JNA API: CAN queue state manipulation for coverage testing ----
+// queue_idx: 0=rx_q, 1=tx1_q, 2=tx2_q, 3=tx3_q
+static can_ring *get_can_queue(int queue_idx) {
+    if (queue_idx == 0) {
+        return &can_rx_q;
+    } else if ((queue_idx >= 1) && (queue_idx <= 3)) {
+        return can_queues[queue_idx - 1];
+    }
+    return ((void *)0);
+}
+
+void jna_set_can_queue_state(int queue_idx, uint32_t w_ptr, uint32_t r_ptr) {
+    can_ring *q = get_can_queue(queue_idx);
+    if (q != ((void *)0)) {
+        q->w_ptr = w_ptr;
+        q->r_ptr = r_ptr;
+    }
+}
+
+void jna_get_can_queue_state(int queue_idx, uint32_t *out_w_ptr, uint32_t *out_r_ptr, uint32_t *out_fifo_size) {
+    can_ring *q = get_can_queue(queue_idx);
+    if (q != ((void *)0)) {
+        *out_w_ptr = q->w_ptr;
+        *out_r_ptr = q->r_ptr;
+        *out_fifo_size = q->fifo_size;
+    } else {
+        *out_w_ptr = 0U;
+        *out_r_ptr = 0U;
+        *out_fifo_size = 0U;
+    }
+}
+
+// Direct can_push without safety hook — for testing queue-full behavior
+bool jna_can_push_direct(int queue_idx, uint32_t addr, uint8_t bus, const uint8_t *data, uint8_t len) {
+    can_ring *q = get_can_queue(queue_idx);
+    if (q == ((void *)0)) {
+        return false;
+    }
+    CANPacket_t pkt = {0};
+    pkt.addr = addr;
+    pkt.bus = bus;
+    pkt.extended = (addr > 0x7FFU) ? 1U : 0U;
+    pkt.data_len_code = len;
+    if ((len > 0U) && (len <= 64U)) {
+        (void)memcpy(pkt.data, data, len);
+    }
+    return can_push(q, &pkt);
+}
+
+// Direct can_pop for coverage testing
+bool jna_can_pop_direct(int queue_idx, uint32_t *out_addr, uint8_t *out_bus,
+                         uint8_t *out_data, uint8_t *out_len) {
+    can_ring *q = get_can_queue(queue_idx);
+    if (q == ((void *)0)) {
+        return false;
+    }
+    CANPacket_t pkt;
+    if (can_pop(q, &pkt)) {
+        *out_addr = pkt.addr;
+        *out_bus = pkt.bus;
+        *out_len = pkt.data_len_code;
+        if (pkt.data_len_code > 0U) {
+            (void)memcpy(out_data, pkt.data, pkt.data_len_code);
+        }
+        return true;
+    }
+    return false;
+}
+
+// Expose can_slots_empty for wrap-around calculation coverage
+int jna_can_slots_empty(int queue_idx) {
+    can_ring *q = get_can_queue(queue_idx);
+    if (q == ((void *)0)) {
+        return 0;
+    }
+    return (int)can_slots_empty(q);
+}
+
 // ---- JNA API: comms_endpoint2_write (SPI + USB endpoint 2 write path) ----
 // Calls real comms_endpoint2_write from board/main_comms.h.
 // Captures written data from the ring's tx buffer for verification.

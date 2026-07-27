@@ -125,6 +125,7 @@ e2e-tests/
 | CAN 通信重置 | `can_comms_reset.feature` | 3 | canCommsBuffers + stopModeRegs.gpioAOdr |
 | CAN 通信序列化 | `can_comms.feature` | 8 | comms_can_write → txQueue, comms_can_read → commsReadBytes, checksumCheckPassed |
 | CAN 环形缓冲 | `can_ring_clear.feature` | 4 | rxQueue/txQueue |
+| CAN 队列回绕 | `can_queue_wrap.feature` | 5 | lastQueueWPtr/lastQueueRPtr/canPushResult/lastCanSlotsEmptyVal via JNA 直接队列操作 |
 | 固件版本 | `get_version.feature` | 1 | respBuffer |
 | 数据包版本 | `packet_versions.feature` | 1 | packetVersions |
 | IR 功率 | `ir_power.feature` | 3 | irPwm (TIM1 CCR1) |
@@ -163,13 +164,13 @@ e2e-tests/
 ## C 代码覆盖率
 
 > 数据来源: `e2e-tests/run_all_coverage.sh` 合并报告 (cuatro + tres + red)
-> 生成时间: 2026-07-27 (N3 permanent fault 完成)
+> 生成时间: 2026-07-27 (N4 can_common 队列回绕 完成)
 
 | 源文件 | 行覆盖 | 函数覆盖 | 说明 |
 |--------|--------|---------|------|
 | `board/main_comms.h` | **97.0%** (261/269) | 3/3 | USB 命令处理 |
 | `board/main.c` | **64.2%** (145/226) | 4/7 | 主循环 + 初始化 |
-| `board/drivers/can_common.h` | **95.3%** (102/107) | 10/12 | CAN 通用操作 |
+| `board/drivers/can_common.h` | **100%** (107/107) | 10/12 | CAN 通用操作 |
 | `board/drivers/gpio.h` | **70.4%** (50/71) | 5/7 | GPIO 控制 |
 | `board/sys/faults.h` | **100%** (33/33) | 2/2 | 故障设置（含永久故障） ✅ N3 |
 | `board/libc.h` | **61.3%** (38/62) | 3/5 | 最小化 libc 替代 |
@@ -181,9 +182,9 @@ e2e-tests/
 | `board/drivers/bootkick.h` | **~98%** (预估) | — | ✅ B2 |
 | `board/drivers/can_health_pkt.h` | **~95%** (预估) | — | ✅ B4 (共享文件) |
 | `board/boards/*.h` | **95.0%** (57/60) | — | ✅ N2 完成 + 去桩化 (board_init.feature 7 场景) |
-| **合计** | **~88%** (~1583/1789 lines, 29 files) | — | B1/B2/B4 去桩化 + N1/N2/N3 完成 |
+| **合计** | **~89%** (~1588/1789 lines, 29 files) | — | B1/B2/B4 去桩化 + N1-N4 完成 |
 
-> ⚠️ `main.c` 中未覆盖的函数：`sound_tick`。P1-P9 全部覆盖，N1-N3 全部完成。详见 `e2e-tests/src/test/resources/test-design/uncovered-features.md`。
+> ⚠️ `main.c` 中未覆盖的函数：`sound_tick`。P1-P9 全部覆盖，N1-N4 全部完成。详见 `e2e-tests/src/test/resources/test-design/uncovered-features.md`。
 
 ## 设计原则
 

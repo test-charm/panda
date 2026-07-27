@@ -48,6 +48,17 @@ public class PandaClient {
 
         void jna_can_clear_all();
 
+        // CAN queue state manipulation for coverage testing
+        void jna_set_can_queue_state(int queueIdx, int wPtr, int rPtr);
+
+        void jna_get_can_queue_state(int queueIdx, int[] outWPtr, int[] outRPtr, int[] outFifoSize);
+
+        boolean jna_can_push_direct(int queueIdx, int addr, byte bus, byte[] data, byte len);
+
+        boolean jna_can_pop_direct(int queueIdx, int[] outAddr, byte[] outBus, byte[] outData, byte[] outLen);
+
+        int jna_can_slots_empty(int queueIdx);
+
         // FDCAN register inspection
         int jna_get_fdcan_cccr(int canNumber);
 
@@ -592,6 +603,81 @@ public class PandaClient {
 
     public void clearCanQueues() {
         lib.jna_can_clear_all();
+    }
+
+    // ---- CAN queue state manipulation for coverage testing ----
+
+    @AllArgsConstructor
+    @Getter
+    public static class CanQueueState {
+        private final int wPtr;
+        private final int rPtr;
+        private final int fifoSize;
+    }
+
+    public void setCanQueueState(int queueIdx, int wPtr, int rPtr) {
+        lib.jna_set_can_queue_state(queueIdx, wPtr, rPtr);
+    }
+
+    public CanQueueState getCanQueueState(int queueIdx) {
+        int[] outWPtr = new int[1];
+        int[] outRPtr = new int[1];
+        int[] outFifoSize = new int[1];
+        lib.jna_get_can_queue_state(queueIdx, outWPtr, outRPtr, outFifoSize);
+        return new CanQueueState(outWPtr[0], outRPtr[0], outFifoSize[0]);
+    }
+
+    public boolean canPushDirect(int queueIdx, int address, byte[] data, byte bus) {
+        return lib.jna_can_push_direct(queueIdx, address, bus, data, (byte) data.length);
+    }
+
+    public AdaptiveList<CanMessage> canPopDirect(int queueIdx) {
+        int[] outAddr = new int[1];
+        byte[] outBus = new byte[1];
+        byte[] outData = new byte[64];
+        byte[] outLen = new byte[1];
+
+        var canMessages = new ArrayList<CanMessage>();
+        if (lib.jna_can_pop_direct(queueIdx, outAddr, outBus, outData, outLen)) {
+            int len = Byte.toUnsignedInt(outLen[0]);
+            byte[] data = new byte[len];
+            System.arraycopy(outData, 0, data, 0, len);
+            canMessages.add(new CanMessage(outAddr[0], Byte.toUnsignedInt(outBus[0]), data, false));
+        }
+        return AdaptiveList.staticList(canMessages);
+    }
+
+    public int canSlotsEmpty(int queueIdx) {
+        return lib.jna_can_slots_empty(queueIdx);
+    }
+
+    private boolean lastCanPushResult;
+    public boolean isCanPushResult() { return lastCanPushResult; }
+
+    // Stored queue state for DAL assertions (cannot use parameterized getters in expressions)
+    private int lastQueueWPtr;
+    private int lastQueueRPtr;
+    private int lastQueueFifoSize;
+    private int lastCanSlotsEmpty;
+
+    public int getLastQueueWPtr() { return lastQueueWPtr; }
+    public int getLastQueueRPtr() { return lastQueueRPtr; }
+    public int getLastQueueFifoSize() { return lastQueueFifoSize; }
+    public int getLastCanSlotsEmptyVal() { return lastCanSlotsEmpty; }
+
+    public void refreshQueueState(int queueIdx) {
+        CanQueueState s = getCanQueueState(queueIdx);
+        this.lastQueueWPtr = s.getWPtr();
+        this.lastQueueRPtr = s.getRPtr();
+        this.lastQueueFifoSize = s.getFifoSize();
+    }
+
+    public void refreshCanSlotsEmpty(int queueIdx) {
+        this.lastCanSlotsEmpty = canSlotsEmpty(queueIdx);
+    }
+
+    public void canPushDirectAndStore(int queueIdx, int address, byte[] data, byte bus) {
+        this.lastCanPushResult = canPushDirect(queueIdx, address, data, bus);
     }
 
     public void controlWrite(byte request, short param1, short param2, short length) {
