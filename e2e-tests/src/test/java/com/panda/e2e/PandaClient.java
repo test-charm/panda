@@ -328,6 +328,12 @@ public class PandaClient {
 
         int jna_get_faults();
 
+        int jna_get_fault_status();
+
+        void jna_trigger_fault(int fault);
+
+        void jna_recover_fault(int fault);
+
 
         void jna_call_tick_handler();
 
@@ -1162,6 +1168,18 @@ public class PandaClient {
 
     public int readFaults() {
         return lib.jna_get_faults();
+    }
+
+    public int getFaultStatus() {
+        return lib.jna_get_fault_status();
+    }
+
+    public void triggerFault(int fault) {
+        lib.jna_trigger_fault(fault);
+    }
+
+    public void recoverFault(int fault) {
+        lib.jna_recover_fault(fault);
     }
 
     public void callTickHandler() {

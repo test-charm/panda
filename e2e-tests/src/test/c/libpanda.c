@@ -759,6 +759,9 @@ void jna_set_relay_malfunction(int val) { relay_malfunction = (val != 0); }
 int jna_get_relay_malfunction(void) { return (int)relay_malfunction; }
 uint32_t jna_get_faults(void) { return faults; }
 void jna_reset_faults(void) { faults = 0U; }
+uint32_t jna_get_fault_status(void) { return (uint32_t)fault_status; }
+void jna_trigger_fault(uint32_t fault) { fault_occurred(fault); }
+void jna_recover_fault(uint32_t fault) { fault_recovered(fault); }
 void jna_call_tick_handler(void) { TICK_TIMER->SR = 1U; tick_handler(); }
 
 #ifdef __cplusplus

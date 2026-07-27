@@ -1,5 +1,12 @@
 #include "board/sys/sys.h"
 
+#ifdef E2E_TEST
+// In e2e tests, override PERMANENT_FAULTS to test the permanent fault code path.
+// FAULT_UNUSED_INTERRUPT_HANDLED is never triggered by any e2e test tick path.
+#undef PERMANENT_FAULTS
+#define PERMANENT_FAULTS FAULT_UNUSED_INTERRUPT_HANDLED
+#endif
+
 uint8_t fault_status = FAULT_STATUS_NONE;
 uint32_t faults = 0U;
 

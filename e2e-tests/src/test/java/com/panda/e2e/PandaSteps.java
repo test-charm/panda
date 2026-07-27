@@ -58,6 +58,16 @@ public class PandaSteps {
         client.tickSiren();
     }
 
+    @When("trigger fault {int}")
+    public void triggerFault(int fault) {
+        client.triggerFault(fault);
+    }
+
+    @When("recover fault {int}")
+    public void recoverFault(int fault) {
+        client.recoverFault(fault);
+    }
+
     @Then("control data should be:")
     public void controlDataShould(String expression) {
         expect(client).should(expression);

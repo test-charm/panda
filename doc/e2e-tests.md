@@ -104,7 +104,7 @@ e2e-tests/
 │   │       ├── UsbControlRequests.java  # 33 个 USB 控制请求 spec
 │   │       └── ControlSetups.java       # 前置数据 spec
 │   └── resources/
-│       ├── features/                # 40 个 feature 文件
+│       ├── features/                # 41 个 feature 文件
 │       └── test-design/             # 测试设计文档
 ```
 
@@ -152,6 +152,7 @@ e2e-tests/
 | UART 读取 | `uart_read.feature` | 3 | respBuffer (字符读取 / 空) |
 | Bootkick SOM 复位 | `bootkick.feature` | 14 | tick_handler FSM (state/waitingCountdown/resetCountdown/resetTriggered) + stopModeRegs (gpioAOdr/gpioCOdr) 通过 jna_call_tick_handler |
 | 继电器故障 | `relay_malfunction.feature` | 3 | readFaults (FAULT_RELAY_MALFUNCTION 边沿检测) |
+| 永久故障 | `permanent_fault.feature` | 2 | readFaults + faultStatus (FAULT_STATUS_PERMANENT 不可恢复) |
 | 看门狗 | `watchdog.feature` | 3 | readFaults (FAULT_HEARTBEAT_LOOP_WATCHDOG, 直接 include 生产代码 `simple_watchdog.h`) |
 | 寄存器发散 | `register_divergence.feature` | 3 | readFaults (FAULT_REGISTER_DIVERGENT, 真实 `registers.h` + `jna_set_register_divergent` 注入) |
 | WFI 空闲路径 | `wfi_idle.feature` | 3 | stopModeRegs (wfiEntered + scbScr, 通过 `jna_process_wfi_idle`) |
@@ -162,7 +163,7 @@ e2e-tests/
 ## C 代码覆盖率
 
 > 数据来源: `e2e-tests/run_all_coverage.sh` 合并报告 (cuatro + tres + red)
-> 生成时间: 2026-07-26 (B1/B2/B4 去桩化 + N1/N2 完成)
+> 生成时间: 2026-07-27 (N3 permanent fault 完成)
 
 | 源文件 | 行覆盖 | 函数覆盖 | 说明 |
 |--------|--------|---------|------|
@@ -170,7 +171,7 @@ e2e-tests/
 | `board/main.c` | **64.2%** (145/226) | 4/7 | 主循环 + 初始化 |
 | `board/drivers/can_common.h` | **95.3%** (102/107) | 10/12 | CAN 通用操作 |
 | `board/drivers/gpio.h` | **70.4%** (50/71) | 5/7 | GPIO 控制 |
-| `board/sys/faults.h` | **78.9%** (15/19) | 2/2 | 故障设置 |
+| `board/sys/faults.h` | **100%** (33/33) | 2/2 | 故障设置（含永久故障） ✅ N3 |
 | `board/libc.h` | **61.3%** (38/62) | 3/5 | 最小化 libc 替代 |
 | `board/drivers/fan.h` | **100%** (27/27) | 3/3 | 风扇 PWM + 冷却 |
 | `board/can_comms.h` | **100%** (76/76) | 4/4 | CAN 通信序列化 |
@@ -180,9 +181,9 @@ e2e-tests/
 | `board/drivers/bootkick.h` | **~98%** (预估) | — | ✅ B2 |
 | `board/drivers/can_health_pkt.h` | **~95%** (预估) | — | ✅ B4 (共享文件) |
 | `board/boards/*.h` | **95.0%** (57/60) | — | ✅ N2 完成 + 去桩化 (board_init.feature 7 场景) |
-| **合计** | **~87.5%** (~1570/1789 lines, 29 files) | — | B1/B2/B4 去桩化 + N1/N2 完成 |
+| **合计** | **~88%** (~1583/1789 lines, 29 files) | — | B1/B2/B4 去桩化 + N1/N2/N3 完成 |
 
-> ⚠️ `main.c` 中未覆盖的函数：`sound_tick`。P1-P8 已全部覆盖。详见 `e2e-tests/src/test/resources/test-design/uncovered-features.md`。
+> ⚠️ `main.c` 中未覆盖的函数：`sound_tick`。P1-P9 全部覆盖，N1-N3 全部完成。详见 `e2e-tests/src/test/resources/test-design/uncovered-features.md`。
 
 ## 设计原则
 

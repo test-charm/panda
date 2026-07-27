@@ -1,11 +1,11 @@
 # 端到端测试未覆盖功能清单
 
-> 最后更新: 2026-07-26
-> 基准 e2e 场景数: 179 (cuatro 默认, 含 tres/red 板型特定场景)
-> 综合行覆盖率: **81.6%** (1459/1789 lines), 29 files
+> 最后更新: 2026-07-27
+> 基准 e2e 场景数: 191 (cuatro 默认, 含 tres/red 板型特定场景)
+> 综合行覆盖率: **82.2%** (1470/1789 lines), 29 files
 > 数据来源: `e2e-tests/run_all_coverage.sh` (cuatro + tres + red 合并)
 >
-> **本次更新**: B2 bootkick.h 去桩化 + B4 can_health_pkt.h 共享文件完成
+> **本次更新**: N3 permanent fault (faults.h 78.9% → 100%) ✅
 
 ---
 
@@ -509,16 +509,17 @@ BOOT_BOOTKICK → BOOT_STANDBY → (STANDBY→BOOTKICK edge) → 20 tick 等待 
 
 **工作量**: 7 场景（实际），1 天（预估一致）
 
-#### N3 — `faults.h` Permanent fault 路径 🟡
+#### N3 — `faults.h` Permanent fault 路径 ✅ 已完成 (2026-07-27)
 
 ```
 文件: board/sys/faults.h
-未覆盖: lines 9-10 (permanent fault 打印), 23-24 ("Cannot recover")
+覆盖率: 78.9% → 100% (33/33 lines)
 ```
 
-当前仅 temporary fault 路径被 watchdog 覆盖。Permanent fault 状态转换未测试。
+实施: `#ifdef E2E_TEST` 块覆盖 `PERMANENT_FAULTS` 为 `FAULT_UNUSED_INTERRUPT_HANDLED`，
+新增 `permanent_fault.feature` (2 场景) 覆盖永久故障不可恢复 + 幂等路径。
 
-**工作量**: 1 场景，极低
+**工作量**: 2 场景，极低 ✅ 已完成
 
 #### N4 — `can_common.h` 队列指针回绕 🟡
 
@@ -565,7 +566,7 @@ BOOT_BOOTKICK → BOOT_STANDBY → (STANDBY→BOOTKICK edge) → 20 tick 等待 
 | **P12** | `safety_mode_cnt` | `board/main.c` | ✅ `tick_paths.feature` | — |
 | **N1** | `clock_source_init()` | `board/drivers/clock_source.h` | ✅ **17.5% → 95%+** (已完成) | — |
 | **N2** | Board `xxx_init()` | `board/boards/{cuatro,tres,red}.h` | ✅ **35-66% → 95%+** (已完成) | — |
-| **N3** | Permanent fault | `board/sys/faults.h` | ❌ **78.9% → 目标 100%** | 极低 |
+| **N3** | Permanent fault | `board/sys/faults.h` | ✅ **100%** (已完成 2026-07-27) | 极低 |
 | **N4** | CAN queue wrap | `board/drivers/can_common.h` | ❌ **95.3% → 目标 100%** | 0.5 天 |
 | **N5** | `libc.h` 未覆盖路径 | `board/libc.h` | ❌ **61.3%** (低 ROI) | 0.5 天 |
 | — | Flasher 命令 (3 个) | `board/flasher.h` | ❌ 新 e2e 目标 | 大 |
@@ -608,7 +609,7 @@ Then control data should be → 验证结果
 ```
 本周                                    下周                              后续
 ✅ N1 clock_source_init (17.5% → 95%+)   N4 can_common wrap              N5 libc.h (低 ROI)
-N3 faults permanent (78.9% → 100%)       ✅ B2 bootkick.h 去桩化 (已完成)     Jungle/Body 固件
+✅ N3 faults permanent (78.9% → 100%)    ✅ B2 bootkick.h 去桩化 (已完成)     Jungle/Body 固件
 ✅ B1 power_saving.h 去桩化 (已完成)     ✅ B2 bootkick.h 去桩化 (已完成)
 🟡 B3 fdcan (硬件轮询, 不去桩)            ✅ B4 can_health 共享文件 (已完成)
 ✅ N2 board xxx_init() (35-66% → 95%+)   ✅ common_init_gpio 去桩化
@@ -662,15 +663,22 @@ N3 faults permanent (78.9% → 100%)       ✅ B2 bootkick.h 去桩化 (已完�
 
 ---
 
-#### N3 — `faults.h` Permanent fault 路径
+#### N3 — `faults.h` Permanent fault 路径 ✅ 已完成 (2026-07-27)
 
-**文件**: `board/sys/faults.h`，当前 78.9%，仅 4 行未覆盖
+**文件**: `board/sys/faults.h`，覆盖率 78.9% → **100%** (33/33 lines)
+
+**实施**:
+1. `board/sys/faults.h` 添加 `#ifdef E2E_TEST` 块，将 `PERMANENT_FAULTS` 覆盖为 `FAULT_UNUSED_INTERRUPT_HANDLED` (bit 1 = 2)
+2. `libpanda.c` 新增 `jna_get_fault_status()`, `jna_trigger_fault()`, `jna_recover_fault()` 三个 JNA 辅助函数
+3. `PandaClient.java` / `PandaSteps.java` 新增 JNA 接口 + `When trigger fault {int}` / `When recover fault {int}` 步骤定义
+4. `permanent_fault.feature` (2 场景) 覆盖永久故障不可恢复 + 幂等路径
 
 | 场景 | 测试内容 |
 |------|---------|
-| Permanent fault 不可恢复 | 触发 permanent fault → 再次 `fault_occurred()` → 验证 "Cannot recover" 消息 |
+| 永久故障不可恢复 | `trigger fault 2` → 验证 faultStatus=2 → `recover fault 2` → 验证 readFaults=2 (不清除) |
+| 重复触发幂等 | `trigger fault 2` ×2 → 验证 readFaults=2 (不倍增) |
 
-**工作量**: 1 场景，极低
+**工作量**: 2 场景，极低 ✅ 已完成
 
 ---
 
