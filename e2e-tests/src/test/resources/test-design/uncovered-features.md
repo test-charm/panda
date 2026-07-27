@@ -108,7 +108,7 @@ board/boards/board_declarations.h     — board 结构体、HW_TYPE_* 常量
 | `board/provision.h` | 空桩 (返回假数据) | 无真实 OTP 存储 | 设备序列号/Provision 读取 |
 | `board/sys/power_saving.h` | ✅ **B1 已完成 — 真实生产代码直接编译** | — | `enter_stop_mode()`, `set_power_save_state()`, `enable_can_transceivers()` |
 | `board/early_init.h` | 空桩 | STM32 早期初始化无意义 | `early_initialization()` |
-| `board/crc.h` | 空桩 | CRC 硬件不可用 | CRC 校验 (`crc_calc`, `crc_check`)；🟢 **可直接 include**（纯 C 算法，零依赖） |
+| `board/crc.h` | ✅ **C1 已完成 — 真实生产代码直接编译** | — | CRC-8 校验 (`crc_checksum`)；纯 C 算法，通过 `spi_version_packet()` 覆盖 |
 | `board/drivers/bootkick.h` | ✅ **B2 已完成 — 真实生产代码直接编译** | — | SOM 启动/复位状态机 |
 | `board/drivers/fdcan.h` | `fdcan_e2e.gen.c` (从真实源码生成) + ✅ `can_health_pkt.h` (B4 共享文件) | 无 FDCAN 外设 | `can_init()`, `can_rx()` 等；`update_can_health_pkt()` 已提取为共享 |
 | `board/drivers/usb.h` | 空桩 | 无真实 USB OTG | `usb_init()`, `usb_irqhandler()` |
@@ -610,7 +610,7 @@ Then control data should be → 验证结果
 🟡 B3 fdcan (硬件轮询, 不去桩)            ✅ B4 can_health 共享文件 (已完成)
 ✅ N2 board xxx_init() (35-66% → 95%+)   ✅ common_init_gpio 去桩化
 🟡 B5 harness.h 去桩化 (对标 B2 模式)
-🟢 C1 crc.h 去桩化 (空桩)
+✅ C1 crc.h 去桩化 (空桩, 通过 spi_version_packet 测试覆盖)
 🟢 C2 llfdcan_declarations.h 去桩化
 ```
 
@@ -780,13 +780,13 @@ B1 揭示的模式：`libpanda.c` 中的调用计数 / 状态保存跟踪变量�
 
 ### 🟢 Phase C — 低优先级去桩化（远期）
 
-#### C1 — `board/crc.h` 直接 include
+#### C1 — `board/crc.h` 直接 include ✅ 已完成
 
-**文件**: `board/crc.h`（20 行），纯 CRC-8 位运算算法，零硬件依赖。当前 e2e 桩为空文件。
+**文件**: `board/crc.h`（20 行），纯 CRC-8 位运算算法，零硬件依赖。已完成去桩化。
 
-**实施**: 删除 `e2e-tests/src/test/c/board/crc.h`，真实代码自动生效。
+**实施**: 删除 `e2e-tests/src/test/c/board/crc.h`，真实代码自动生效。额外新增 `spi_version_packet.feature` (2 场景) 确保 `crc_checksum()` 通过 `spi_version_packet()` 调用进入覆盖率。
 
-**收益**: 20 行，消除 1 个空桩文件。
+**收益**: 20 行 CRC-8 算法 + 43 行 spi_version_packet，消除 1 个空桩文件。
 
 #### C2 — `board/stm32h7/llfdcan_declarations.h` 直接 include
 
@@ -816,7 +816,7 @@ B1 揭示的模式：`libpanda.c` 中的调用计数 / 状态保存跟踪变量�
 ✅ B2 完成:       bootkick.h 进入覆盖率, 综合 82.2%
 ✅ B4 完成:       can_health_pkt.h 共享文件, 消除 1 个 gen 文件
 ✅ B5 完成:       harness.h 去桩化 → 107 行进入覆盖率, 消除 3 文件, 综合 90.0%
-🟢 C1 远期:       crc.h 去桩化 → 20 行, 消除 1 个空桩
+✅ C1 完成:       crc.h 去桩化 → 20 行 + spi_version_packet (43 行), 消除 1 个空桩, 新增 spi_version_packet.feature (2 场景)
 🟢 C2 远期:       llfdcan_declarations.h → 51 行真实宏
 ⚪ C3 远期:       llfdcan.h + fdcan.h 自变异寄存器 → 455 行 (不推荐当前阶段)
 ```
@@ -863,7 +863,7 @@ libpanda.c (精简后) 编译模型:
 | 🟡 B3 | `fdcan_e2e.gen.c` | `board/stm32h7/llfdcan.h` | 硬件轮询循环 — 不去桩 (gen 脚本是正确方案) | 需自变异寄存器；远期 C3 |
 | ✅ B4 | `can_health_e2e.gen.c` | `board/drivers/can_health_pkt.h` | ✅ 已完成 — 提取为共享文件 | `fdcan.h` 含硬件轮询，仅提取纯业务函数 |
 | 🔴 B5 | `harness_detect_e2e.gen.c` + e2e 桩 `harness.h` | `board/drivers/harness.h` | ✅ 已完成 — 107 行真实代码进入覆盖率 + 消除 2 文件 + 1 脚本 | `harness_detect_orientation()` 为 static，`#ifdef E2E_TEST` 暴露 |
-| 🟢 C1 | e2e 桩 `crc.h` (空文件) | `board/crc.h` | 20 行纯 CRC-8 算法，消除空桩 | 零障碍 |
+| ✅ C1 | e2e 桩 `crc.h` (空文件) | `board/crc.h` | ✅ 已完成 — 20 行纯 CRC-8 算法，消除空桩 + spi_version_packet 测试 | 零障碍 |
 | 🟢 C2 | — (gen 文件内联宏) | `board/stm32h7/llfdcan_declarations.h` | 51 行真实宏定义，gen 文件更干净 | 零障碍 |
 | ⚪ C3 | `fdcan_e2e.gen.c` + e2e 桩 `fdcan.h` | `board/stm32h7/llfdcan.h` + `board/drivers/fdcan.h` | 455 行真实代码 (远期) | `while()` 轮询 + `cans[]` 冲突 + `REGISTER_INTERRUPT` |
 
@@ -892,7 +892,7 @@ libpanda.c (精简后) 编译模型:
 
 | 文件 | 行数 | 依赖 | 改动 |
 |------|------|------|------|
-| `board/crc.h` | 20 | 无（纯 C 位运算） | 删除 e2e 空桩即可 |
+| `board/crc.h` | 20 | 无（纯 C 位运算） | ✅ C1 已完成 — 删除 e2e 空桩，通过 spi_version_packet 覆盖 |
 | `board/stm32h7/llfdcan_declarations.h` | 51 | `FDCAN_GlobalTypeDef`（fdcan_regs.h ✓） | libpanda.c 添加 include |
 
 #### ✅ 可直接 include（需 `#ifdef E2E_TEST` 暴露 static 函数）

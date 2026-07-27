@@ -545,6 +545,9 @@ public class PandaClient {
 
         void jna_set_fdcan_ecr(int bus, int val);
 
+        // SPI version packet (spi_version_packet + crc_checksum)
+        int jna_spi_version_packet(byte[] buf);
+
         // Full firmware init — sets hardware to post-hardware-reset defaults
         void jna_panda_init();
     }
@@ -1572,5 +1575,32 @@ public class PandaClient {
                 lib.jna_get_health_safety_param(),
                 lib.jna_get_health_heartbeat_lost()
         );
+    }
+
+    // ---- SPI version packet (spi_version_packet + crc_checksum) ----
+
+    @AllArgsConstructor
+    @Getter
+    public static class SpiVersionResult {
+        private final AdaptiveList<Byte> bytes;
+        private final int len;
+        private final byte crc8;
+    }
+
+    private SpiVersionResult spiVersionResult;
+
+    public void spiVersionPacket() {
+        byte[] buf = new byte[64];
+        int len = lib.jna_spi_version_packet(buf);
+        var list = new ArrayList<Byte>();
+        for (int i = 0; i < len; i++) {
+            list.add(buf[i]);
+        }
+        byte crc8 = (len > 0) ? buf[len - 1] : 0;
+        this.spiVersionResult = new SpiVersionResult(AdaptiveList.staticList(list), len, crc8);
+    }
+
+    public SpiVersionResult getSpiVersionResult() {
+        return spiVersionResult;
     }
 }

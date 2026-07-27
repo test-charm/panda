@@ -131,6 +131,11 @@ public class PandaSteps {
         client.endpoint2Write(hexToBytes(hexExpression));
     }
 
+    @When("SPI version packet")
+    public void spiVersionPacket() {
+        client.spiVersionPacket();
+    }
+
     @When("clock source init with channel1 enabled")
     public void clockSourceInitEnabled() {
         client.clockSourceInit(true);

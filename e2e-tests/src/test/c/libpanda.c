@@ -49,6 +49,12 @@ struct harness_configuration {
   const adc_signal_t adc_signal_SBU2;
 };
 typedef struct harness_configuration harness_configuration;
+
+// ---- Fake UID (must be before spi.h include, used by spi_version_packet) ----
+static uint8_t fake_uid[12];
+#undef UID_BASE
+#define UID_BASE ((void *)fake_uid)
+
 #include "board/stm32h7/stm32h7_config.h"
 #include "fdcan_regs.h"
 
@@ -129,11 +135,7 @@ static char gitversion[64] = "00000000";
 static const uint32_t speeds[] = {0};
 static const uint32_t data_speeds[] = {20000};
 
-// ---- Fake UID / Serial / Provision ----
-static uint8_t fake_uid[12];
-#undef UID_BASE
-#define UID_BASE ((void *)fake_uid)
-
+// ---- Fake Serial / Provision ----
 static uint8_t fake_serial[16];
 #undef DEVICE_SERIAL_NUMBER_ADDRESS
 #define DEVICE_SERIAL_NUMBER_ADDRESS ((void *)fake_serial)
@@ -407,7 +409,7 @@ void pwm_init(TIM_TypeDef *TIM, uint8_t channel) { (void)TIM; (void)channel; }
 void pwm_set(TIM_TypeDef *TIM, uint8_t channel, uint8_t percentage) { (void)TIM; (void)channel; (void)percentage; }
 void usb_irqhandler(void) {}
 void usb_init(void) {}
-void spi_init(void) {}
+// spi_init() now comes from real board/drivers/spi.h (llspi stubs in e2e wrapper)
 void early_initialization(void) {}
 void clock_init(void) {}
 void peripherals_init(void) {}
@@ -530,7 +532,7 @@ void jna_reset_stop_mode_tracking(void) {
 
 // Stubs for can_comms functions (real can_comms.h calls these)
 void can_tx_comms_resume_usb(void) {}
-void can_tx_comms_resume_spi(void) {}
+// can_tx_comms_resume_spi now comes from real board/drivers/spi.h
 
 // fan state + llfan_init stub (fan_init from board/drivers/fan.h calls this)
 void llfan_init(void) {}
@@ -1539,11 +1541,19 @@ void jna_set_register_divergent(int enable) {
     }
 }
 
+// ---- JNA API: SPI version packet (exercises spi_version_packet + crc_checksum) ----
+// Writes the VERSION response (header + data + CRC-8) into buf. Returns total byte length.
+// buf must be at least 32 bytes. spi_version_packet uses UID_BASE (fake_uid), hw_type, USB_PID.
+uint16_t jna_spi_version_packet(uint8_t *buf) {
+    return spi_version_packet(buf);
+}
+
 // Full panda init — called once after library load to set hardware to post-reset defaults.
 // can_init() and jna_reset_safety() trigger side effects (CAN transceiver, IRQ calls).
 // The reset calls below clean up tracking counters and GPIO state accumulated during init.
 // All other state is handled by BSS zeroing + data-segment init on fresh dlopen.
 void jna_panda_init(void) {
+    detect_board_type();
     can_init(0);
     can_init(1);
     can_init(2);

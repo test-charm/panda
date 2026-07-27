@@ -41,7 +41,7 @@ Cucumber BDD 断言: gpioAModer: 0xFFFFFFF1, rccCr: 0x0, ...
 
 覆盖率报告排除全部 `.gen.c` 文件。
 
-> B1 ✅: `power_saving.h` 去桩化。B2 ✅: `bootkick.h` 去桩化。B4 ✅: `can_health_pkt.h` 提取共享。B5 ✅: `harness.h` 去桩化（107 行生产代码直接编译）。
+> B1 ✅: `power_saving.h` 去桩化。B2 ✅: `bootkick.h` 去桩化。B4 ✅: `can_health_pkt.h` 提取共享。B5 ✅: `harness.h` 去桩化（107 行生产代码直接编译）。C1 ✅: `crc.h` 去桩化 + `spi_version_packet` 测试（20 行 CRC-8 + 43 行 SPI version packet）。
 
 > 板级函数（`enable_can_transceiver`, `set_bootkick`, `set_amp_enabled`, `set_can_mode`）已不再从桩提取，改为通过 `board/stm32h7/board.h` 桩直接编译 `board/boards/{cuatro,tres,red}.h` 生产代码。详见 P2 任务。
 
@@ -160,6 +160,7 @@ e2e-tests/
 | ignition_can 自动复位 | `ignition_can.feature` | 2 | ignitionCan (通过 `jna_set_ignition_can` + `jna_call_tick_handler`) |
 | 线束翻转检测 | `harness_detect.feature` | 8 | harnessStatus (生产 `harness_detect_orientation()` ✅ B5 + ADC 拦截桩) |
 | Tick 路径 | `tick_paths.feature` | 6 | has_fan=false, heartbeat_counter 溢出, safety_mode_cnt 溢出, harness reinit (P1) |
+| SPI Version Packet | `spi_version_packet.feature` | 2 | spiVersionResult (生产 `spi_version_packet()` + `crc_checksum()` ✅ C1) |
 
 ## C 代码覆盖率
 

@@ -7,6 +7,7 @@
 #include "board/comms_definitions.h"   // ControlPacket_t needed by main_comms.h
 #include "board/sys/sys.h"             // FAULT_REGISTER_DIVERGENT, fault_occurred decl
 #include "board/drivers/registers.h"   // real register_set / check_registers
+#include "board/drivers/spi.h"         // real spi.h via e2e wrapper (llspi stubs)
 
 typedef struct {
     uint32_t RESERVED0[0x0C / 4];
