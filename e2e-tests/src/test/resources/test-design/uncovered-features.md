@@ -108,13 +108,13 @@ board/boards/board_declarations.h     — board 结构体、HW_TYPE_* 常量
 | `board/provision.h` | 空桩 (返回假数据) | 无真实 OTP 存储 | 设备序列号/Provision 读取 |
 | `board/sys/power_saving.h` | ✅ **B1 已完成 — 真实生产代码直接编译** | — | `enter_stop_mode()`, `set_power_save_state()`, `enable_can_transceivers()` |
 | `board/early_init.h` | 空桩 | STM32 早期初始化无意义 | `early_initialization()` |
-| `board/crc.h` | 空桩 | CRC 硬件不可用 | CRC 校验 (`crc_calc`, `crc_check`) |
+| `board/crc.h` | 空桩 | CRC 硬件不可用 | CRC 校验 (`crc_calc`, `crc_check`)；🟢 **可直接 include**（纯 C 算法，零依赖） |
 | `board/drivers/bootkick.h` | ✅ **B2 已完成 — 真实生产代码直接编译** | — | SOM 启动/复位状态机 |
 | `board/drivers/fdcan.h` | `fdcan_e2e.gen.c` (从真实源码生成) + ✅ `can_health_pkt.h` (B4 共享文件) | 无 FDCAN 外设 | `can_init()`, `can_rx()` 等；`update_can_health_pkt()` 已提取为共享 |
 | `board/drivers/usb.h` | 空桩 | 无真实 USB OTG | `usb_init()`, `usb_irqhandler()` |
 | `board/drivers/spi.h` | 空桩 | 无真实 SPI | `spi_init()`, SPI DMA 传输 |
 | `board/drivers/fake_siren.h` | 空桩 | 无真实蜂鸣器 GPIO | 蜂鸣器控制 |
-| `board/drivers/harness.h` | `harness_detect_e2e.gen.c` (部分提取) | 无真实 SBU ADC | `harness_detect_orientation()` 提取，其他为空 |
+| `board/drivers/harness.h` | `harness_detect_e2e.gen.c` (部分提取) | 无真实 SBU ADC | `harness_detect_orientation()` 提取，其他为空；🔴 **B5 待去桩**（对标 B2 模式，`#ifdef E2E_TEST` 暴露 static 函数） |
 | `board/drivers/led.h` | 空桩 | 无真实 LED PWM | `led_init()`, `led_set()` |
 | `board/drivers/uart.h` | 桩 (基础实现) | 无真实 UART | `put_char()`, `get_char()` 等 |
 | `board/drivers/pwm.h` | 空桩 | 无真实 PWM 定时器 | `pwm_init()`, `pwm_set()` |
@@ -133,8 +133,8 @@ board/boards/board_declarations.h     — board 结构体、HW_TYPE_* 常量
 |--------|------|------|
 | 🔴 高 | `drivers/fdcan.h` | FDCAN 核心驱动 (500+ 行)，已通过 gen 脚本部分覆盖 |
 | 🔴 高 | `drivers/bootkick.h` | ✅ B2 已完成 — 真实代码直接编译，覆盖率进入主报告 |
+| 🔴 高 | `drivers/harness.h` | 🟡 B5 待实施 — 对标 B2 模式，`#ifdef E2E_TEST` 暴露 static 函数即可直接 include |
 | 🟡 中 | `sys/power_saving.h` | ✅ B1 已完成 — 真实生产代码直接编译，覆盖率 95.8% |
-| 🟡 中 | `drivers/harness.h` | SBU 检测逻辑，已通过 gen 脚本提取 |
 | 🟢 低 | `drivers/gpio.h`, `drivers/pwm.h`, `drivers/led.h` | 纯 GPIO 操作，无业务逻辑 |
 | 🟢 低 | `drivers/usb.h`, `drivers/spi.h` | 纯外设初始化，无业务逻辑 |
 | 🟢 低 | 其他 | 辅助/声明文件 |
@@ -609,6 +609,9 @@ Then control data should be → 验证结果
 ✅ B1 power_saving.h 去桩化 (已完成)     ✅ B2 bootkick.h 去桩化 (已完成)
 🟡 B3 fdcan (硬件轮询, 不去桩)            ✅ B4 can_health 共享文件 (已完成)
 ✅ N2 board xxx_init() (35-66% → 95%+)   ✅ common_init_gpio 去桩化
+🟡 B5 harness.h 去桩化 (对标 B2 模式)
+🟢 C1 crc.h 去桩化 (空桩)
+🟢 C2 llfdcan_declarations.h 去桩化
 ```
 
 ---
@@ -758,12 +761,65 @@ B1 揭示的模式：`libpanda.c` 中的调用计数 / 状态保存跟踪变量�
 
 ---
 
+#### B5 🟡 — 替换 `harness_detect_e2e.gen.c` → 真实 `board/drivers/harness.h`（待实施）
+
+**文件**: `board/drivers/harness.h`（107 行），当前 e2e 桩仅保留声明 + `harness_detect_e2e.gen.c` 提取 static 函数
+
+**实施计划**（对标 B2 bootkick.h 模式）:
+1. 真实 `board/drivers/harness.h` 添加 `#pragma once` + `#ifdef E2E_TEST` 暴露 `harness_detect_orientation()`
+2. 删除 `e2e-tests/src/test/c/board/drivers/harness.h`（e2e 桩）
+3. 删除 `harness_detect_e2e.gen.c`（29 行）+ `generate_harness_stubs.py`
+4. `libpanda.c` 中删除 `#include "harness_detect_e2e.gen.c"`（真实代码由 include 链自然引入）
+
+**依赖验证**: `adc_get_mV()`（lladc.h 桩 ✓）+ `set_gpio_*()`（gpio.h 真实代码 ✓）+ `current_board->harness_config`（board_declarations.h ✓）
+
+**收益**: 107 行真实生产代码进入覆盖率，消除 1 个桩 + 1 个 gen 文件 + 1 个 gen 脚本
+
+**工作量**: ~2 场景验证，0.5 天
+
+---
+
+### 🟢 Phase C — 低优先级去桩化（远期）
+
+#### C1 — `board/crc.h` 直接 include
+
+**文件**: `board/crc.h`（20 行），纯 CRC-8 位运算算法，零硬件依赖。当前 e2e 桩为空文件。
+
+**实施**: 删除 `e2e-tests/src/test/c/board/crc.h`，真实代码自动生效。
+
+**收益**: 20 行，消除 1 个空桩文件。
+
+#### C2 — `board/stm32h7/llfdcan_declarations.h` 直接 include
+
+**文件**: `board/stm32h7/llfdcan_declarations.h`（51 行），纯宏定义和函数声明（`CAN_QUANTA`、`CAN_SEG1` 等）。当前 `fdcan_e2e.gen.c` 内联了所需宏。
+
+**实施**: `libpanda.c` 或 `fdcan_regs.h` 中添加 `#include "board/stm32h7/llfdcan_declarations.h"`，gen 文件复用真实宏定义。
+
+**收益**: 51 行真实宏，gen 文件更干净。
+
+#### C3（远期）— `llfdcan.h` + `fdcan.h` 自变异寄存器方案
+
+**文件**: `board/stm32h7/llfdcan.h`（228 行）+ `board/drivers/fdcan.h`（227 行），共 455 行
+
+**障碍**: 
+1. `while()` 硬件轮询循环 → 需实现自变异 FDCAN 寄存器（写 CCCR.INIT 自动置位，对标 TIM 自变异模式）
+2. `cans[3]` 数组重复定义（真实 fdcan.h 和 libpanda.c 各一份）→ 需 `#ifdef E2E_TEST` 条件编译
+3. `REGISTER_INTERRUPT` 需要 `interrupts[]` 数组 → 需 stub
+
+**工作量**: 2-3 天，不推荐当前阶段实施。gen 脚本方案是正确的折中。
+
+---
+
 ### 预估总收益
 
 ```
-Phase A 完成后:  79.6% → ~85%   (770/905 lines)
 ✅ B1 完成:       power_saving.h 进入覆盖率 (95.8%), 综合 81.6%
-Phase B 剩余:     ~81.6% → ~82%  (B5 harness 去桩化)
+✅ B2 完成:       bootkick.h 进入覆盖率, 综合 82.2%
+✅ B4 完成:       can_health_pkt.h 共享文件, 消除 1 个 gen 文件
+🟡 B5 待实施:     harness.h 去桩化 → 107 行进入覆盖率, 消除 1 个桩 + 1 个 gen
+🟢 C1 远期:       crc.h 去桩化 → 20 行, 消除 1 个空桩
+🟢 C2 远期:       llfdcan_declarations.h → 51 行真实宏
+⚪ C3 远期:       llfdcan.h + fdcan.h 自变异寄存器 → 455 行 (不推荐当前阶段)
 ```
 
 ---
@@ -805,15 +861,81 @@ libpanda.c (精简后) 编译模型:
 |--------|-----------|---------|------|------|
 | ✅ B1 | `power_save_e2e.gen.c` + `enter_stop_mode_e2e.gen.c` | `board/sys/power_saving.h` | ✅ 已完成 — 真实代码覆盖率 95.8% | `enter_stop_mode` 为 static (通过文本 include 解决) |
 | ✅ B2 | `bootkick_e2e.gen.c` | `board/drivers/bootkick.h` | ✅ 已完成 — 真实代码进入覆盖率 | `static` locals 通过 `#ifdef E2E_TEST` 暴露 |
-| 🟡 B3 | `fdcan_e2e.gen.c` | `board/stm32h7/llfdcan.h` | 硬件轮询循环 — 不去桩 (gen 脚本是正确方案) | 需自变异寄存器 |
+| 🟡 B3 | `fdcan_e2e.gen.c` | `board/stm32h7/llfdcan.h` | 硬件轮询循环 — 不去桩 (gen 脚本是正确方案) | 需自变异寄存器；远期 C3 |
 | ✅ B4 | `can_health_e2e.gen.c` | `board/drivers/can_health_pkt.h` | ✅ 已完成 — 提取为共享文件 | `fdcan.h` 含硬件轮询，仅提取纯业务函数 |
-| 🟢 B5 | `harness_detect_e2e.gen.c` | `board/drivers/harness.h` | 消除 1 个生成文件 (29 lines) | 函数为 static，低优先级 |
+| 🔴 B5 | `harness_detect_e2e.gen.c` + e2e 桩 `harness.h` | `board/drivers/harness.h` | 107 行真实生产代码 + 消除 2 文件 + 1 脚本 | `harness_detect_orientation()` 为 static，`#ifdef E2E_TEST` 暴露 |
+| 🟢 C1 | e2e 桩 `crc.h` (空文件) | `board/crc.h` | 20 行纯 CRC-8 算法，消除空桩 | 零障碍 |
+| 🟢 C2 | — (gen 文件内联宏) | `board/stm32h7/llfdcan_declarations.h` | 51 行真实宏定义，gen 文件更干净 | 零障碍 |
+| ⚪ C3 | `fdcan_e2e.gen.c` + e2e 桩 `fdcan.h` | `board/stm32h7/llfdcan.h` + `board/drivers/fdcan.h` | 455 行真实代码 (远期) | `while()` 轮询 + `cans[]` 冲突 + `REGISTER_INTERRUPT` |
 
 ### 不可去桩化的文件
 
 | 文件 | 理由 |
 |------|------|
-| `interrupts.h`, `timers.h`, `usb.h`, `spi.h`, `led.h`, `pwm.h` | 纯 STM32 外设初始化，无独立业务逻辑 |
+| `interrupts.h`, `timers.h`, `usb.h`, `spi.h`, `led.h`, `pwm.h`, `fake_siren.h` | 纯 STM32 外设初始化，无独立业务逻辑 |
 | `stm32h7_config.h` | 中央配置枢纽，必须桩化以切断 CMSIS/HAL 依赖链 |
 | `lladc.h` | 必须拦截 `adc_get_mV()` 以注入测试数据 |
-| `early_init.h`, `provision.h`, `crc.h` | 硬件特定功能 |
+| `early_init.h` | 启动流程：`SCB->VTOR`、`jump_to_bootloader()`、`DBGMCU->IDCODE`，无可测业务逻辑 |
+| `provision.h` | 已通过 `PROVISION_CHUNK_ADDRESS` override 使用真实代码（`memcpy`/`memcmp` 走真实 `libc.h`） |
+| `sound.h` | 音频 DAC 纯硬件操作，无独立业务逻辑 |
+| `peripherals.h` | 纯 RCC 时钟使能寄存器操作；`common_init_gpio`/`gpio_uart7_init` 已复制到 e2e `board.h` |
+| `clock.h` | PWR/FLASH/RCC 寄存器配置，无可测业务逻辑 |
+| `interrupt_handlers.h` | 144 行 `void XXX_IRQHandler(void) { handle_interrupt(XXX_IRQn); }` 样板代码 |
+| `critical.h` | `__enable_irq()` / `__disable_irq()` CMSIS 内置函数，e2e 中 `ENTER_CRITICAL`/`EXIT_CRITICAL` 已 stub |
+| `llfan.h`, `lluart.h`, `llspi.h`, `llusb.h` | 纯外设寄存器操作（EXTI、SYSCFG、UART/USB/SPI 寄存器） |
+| `boards/unused_funcs.h` | 空桩占位函数，生产环境也未使用 |
+
+### 去桩化可行性完整分析 (2026-07-27)
+
+对全部 19 个 e2e 桩文件 + 16 个被 `stm32h7_config.h` 切断的文件逐一分析：
+
+#### ✅ 可直接 include（无生产代码改动）
+
+| 文件 | 行数 | 依赖 | 改动 |
+|------|------|------|------|
+| `board/crc.h` | 20 | 无（纯 C 位运算） | 删除 e2e 空桩即可 |
+| `board/stm32h7/llfdcan_declarations.h` | 51 | `FDCAN_GlobalTypeDef`（fdcan_regs.h ✓） | libpanda.c 添加 include |
+
+#### ✅ 可直接 include（需 `#ifdef E2E_TEST` 暴露 static 函数）
+
+| 文件 | 行数 | 依赖 | 改动 |
+|------|------|------|------|
+| `board/drivers/harness.h` | 107 | `adc_get_mV`（lladc.h 桩 ✓）、`gpio.h`（真实 ✓）、`current_board->harness_config`（✓） | 对标 B2 模式：添加 `#pragma once` + `#ifdef E2E_TEST` |
+
+#### ⚠️ 有条件 include（需额外工作）
+
+| 文件 | 行数 | 障碍 | 方案 |
+|------|------|------|------|
+| `board/stm32h7/llfdcan.h` | 228 | `while()` 硬件轮询 → 死循环 | 方案 A: 保留 gen 脚本剥离轮询；方案 B: 自变异 FDCAN 寄存器 |
+| `board/drivers/fdcan.h` | 227 | 依赖 llfdcan.h + `cans[3]` 数组冲突 + `REGISTER_INTERRUPT` | 需先解决 llfdcan.h 问题 + `#ifdef E2E_TEST` 条件编译 |
+
+#### ❌ 不可 include（纯硬件/外设操作，无业务逻辑）
+
+```
+early_init.h        — SCB->VTOR, DBGMCU->IDCODE, jump_to_bootloader()
+provision.h         — 已通过 PROVISION_CHUNK_ADDRESS override 使用真实代码
+peripherals.h       — 纯 RCC 时钟使能；common_init_gpio 已复制到 e2e board.h
+clock.h             — PWR/FLASH/RCC 寄存器配置
+interrupt_handlers.h — 144 行 IRQ 样板代码
+critical.h          — __enable_irq()/__disable_irq() CMSIS 内置函数
+llfan.h             — EXTI/SYSCFG 寄存器 + REGISTER_INTERRUPT
+lluart.h            — UART 低层寄存器操作
+llspi.h             — SPI DMA 寄存器操作
+llusb.h             — USB OTG 寄存器操作
+sound.h             — 音频 DAC，无独立业务逻辑
+timers.h            — TIM 外设初始化
+usb.h, spi.h        — 外设初始化
+pwm.h, led.h        — PWM/LED 外设初始化
+fake_siren.h        — 蜂鸣器 GPIO
+interrupts.h        — NVIC 初始化
+```
+
+#### 决策矩阵
+
+```
+                  直接 include?
+         ┌─ 有业务逻辑? ─┬─ 纯 C 算法? ─── ✅ 直接 include (crc.h, llfdcan_declarations.h)
+         │               ├─ 有 static? ─── ✅ E2E_TEST 暴露 (harness.h, 对标 B2)
+         │               └─ 有 while()? ── ⚠️ 需 gen 脚本或自变异寄存器 (llfdcan.h, fdcan.h)
+         └─ 纯外设操作? ─────────────────── ❌ 不可 include
+```
