@@ -41,6 +41,32 @@ Feature: Serial Number and Provision Retrieval
       }
       """
 
+  Scenario: Get provision chunk for unprovisioned device returns unprovisioned magic string
+    Given exists data:
+      """
+      ControlSetup: {
+        provisionBytes: "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"
+      }
+      """
+    When control write:
+      """
+      GetSerial: {
+        param1: 0
+      }
+      """
+    Then control data should be:
+      """
+      : {
+        respBuffer: {
+          len: 32
+          bytes[0]: 117y     # 'u'
+          bytes[12]: 100y    # 'd'
+          bytes[13]: 0y
+          bytes[25]: 51y     # '3'
+        }
+      }
+      """
+
   Scenario: Get provision chunk returns 32 bytes for param1 not equal to 1
     Given exists data:
       """

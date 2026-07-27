@@ -101,6 +101,8 @@ static uint8_t fake_serial[16];
 #define DEVICE_SERIAL_NUMBER_ADDRESS ((void *)fake_serial)
 
 static uint8_t fake_provision[32];
+#undef PROVISION_CHUNK_ADDRESS
+#define PROVISION_CHUNK_ADDRESS ((void *)fake_provision)
 
 // ---- Macros needed by main_comms.h ----
 #define NUM_INTERRUPTS 16
@@ -384,8 +386,6 @@ void detect_board_type(void) {
     current_board = &e2e_board;
 #endif
 }
-void get_provision_chunk(uint8_t *out) { if (out) { for (int i = 0; i < 32; i++) out[i] = fake_provision[i]; } }
-
 void sound_init(void) {}
 void sound_tick(void) {}
 void sound_init_dac(void) {}

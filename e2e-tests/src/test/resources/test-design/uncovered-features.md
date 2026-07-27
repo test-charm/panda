@@ -73,12 +73,12 @@ board/boards/board_declarations.h     — board 结构体、HW_TYPE_* 常量
 | `board/main_comms.h` | 97.0% | 3/3 | 仅 default handler print + ALLOW_DEBUG 条件未覆盖 |
 | `board/can_comms.h` | 100% | 4/4 | ✅ P0 已完成，全部覆盖 |
 | `board/main.c` | 64.2% | 4/7 | 主循环 main()/LED fade 不可达；tick_handler 路径 (P1+P3-P9) ✅ |
-| `board/drivers/can_common.h` | 95.3% | 10/12 | 队列指针回绕边界条件 (5 lines) |
+| `board/drivers/can_common.h` | 100% | 10/12 | ✅ N4 已完成，can_queue_wrap.feature (5 场景) |
 | `board/drivers/fan.h` | 100% | 3/3 | ✅ P8 已完成，全部覆盖 |
 | `board/drivers/gpio.h` | 70.4% | 5/7 | `set_gpio_analog`、`restore_gpio` 仅 deep_sleep 覆盖 |
-| `board/sys/faults.h` | 78.9% | 2/2 | Permanent fault 路径未覆盖 (4 lines) |
-| `board/drivers/clock_source.h` | 17.5% | 1/2 | `clock_source_init()` 从未被调用 — **最高 ROI 未覆盖** |
-| `board/libc.h` | 61.3% | 3/5 | `delay()`、`assert_fatal()`、`memcmp()` 未覆盖 |
+| `board/sys/faults.h` | 100% | 2/2 | ✅ N3 已完成，permanent_fault.feature (2 场景) |
+| `board/drivers/clock_source.h` | 95.0% | 2/2 | ✅ N1 已完成，clock_source_init.feature (6 场景) |
+| `board/libc.h` | 83.9% | 3/5 | memcmp 全覆盖 ✅；delay + assert_fatal(false) 不可覆盖 |
 | `board/drivers/registers.h` | 97.8% | — | 仅 1 行未覆盖 (hash collision fallback) |
 | `board/drivers/simple_watchdog.h` | 100% | — | ✅ P3 已完成 |
 | `board/sys/power_saving.h` | 95.8% | — | ✅ B1 完成，真实生产代码直接编译 |
@@ -528,15 +528,13 @@ BOOT_BOOTKICK → BOOT_STANDBY → (STANDBY→BOOTKICK edge) → 20 tick 等待 
 已完成: lines 47, 64, 90, 101-102 — `can_queue_wrap.feature` (5 场景)
 ```
 
-#### N5 — `libc.h` `delay()` / `assert_fatal()` / `memcmp()` 🟢
+#### N5 — `libc.h` `delay()` / `assert_fatal()` / `memcmp()` ✅ 已完成
 
 ```
-文件: board/libc.h (61.3%)
+文件: board/libc.h (61.3% → 83.9%)
+已完成: memcmp() 全路径覆盖 (通过真实 provision.h + serial.feature TC3)
+剩余: delay() 6 lines + assert_fatal(false) 5 lines — 自然不可覆盖
 ```
-
-`delay()` 是忙等待循环，`assert_fatal()` 是死循环，`memcmp()` 是标准比较。低业务价值。
-
-**工作量**: ~2 场景，低 ROI
 
 ### 🟢 低优先级（仅初始化 / 调试）
 
@@ -566,7 +564,7 @@ BOOT_BOOTKICK → BOOT_STANDBY → (STANDBY→BOOTKICK edge) → 20 tick 等待 
 | **N2** | Board `xxx_init()` | `board/boards/{cuatro,tres,red}.h` | ✅ **35-66% → 95%+** (已完成) | — |
 | **N3** | Permanent fault | `board/sys/faults.h` | ✅ **100%** (已完成 2026-07-27) | 极低 |
 | **N4** | CAN queue wrap | `board/drivers/can_common.h` | ✅ **100%** (已完成 2026-07-27) | 0.5 天 |
-| **N5** | `libc.h` 未覆盖路径 | `board/libc.h` | ❌ **61.3%** (低 ROI) | 0.5 天 |
+| **N5** | `libc.h` 未覆盖路径 | `board/libc.h` | ✅ **83.9%** (已完成 2026-07-27，通过真实 provision.h) | 0.5 天 |
 | — | Flasher 命令 (3 个) | `board/flasher.h` | ❌ 新 e2e 目标 | 大 |
 | — | Jungle 命令 (8 个) | `board/jungle/main_comms.h` | ❌ 新 e2e 目标 | 大 |
 | — | Body 命令 (2 个) | `board/body/main_comms.h` | ❌ 新 e2e 目标 | 小 |
@@ -606,7 +604,7 @@ Then control data should be → 验证结果
 
 ```
 本周                                    下周                              后续
-✅ N1 clock_source_init (17.5% → 95%+)   N4 can_common wrap              N5 libc.h (低 ROI)
+✅ N1 clock_source_init (17.5% → 95%+)   N4 can_common wrap (100%)        N5 libc.h (83.9%, 真实 provision.h)
 ✅ N3 faults permanent (78.9% → 100%)    ✅ B2 bootkick.h 去桩化 (已完成)     Jungle/Body 固件
 ✅ B1 power_saving.h 去桩化 (已完成)     ✅ B2 bootkick.h 去桩化 (已完成)
 🟡 B3 fdcan (硬件轮询, 不去桩)            ✅ B4 can_health 共享文件 (已完成)
@@ -780,7 +778,7 @@ libpanda.c (精简后) 编译模型:
   #include "board/drivers/fan.h"             ← ✅ 真实代码 (100% 覆盖)
   #include "board/drivers/clock_source.h"    ← ✅ 真实代码 (17.5% 覆盖 — 仅 set_timer_params 被调用)
   #include "board/drivers/simple_watchdog.h" ← ✅ 真实代码 (100% 覆盖)
-  #include "board/libc.h"                    ← ✅ 真实代码 (61.3% 覆盖)
+  #include "board/libc.h"                    ← ✅ 真实代码 (83.9% 覆盖)
   #include "board/drivers/registers.h"       ← ✅ 真实代码 (97.8% 覆盖)
   #include "board/sys/faults.h"              ← ✅ 真实代码 (78.9% 覆盖)
   #include "board/drivers/harness.h"         ← ✅ 真实代码 (struct + 声明)

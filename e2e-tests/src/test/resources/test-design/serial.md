@@ -41,31 +41,55 @@ fetch serial (0xd0):
 - 输入: request=0xd0, param1=1
 - 输出: resp_len=16, bytes[0]=0xDE, bytes[1]=0xAD, ..., bytes[15]=0xED
 
-### TC2: param1=0 → 返回 32 字节 provision chunk
+### TC2: param1=0 → 返回 32 字节 provision chunk（已 provision 设备）
 - 前置: provisionBytes=0102030405060708090A0B0C0D0E0F101112131415161718191A1B1C1D1E1F20
 - 输入: request=0xd0, param1=0
 - 输出: resp_len=32, bytes[0]=0x01, bytes[15]=0x10, bytes[31]=0x20
+- 内部路径: `get_provision_chunk()` → `memcpy`(OTP→resp) → `memcmp(resp, 0xFF...0xFF)` → 不等 → 返回原始数据
+- 覆盖: `memcmp` 不等分支 (`ret=-1; break`)
+
+### TC3: param1=0 → unprovisioned 设备返回 magic string
+- 前置: provisionBytes=FFFFFFFF...FF (32 字节全 0xFF)
+- 输入: request=0xd0, param1=0
+- 输出: resp_len=32, bytes[0]='u' (0x75), bytes[12]='d' (0x64), bytes[25]='3' (0x33)
+- 内部路径: `get_provision_chunk()` → `memcpy`(OTP→resp) → `memcmp(resp, 0xFF...0xFF)` → 相等 → `memcpy(resp, magic_string)`
+- 覆盖: `memcmp` 相等分支 (`p1++/p2++` 遍历全部 32 字节, `return 0`), `memcpy` 替换分支
 
 ## 5. 覆盖检查
 
-| 条件 | TC1 | TC2 |
-|------|:--:|:--:|
-| param1 == 1 = Y | ✅ | — |
-| param1 == 1 = N | — | ✅ |
+| 条件 | TC1 | TC2 | TC3 |
+|------|:--:|:--:|:--:|
+| param1 == 1 = Y | ✅ | — | — |
+| param1 == 1 = N | — | ✅ | ✅ |
 
-| 取值 | TC1 | TC2 |
-|------|:--:|:--:|
-| param1 = 1 | ✅ | — |
-| param1 = 0 | — | ✅ |
+| memcmp 路径 | TC1 | TC2 | TC3 |
+|------|:--:|:--:|:--:|
+| 不相等 (ret=-1, break) | — | ✅ | — |
+| 相等 (完整遍历, ret=0) | — | — | ✅ |
 
-✅ 所有代码路径已覆盖。所有条件分支已覆盖。
+✅ 所有代码路径已覆盖。所有条件分支已覆盖。`memcmp` 全路径覆盖（通过真实 `provision.h`）。
 
 ## 覆盖率
 
 > 数据来源: `run_all_coverage.sh` 合并报告 (cuatro + tres + red)
-> 综合行覆盖率: **65.1%** (全量), 本功能涉及以下源文件:
+> 更新时间: 2026-07-27 (N5: 引入真实 `provision.h` + 新增 unprovisioned 场景)
 
 | 源文件 | 行覆盖 | 说明 |
 |--------|--------|------|
-| `main_comms.h` | 93.3% (251/269) | USB 命令处理 |
+| `main_comms.h` | 97.0% (261/269) | USB 命令处理 |
+| `provision.h` | **100%** | 真实生产代码，`PROVISION_CHUNK_ADDRESS` → `fake_provision` |
+| `libc.h` | **83.9%** (52/62) | `memcmp` 全覆盖 ✅；`delay` + `assert_fatal(false)` 不可覆盖 |
+
+## 6. e2e 架构变更 (N5)
+
+删除了 e2e 桩 `board/provision.h` 和手写 `get_provision_chunk()`，改为直接编译真实 `board/provision.h`：
+
+```
+libpanda.c:
+  #undef PROVISION_CHUNK_ADDRESS
+  #define PROVISION_CHUNK_ADDRESS ((void *)fake_provision)   ← 重定向 OTP 地址到假缓冲区
+
+board/main.c:
+  #include "board/provision.h"                                ← 真实代码，含 memcpy + memcmp
+```
 

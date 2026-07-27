@@ -104,7 +104,7 @@ e2e-tests/
 │   │       ├── UsbControlRequests.java  # 33 个 USB 控制请求 spec
 │   │       └── ControlSetups.java       # 前置数据 spec
 │   └── resources/
-│       ├── features/                # 41 个 feature 文件
+│       ├── features/                # 43 个 feature 文件
 │       └── test-design/             # 测试设计文档
 ```
 
@@ -126,6 +126,7 @@ e2e-tests/
 | CAN 通信序列化 | `can_comms.feature` | 8 | comms_can_write → txQueue, comms_can_read → commsReadBytes, checksumCheckPassed |
 | CAN 环形缓冲 | `can_ring_clear.feature` | 4 | rxQueue/txQueue |
 | CAN 队列回绕 | `can_queue_wrap.feature` | 5 | lastQueueWPtr/lastQueueRPtr/canPushResult/lastCanSlotsEmptyVal via JNA 直接队列操作 |
+| libc 工具函数 | `libc.feature` | 4 | lastMemcmpResult / delay 不挂死 |
 | 固件版本 | `get_version.feature` | 1 | respBuffer |
 | 数据包版本 | `packet_versions.feature` | 1 | packetVersions |
 | IR 功率 | `ir_power.feature` | 3 | irPwm (TIM1 CCR1) |
@@ -147,7 +148,7 @@ e2e-tests/
 | 微秒定时器 | `microsecond_timer.feature` | 2 | respBuffer (4-byte LE) |
 | MCU UID | `mcu_uid.feature` | 2 | respBuffer (12 bytes) |
 | 中断调用率 | `interrupt_rate.feature` | 3 | respBuffer (4-byte LE / 空) |
-| 序列号/Provision | `serial.feature` | 2 | respBuffer (16/32 bytes) |
+| 序列号/Provision | `serial.feature` | 3 | respBuffer (serial 16B + provision 32B + unprovisioned magic) |
 | 固件签名 | `signature.feature` | 2 | respBuffer (64 bytes 分块) |
 | Bootloader 模式 | `bootloader.feature` | 3 | nvicResetCount, enterBootloaderMode |
 | UART 读取 | `uart_read.feature` | 3 | respBuffer (字符读取 / 空) |
@@ -164,7 +165,7 @@ e2e-tests/
 ## C 代码覆盖率
 
 > 数据来源: `e2e-tests/run_all_coverage.sh` 合并报告 (cuatro + tres + red)
-> 生成时间: 2026-07-27 (N4 can_common 队列回绕 完成)
+> 生成时间: 2026-07-27 (N5 libc 完成)
 
 | 源文件 | 行覆盖 | 函数覆盖 | 说明 |
 |--------|--------|---------|------|
@@ -173,7 +174,7 @@ e2e-tests/
 | `board/drivers/can_common.h` | **100%** (107/107) | 10/12 | CAN 通用操作 |
 | `board/drivers/gpio.h` | **70.4%** (50/71) | 5/7 | GPIO 控制 |
 | `board/sys/faults.h` | **100%** (33/33) | 2/2 | 故障设置（含永久故障） ✅ N3 |
-| `board/libc.h` | **61.3%** (38/62) | 3/5 | 最小化 libc 替代 |
+| `board/libc.h` | **83.9%** (52/62) | 3/5 | memcmp 全覆盖 ✅；delay + assert_fatal(false) 不可覆盖 |
 | `board/drivers/fan.h` | **100%** (27/27) | 3/3 | 风扇 PWM + 冷却 |
 | `board/can_comms.h` | **100%** (76/76) | 4/4 | CAN 通信序列化 |
 | `board/drivers/clock_source.h` | **95.0%** (38/40) | 2/2 | ✅ N1 完成 (`clock_source_init` 全覆盖) |
@@ -182,9 +183,9 @@ e2e-tests/
 | `board/drivers/bootkick.h` | **~98%** (预估) | — | ✅ B2 |
 | `board/drivers/can_health_pkt.h` | **~95%** (预估) | — | ✅ B4 (共享文件) |
 | `board/boards/*.h` | **95.0%** (57/60) | — | ✅ N2 完成 + 去桩化 (board_init.feature 7 场景) |
-| **合计** | **~89%** (~1588/1789 lines, 29 files) | — | B1/B2/B4 去桩化 + N1-N4 完成 |
+| **合计** | **90.1%** (1631/1810 lines, 30 files) | — | B1/B2/B4 去桩化 + N1-N5 完成 |
 
-> ⚠️ `main.c` 中未覆盖的函数：`sound_tick`。P1-P9 全部覆盖，N1-N4 全部完成。详见 `e2e-tests/src/test/resources/test-design/uncovered-features.md`。
+> ⚠️ `main.c` 中未覆盖的函数：`sound_tick`。P1-P9 全部覆盖，N1-N5 全部完成。详见 `e2e-tests/src/test/resources/test-design/uncovered-features.md`。
 
 ## 设计原则
 
