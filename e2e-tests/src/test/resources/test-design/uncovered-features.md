@@ -1,11 +1,11 @@
 # 端到端测试未覆盖功能清单
 
-> 最后更新: 2026-07-27
+> 最后更新: 2026-07-28
 > 基准 e2e 场景数: 197 (cuatro 默认, 含 tres/red 板型特定场景)
-> 综合行覆盖率: **90.0%** (1605/1783 lines), 29 files
+> 综合行覆盖率: **78.9%** (1705/2160 lines), 34 files
 > 数据来源: `e2e-tests/run_all_coverage.sh` (cuatro + tres + red 合并)
 >
-> **本次更新**: B5 harness.h 去桩化 ✅ (82.2% → 90.0%)，`deep_sleep.feature` tres gpioAOdr 期望值修正
+> **本次更新**: C3 fdcan.h + llfdcan.h 去桩化完成，覆盖率基线重置（34 文件 / 2160 行，新增真实代码 ~650 行）；新增 §十二「低于 80% 文件提升分析」
 
 ---
 
@@ -18,7 +18,7 @@ e2e 通过 `libpanda.c` 编译完整 `board/main.c`，利用 `-I` 优先级覆�
 
 文件被编译为真实生产代码 vs 被桩替换 vs 被切断，取决于 include 路径中的文件是否被 e2e 桩覆盖。
 
-### 进入覆盖率的 19 个真实 `board/` 文件
+### 进入覆盖率的 25 个真实 `board/` 文件
 
 这些文件被完整编译为生产代码，覆盖率数据有效：
 
@@ -32,16 +32,30 @@ board/health.h                        — health_t 结构体
 board/can.h                           — CAN 常量定义
 board/sys/sys.h                       — 临界区宏、故障常量
 board/sys/faults.h                    — 故障处理函数
-board/drivers/drivers.h               — 中央驱动声明 (所有驱动类型/函数原型)
+board/sys/power_saving.h              — 省电管理 (B1)
+board/drivers/drivers.h               — 中央驱动声明
 board/drivers/registers.h             — 寄存器影子校验
 board/drivers/can_common.h            — CAN 队列、can_send、can_init_all
 board/drivers/fan.h                   — 风扇控制 (fan_set_power, fan_tick)
 board/drivers/gpio.h                  — GPIO 控制
 board/drivers/clock_source.h          — 时钟源定时器
-board/drivers/simple_watchdog.h       — 看门狗 (桩委托到真实代码)
+board/drivers/simple_watchdog.h       — 看门狗
+board/drivers/bootkick.h              — SOM 启动/复位状态机 (B2)
+board/drivers/harness.h               — Harness 检测/继电器 (B5)
+board/drivers/fdcan.h                 — FDCAN 高层驱动 (C3)
+board/drivers/spi.h                   — SPI 协议层 (C3)
+board/drivers/can_health_pkt.h        — CAN 健康统计更新 (B4)
+board/crc.h                           — CRC-8 校验 (C1)
 board/libc.h                          — memcpy, memset, delay
 board/stm32h7/lladc_declarations.h    — ADC 信号类型声明
+board/stm32h7/llfdcan.h               — FDCAN 寄存器级驱动 (C3)
+board/stm32h7/llfdcan_declarations.h  — FDCAN 寄存器声明 (C2)
+board/provision.h                     — 设备 Provision 读取
 board/boards/board_declarations.h     — board 结构体、HW_TYPE_* 常量
+board/boards/cuatro.h                 — Cuatro 板级实现 (P2)
+board/boards/tres.h                   — Tres 板级实现 (P2)
+board/boards/red.h                    — Red panda 板级实现 (P2)
+board/boards/unused_funcs.h           — 未使用功能的空桩实现
 ```
 
 ### 未进入覆盖率的文件：四大原因
@@ -49,12 +63,12 @@ board/boards/board_declarations.h     — board 结构体、HW_TYPE_* 常量
 ```
 ┌─ board/ 全部 C/H 文件 (~90 个)
 │
-├── ✅ 已编译为真实代码 (19 个) → 上面列出
+├── ✅ 已编译为真实代码 (25 个) → 上面列出
 │
-├── ⚠️ 被 e2e 桩替换 (19 个) → 第一节
+├── ⚠️ 被 e2e 桩替换 (14 个) → 第一节
 │   └── 生产代码未经编译，覆盖率 0%
 │
-├── ❌ 被 stm32h7_config.h 桩切断 (16 个) → 第二节
+├── ❌ 被 stm32h7_config.h 桩切断 (13 个) → 第二节
 │   └── 通过真实 stm32h7_config.h 的 include 链被切断
 │
 ├── 🚫 其他固件目标 (25 个) → 第三节
@@ -68,28 +82,44 @@ board/boards/board_declarations.h     — board 结构体、HW_TYPE_* 常量
 
 ## 覆盖率总览 (仅编译为真实代码的文件)
 
-| 源文件 | 行覆盖 | 函数覆盖 | 未覆盖原因 |
-|--------|--------|---------|-----------|
-| `board/main_comms.h` | 97.0% | 3/3 | 仅 default handler print + ALLOW_DEBUG 条件未覆盖 |
-| `board/can_comms.h` | 100% | 4/4 | ✅ P0 已完成，全部覆盖 |
-| `board/main.c` | 64.2% | 4/7 | 主循环 main()/LED fade 不可达；tick_handler 路径 (P1+P3-P9) ✅ |
-| `board/drivers/can_common.h` | 100% | 10/12 | ✅ N4 已完成，can_queue_wrap.feature (5 场景) |
-| `board/drivers/fan.h` | 100% | 3/3 | ✅ P8 已完成，全部覆盖 |
-| `board/drivers/gpio.h` | 70.4% | 5/7 | `set_gpio_analog`、`restore_gpio` 仅 deep_sleep 覆盖 |
-| `board/sys/faults.h` | 100% | 2/2 | ✅ N3 已完成，permanent_fault.feature (2 场景) |
-| `board/drivers/clock_source.h` | 95.0% | 2/2 | ✅ N1 已完成，clock_source_init.feature (6 场景) |
-| `board/libc.h` | 83.9% | 3/5 | memcmp 全覆盖 ✅；delay + assert_fatal(false) 不可覆盖 |
-| `board/drivers/registers.h` | 97.8% | — | 仅 1 行未覆盖 (hash collision fallback) |
-| `board/drivers/simple_watchdog.h` | 100% | — | ✅ P3 已完成 |
-| `board/sys/power_saving.h` | 95.8% | — | ✅ B1 完成，真实生产代码直接编译 |
-| `board/drivers/bootkick.h` | ~98% | — | ✅ B2 完成，FSM 逻辑直接编译 |
-| `board/sys/sys.h` | 83.3% | — | 头文件 (声明) |
-| `board/utils.h` | 100% | — | 全部覆盖 |
-| `board/boards/cuatro.h` | 34.8% | — | `cuatro_init()` GPIO 配置路径未调用 (P2 首次编译) |
-| `board/boards/tres.h` | 58.7% | — | `tres_init()` GPIO 配置路径未调用 (P2 首次编译) |
-| `board/boards/red.h` | 65.7% | — | `red_init()` GPIO 配置路径未调用 (P2 首次编译) |
-| `board/boards/unused_funcs.h` | 26.1% | — | 大量未使用空函数 |
-| `board/boards/board_declarations.h` | 50.0% | — | 板型特定声明 |
+> C3 完成后，fdcan.h / llfdcan.h / spi.h / crc.h / can_health_pkt.h / provision.h 共 6 个文件新进入覆盖率。文件数从 29 增至 34，总行数从 1783 增至 2160。
+
+| 源文件 | 行覆盖 | 未覆盖原因 |
+|--------|--------|-----------|
+| `board/main_comms.h` | 95.5% (257/269) | 仅 default handler print + ALLOW_DEBUG 条件未覆盖 |
+| `board/main.c` | 64.2% (145/226) | 主循环 main()/LED fade 不可达；debug_ring_callback / enable_fpu 硬件依赖 |
+| `board/can_comms.h` | 56.6% (43/76) | overflow buffer 分片路径未触发 — §十二.3 |
+| `board/config.h` | 75.0% (3/4) | `CAN_INIT_TIMEOUT_MS` 宏未引用 — §十二.6 |
+| `board/crc.h` | 100% (17/17) | ✅ C1 已完成 |
+| `board/can.h` | 100% (1/1) | 全部覆盖 |
+| `board/provision.h` | 100% (8/8) | 全部覆盖 |
+| `board/utils.h` | 100% (10/10) | 全部覆盖 |
+| `board/sys/sys.h` | 100% (6/6) | 全部覆盖 |
+| `board/drivers/can_common.h` | 100% (107/107) | ✅ N4 已完成 |
+| `board/drivers/fan.h` | 100% (27/27) | ✅ P8 已完成 |
+| `board/drivers/simple_watchdog.h` | 100% (14/14) | ✅ P3 已完成 |
+| `board/drivers/clock_source.h` | 100% (40/40) | ✅ N1 已完成 |
+| `board/drivers/registers.h` | 97.8% (44/45) | 仅 1 行未覆盖 (hash collision fallback) |
+| `board/drivers/bootkick.h` | 97.9% (47/48) | ✅ B2 完成 |
+| `board/drivers/can_health_pkt.h` | 94.6% (35/37) | ✅ B4 共享文件，2 行未覆盖 |
+| `board/drivers/gpio.h` | 84.5% (60/71) | `set_gpio_analog`、`restore_gpio` 部分路径 |
+| `board/drivers/drivers.h` | 80.0% (4/5) | 1 行未覆盖 |
+| `board/drivers/fdcan.h` | 52.3% (81/155) | 🔴 can_rx() 全路径 + checksum 错误分支 — §十二.4 |
+| `board/drivers/spi.h` | 13.5% (21/156) | 🔴 SPI 状态机全未覆盖 — §十二.1 |
+| `board/libc.h` | 83.9% (52/62) | delay + assert_fatal(false) 不可覆盖 |
+| `board/sys/faults.h` | 100% (20/20) | ✅ N3 已完成 |
+| `board/sys/power_saving.h` | 96.7% (89/92) | ✅ B1 完成 |
+| `board/boards/board_declarations.h` | 83.3% (5/6) | 1 行未覆盖 |
+| `board/boards/cuatro.h` | 83.3% (55/66) | GPIO 配置路径部分未调用 |
+| `board/boards/tres.h` | 88.0% (81/92) | GPIO 配置路径部分未调用 |
+| `board/boards/red.h` | 90.0% (63/70) | GPIO 配置路径部分未调用 |
+| `board/boards/unused_funcs.h` | 26.1% (6/23) | 🟢 空桩函数未被调用 — §十二.5 |
+| `board/stm32h7/llfdcan.h` | 83.2% (134/161) | ✅ C3 完成，部分 LL 路径未触发 |
+| `board/stm32h7/llfdcan_declarations.h` | 91.3% (21/23) | ✅ C2 完成，2 行未覆盖 |
+| `e2e-tests/.../fdcan_regs.h` | 94.1% (160/170) | e2e 测试桩 |
+| `e2e-tests/.../board/stm32h7/board.h` | 100% (41/41) | e2e 测试桩 |
+| `e2e-tests/.../board/stm32h7/lladc.h` | 88.9% (8/9) | e2e 测试桩 |
+| `e2e-tests/.../board/drivers/spi.h` | 0.0% (0/3) | 🟢 SPI stub — 随 spi.h 测试一起覆盖 |
 
 ---
 
@@ -110,9 +140,9 @@ board/boards/board_declarations.h     — board 结构体、HW_TYPE_* 常量
 | `board/early_init.h` | 空桩 | STM32 早期初始化无意义 | `early_initialization()` |
 | `board/crc.h` | ✅ **C1 已完成 — 真实生产代码直接编译** | — | CRC-8 校验 (`crc_checksum`)；纯 C 算法，通过 `spi_version_packet()` 覆盖 |
 | `board/drivers/bootkick.h` | ✅ **B2 已完成 — 真实生产代码直接编译** | — | SOM 启动/复位状态机 |
-| `board/drivers/fdcan.h` | `fdcan_e2e.gen.c` (从真实源码生成) + ✅ `can_health_pkt.h` (B4 共享文件) | 无 FDCAN 外设 | `can_init()`, `can_rx()` 等；`update_can_health_pkt()` 已提取为共享 |
+| `board/drivers/fdcan.h` | ✅ **C3 已完成 — 真实生产代码直接编译** | — | `can_init()`, `can_rx()`, `process_can()` 等；52.3% 覆盖 |
 | `board/drivers/usb.h` | 空桩 | 无真实 USB OTG | `usb_init()`, `usb_irqhandler()` |
-| `board/drivers/spi.h` | 空桩 | 无真实 SPI | `spi_init()`, SPI DMA 传输 |
+| `board/drivers/spi.h` | ✅ **C3 已完成 — 真实生产代码直接编译** | — | `spi_version_packet()`, `spi_rx_done()` 等；13.5% 覆盖 |
 | `board/drivers/fake_siren.h` | 空桩 | 无真实蜂鸣器 GPIO | 蜂鸣器控制 |
 | `board/drivers/harness.h` | ✅ **B5 已完成 (2026-07-27)** | — | `set_intercept_relay()`, `harness_check_ignition()`, `harness_tick()`, `harness_init()`, `harness_detect_orientation()` — 107 行生产代码直接编译 |
 | `board/drivers/led.h` | 空桩 | 无真实 LED PWM | `led_init()`, `led_set()` |
@@ -125,7 +155,7 @@ board/boards/board_declarations.h     — board 结构体、HW_TYPE_* 常量
 | `board/stm32h7/sound.h` | 空桩 | 无真实音频 DAC | `sound_init()`, `sound_tick()` |
 | `board/obj/gitversion.h` | 桩 (返回假版本) | 非 git 构建环境 | 固件版本号 |
 
-> **关于 `board/drivers/fdcan.h`**：虽然被桩替换，但 `fdcan_e2e.gen.c` 由 `generate_fdcan_stubs.py` 从真实 `board/stm32h7/llfdcan.h` 源码逐字提取生成。**FDCAN 核心函数 (`can_init`, `can_send`, `can_rx` 等) 是以生成代码形式出现在覆盖率中的**，只是声明被桩替换。
+> **关于 `board/drivers/fdcan.h`**：✅ C3 已于 2026-07-27 完成去桩化，真实 `fdcan.h` + `llfdcan.h` 直接编译进入覆盖率（共 316 行），`fdcan_e2e.gen.c` 及生成脚本已删除。
 
 ### 影响评估
 
@@ -822,13 +852,14 @@ B1 揭示的模式：`libpanda.c` 中的调用计数 / 状态保存跟踪变量�
 ### 预估总收益
 
 ```
-✅ B1 完成:       power_saving.h 进入覆盖率 (95.8%), 综合 81.6%
-✅ B2 完成:       bootkick.h 进入覆盖率, 综合 82.2%
-✅ B4 完成:       can_health_pkt.h 共享文件, 消除 1 个 gen 文件
+✅ B1 完成:       power_saving.h 进入覆盖率 (96.7%), 综合 81.6%
+✅ B2 完成:       bootkick.h 进入覆盖率 (97.9%), 综合 82.2%
+✅ B4 完成:       can_health_pkt.h 共享文件 (94.6%), 消除 1 个 gen 文件
 ✅ B5 完成:       harness.h 去桩化 → 107 行进入覆盖率, 消除 3 文件, 综合 90.0%
-✅ C1 完成:       crc.h 去桩化 → 20 行 + spi_version_packet (43 行), 消除 1 个空桩, 新增 spi_version_packet.feature (2 场景)
-✅ C2 完成:       llfdcan_declarations.h → 51 行真实宏, 消除 fdcan_regs.h 内联重复
-✅ C3 完成:       llfdcan.h + fdcan.h → 491 行真实代码, 消除 fdcan_e2e.gen.c + e2e 桩 fdcan.h
+✅ C1 完成:       crc.h 去桩化 → 17 行 + spi_version_packet, 消除 1 个空桩
+✅ C2 完成:       llfdcan_declarations.h → 23 行真实宏, 消除 fdcan_regs.h 内联重复
+✅ C3 完成:       llfdcan.h + fdcan.h → 316 行真实代码进入覆盖率, 消除 fdcan_e2e.gen.c + e2e 桩 fdcan.h
+   → C3 后基线: 78.9% (1705/2160), 34 files (新增 6 个真实文件, ~650 行真实代码)
 ```
 
 ---
@@ -839,25 +870,30 @@ B1 揭示的模式：`libpanda.c` 中的调用计数 / 状态保存跟踪变量�
 
 ```
 libpanda.c (精简后) 编译模型:
-  #include "board/main.c"                    ← ✅ 完整固件 (main.c 内 include 真实 power_saving.h)
+  #include "board/main.c"                    ← ✅ 完整固件 (main.c 内 include 真实 fdcan.h, power_saving.h, spi.h)
   #include "board/drivers/fan.h"             ← ✅ 真实代码 (100% 覆盖)
-  #include "board/drivers/clock_source.h"    ← ✅ 真实代码 (17.5% 覆盖 — 仅 set_timer_params 被调用)
+  #include "board/drivers/clock_source.h"    ← ✅ 真实代码 (100% 覆盖)
   #include "board/drivers/simple_watchdog.h" ← ✅ 真实代码 (100% 覆盖)
   #include "board/libc.h"                    ← ✅ 真实代码 (83.9% 覆盖)
   #include "board/drivers/registers.h"       ← ✅ 真实代码 (97.8% 覆盖)
-  #include "board/sys/faults.h"              ← ✅ 真实代码 (78.9% 覆盖)
-  #include "board/drivers/harness.h"         ← ✅ 真实代码 (struct + 声明)
+  #include "board/sys/faults.h"              ← ✅ 真实代码 (100% 覆盖)
+  #include "board/drivers/harness.h"         ← ✅ 真实代码 (B5 完成)
+  #include "board/drivers/fdcan.h"           ← ✅ 真实代码 (C3 完成, 52.3% 覆盖)
+  #include "board/drivers/spi.h"             ← ✅ 真实代码 (C1 通过 spi_version_packet 触发, 13.5% 覆盖)
+  #include "board/drivers/can_health_pkt.h"  ← ✅ 真实代码 (B4 共享文件, 94.6% 覆盖)
+  #include "board/crc.h"                     ← ✅ 真实代码 (C1 完成, 100% 覆盖)
+  #include "board/stm32h7/llfdcan.h"         ← ✅ 真实代码 (C3 完成, 83.2% 覆盖)
+  #include "board/stm32h7/llfdcan_declarations.h" ← ✅ 真实代码 (C2 完成, 91.3% 覆盖)
   #include "board/drivers/uart.h"            ← ✅ 真实代码
   #include "boards/board_declarations.h"     ← ✅ 真实代码
-  #include "board/boards/{cuatro,tres,red}.h" ← ✅ 真实代码 (P2, 35-66% 覆盖)
-  #include "board/drivers/gpio.h"            ← ✅ 真实代码 (70.4% 覆盖)
+  #include "board/boards/{cuatro,tres,red}.h" ← ✅ 真实代码 (83-90% 覆盖)
+  #include "board/drivers/gpio.h"            ← ✅ 真实代码 (84.5% 覆盖)
   #include "board/drivers/interrupts.h"      ← ✅ 真实 REGISTER_INTERRUPT (C3)
   #include "board/stm32h7/stm32h7_config.h"  ← ⚠️ e2e 桩 (最小化)
   #include "board/stm32h7/lladc.h"           ← ⚠️ e2e 桩 (拦截 adc_get_mV)
   #include "board/drivers/pwm.h"             ← ⚠️ e2e 桩 (空实现)
   #include "board/drivers/led.h"             ← ⚠️ e2e 桩 (空实现)
   #include "board/drivers/timers.h"          ← ⚠️ e2e 桩 (空实现)
-  #include "board/drivers/spi.h"             ← ⚠️ e2e 桩 (空实现)
   #include "board/drivers/usb.h"             ← ⚠️ e2e 桩 (空实现)
   #include "board/drivers/fake_siren.h"      ← ⚠️ e2e 桩 (空实现)
 ```
@@ -868,12 +904,12 @@ libpanda.c (精简后) 编译模型:
 |--------|-----------|---------|------|------|
 | ✅ B1 | `power_save_e2e.gen.c` + `enter_stop_mode_e2e.gen.c` | `board/sys/power_saving.h` | ✅ 已完成 — 真实代码覆盖率 95.8% | `enter_stop_mode` 为 static (通过文本 include 解决) |
 | ✅ B2 | `bootkick_e2e.gen.c` | `board/drivers/bootkick.h` | ✅ 已完成 — 真实代码进入覆盖率 | `static` locals 通过 `#ifdef E2E_TEST` 暴露 |
-| 🟡 B3 | `fdcan_e2e.gen.c` | `board/stm32h7/llfdcan.h` | 硬件轮询循环 — 不去桩 (gen 脚本是正确方案) | 需自变异寄存器；远期 C3 |
+| ✅ B3 | `fdcan_e2e.gen.c` + e2e 桩 `fdcan.h` | `board/stm32h7/llfdcan.h` + `board/drivers/fdcan.h` | ✅ C3 已完成 — 316 行真实代码，消除 gen 脚本 + 桩文件 | `while()` 轮询 + `cans[]` + `REGISTER_INTERRUPT` |
 | ✅ B4 | `can_health_e2e.gen.c` | `board/drivers/can_health_pkt.h` | ✅ 已完成 — 提取为共享文件 | `fdcan.h` 含硬件轮询，仅提取纯业务函数 |
 | 🔴 B5 | `harness_detect_e2e.gen.c` + e2e 桩 `harness.h` | `board/drivers/harness.h` | ✅ 已完成 — 107 行真实代码进入覆盖率 + 消除 2 文件 + 1 脚本 | `harness_detect_orientation()` 为 static，`#ifdef E2E_TEST` 暴露 |
 | ✅ C1 | e2e 桩 `crc.h` (空文件) | `board/crc.h` | ✅ 已完成 — 20 行纯 CRC-8 算法，消除空桩 + spi_version_packet 测试 | 零障碍 |
 | ✅ C2 | — (gen 文件内联宏) | `board/stm32h7/llfdcan_declarations.h` | ✅ 已完成 — 51 行真实宏定义，fdcan_regs.h 消除重复 | 零障碍 |
-| ✅ C3 | `fdcan_e2e.gen.c` + e2e 桩 `fdcan.h` | `board/stm32h7/llfdcan.h` + `board/drivers/fdcan.h` | ✅ 已完成 — 491 行真实代码，消除 gen 脚本 + 桩文件 | `while()` 轮询 + `cans[]` + `REGISTER_INTERRUPT` |
+| ✅ C3 | `fdcan_e2e.gen.c` + e2e 桩 `fdcan.h` | `board/stm32h7/llfdcan.h` + `board/drivers/fdcan.h` | ✅ 已完成 — 215 行真实代码 (81 fdcan + 134 llfdcan)，消除 gen 脚本 + 桩文件 | `while()` 轮询 + `cans[]` + `REGISTER_INTERRUPT` |
 
 ---
 
@@ -930,11 +966,11 @@ C3 完成后，生产代码中 `E2E_TEST` 条件编译共涉及 6 个文件，15
 
 | 文件 | 理由 |
 |------|------|
-| `interrupts.h`, `timers.h`, `usb.h`, `spi.h`, `led.h`, `pwm.h`, `fake_siren.h` | 纯 STM32 外设初始化，无独立业务逻辑 |
+| `interrupts.h`, `timers.h`, `usb.h`, `led.h`, `pwm.h`, `fake_siren.h` | 纯 STM32 外设初始化，无独立业务逻辑 |
 | `stm32h7_config.h` | 中央配置枢纽，必须桩化以切断 CMSIS/HAL 依赖链 |
 | `lladc.h` | 必须拦截 `adc_get_mV()` 以注入测试数据 |
 | `early_init.h` | 启动流程：`SCB->VTOR`、`jump_to_bootloader()`、`DBGMCU->IDCODE`，无可测业务逻辑 |
-| `provision.h` | 已通过 `PROVISION_CHUNK_ADDRESS` override 使用真实代码（`memcpy`/`memcmp` 走真实 `libc.h`） |
+| `provision.h` | 已通过 `PROVISION_CHUNK_ADDRESS` override 使用真实代码 |
 | `sound.h` | 音频 DAC 纯硬件操作，无独立业务逻辑 |
 | `peripherals.h` | 纯 RCC 时钟使能寄存器操作；`common_init_gpio`/`gpio_uart7_init` 已复制到 e2e `board.h` |
 | `clock.h` | PWR/FLASH/RCC 寄存器配置，无可测业务逻辑 |
@@ -960,12 +996,12 @@ C3 完成后，生产代码中 `E2E_TEST` 条件编译共涉及 6 个文件，15
 |------|------|------|------|
 | `board/drivers/harness.h` | 107 | `adc_get_mV`（lladc.h 桩 ✓）、`gpio.h`（真实 ✓）、`current_board->harness_config`（✓） | ✅ B5 已完成 — `#pragma once` + `#ifdef E2E_TEST` |
 
-#### ⚠️ 有条件 include（需额外工作）
+#### ✅ 已完成去桩化（原"有条件 include"）
 
 | 文件 | 行数 | 障碍 | 方案 |
 |------|------|------|------|
-| `board/stm32h7/llfdcan.h` | 228 | `while()` 硬件轮询 → 死循环 | 方案 A: 保留 gen 脚本剥离轮询；方案 B: 自变异 FDCAN 寄存器 |
-| `board/drivers/fdcan.h` | 227 | 依赖 llfdcan.h + `cans[3]` 数组冲突 + `REGISTER_INTERRUPT` | 需先解决 llfdcan.h 问题 + `#ifdef E2E_TEST` 条件编译 |
+| `board/stm32h7/llfdcan.h` | 242 | `while()` 硬件轮询 → 死循环 | ✅ C3 已完成 — `#ifdef E2E_TEST` 方案 B（自变异 FDCAN 寄存器） |
+| `board/drivers/fdcan.h` | 249 | 依赖 llfdcan.h + `cans[3]` 数组冲突 + `REGISTER_INTERRUPT` | ✅ C3 已完成 — `#ifdef E2E_TEST` 条件编译 |
 
 #### ❌ 不可 include（纯硬件/外设操作，无业务逻辑）
 
@@ -982,7 +1018,7 @@ llspi.h             — SPI DMA 寄存器操作
 llusb.h             — USB OTG 寄存器操作
 sound.h             — 音频 DAC，无独立业务逻辑
 timers.h            — TIM 外设初始化
-usb.h, spi.h        — 外设初始化
+usb.h               — USB OTG 外设初始化
 pwm.h, led.h        — PWM/LED 外设初始化
 fake_siren.h        — 蜂鸣器 GPIO
 interrupts.h        — NVIC 初始化
@@ -993,7 +1029,227 @@ interrupts.h        — NVIC 初始化
 ```
                   直接 include?
          ┌─ 有业务逻辑? ─┬─ 纯 C 算法? ─── ✅ 直接 include (crc.h, llfdcan_declarations.h)
-         │               ├─ 有 static? ─── ✅ E2E_TEST 暴露 (harness.h, 对标 B2)
-         │               └─ 有 while()? ── ⚠️ 需 gen 脚本或自变异寄存器 (llfdcan.h, fdcan.h)
+         │               ├─ 有 static? ─── ✅ E2E_TEST 暴露 (harness.h, bootkick.h)
+         │               └─ 有 while()? ── ✅ C3 已完成 — #ifdef E2E_TEST (llfdcan.h, fdcan.h)
          └─ 纯外设操作? ─────────────────── ❌ 不可 include
+```
+
+---
+
+## 十二、低于 80% 文件提升分析（C3 后基线：78.9%，1705/2160）
+
+C3 完成后，8 个文件覆盖率低于 80%。以下按**提升难度 × 收益**排序，给出具体路径。
+
+```
+┌─ 文件 ──────────────┬─ 覆盖率 ──┬─ 未覆盖行 ──┬─ 提升难度 ──┐
+│ drivers/spi.h        │ 13.5%    │ 135        │ 🔴 高       │
+│ drivers/fdcan.h      │ 52.3%    │ 74         │ 🟡 中       │
+│ main.c               │ 64.2%    │ 81         │ 🟡 中       │
+│ can_comms.h          │ 56.6%    │ 33         │ 🟢 低       │
+│ unused_funcs.h       │ 26.1%    │ 17         │ 🟢 极低     │
+│ config.h             │ 75.0%    │ 1          │ 🟢 极低     │
+│ e2e/.../spi.h (stub) │ 0.0%     │ 3          │ 🟢 极低     │
+│ drivers/drivers.h    │ 80.0%    │ 1          │ 🟢 极低     │
+└──────────────────────┴───────────┴────────────┴────────────┘
+```
+
+### 十二.1 `board/drivers/spi.h` — 13.5% (21/156) 🔴 高难度
+
+**已覆盖**: `spi_version_packet()` (VERSION 请求处理) + `can_tx_comms_resume_spi()`（通过 `refresh_can_tx_slots_available` 间接调用）。
+
+**未覆盖**: 整个 SPI 状态机 — `spi_init()`、`validate_checksum()`、`spi_rx_done()`（148 行大状态机）、`spi_tx_done()`。
+
+**为什么难**: SPI 用于 panda ↔ comma four (SOM) 通信。e2e 测试主要走 USB 路径。SPI DMA 回调 (`spi_rx_done`/`spi_tx_done`) 无法在 e2e 中自然触发。
+
+**可测试路径**（需模拟 DMA 完成回调）:
+
+```
+spi_rx_done() 状态机分支:
+├── VERSION 匹配 → spi_version_packet()     ← ✅ 已覆盖
+├── SPI_STATE_HEADER:
+│   ├── 有效 sync + checksum → ACK        ← ❌
+│   └── 无效 sync/checksum → NACK         ← ❌
+└── SPI_STATE_DATA_RX:
+    ├── checksum 无效 → NACK               ← ❌
+    ├── endpoint 0 (控制传输)              ← ❌
+    ├── endpoint 1/0x81 (CAN read)        ← ❌
+    ├── endpoint 2 (endpoint2 write)      ← ❌
+    ├── endpoint 3 (CAN write)            ← ❌
+    │   ├── can_tx_ready → 发送
+    │   └── !can_tx_ready → NACK
+    ├── endpoint 0xAB (测试: device→panda) ← ❌
+    └── endpoint 0xAC (测试: NACK)         ← ❌
+```
+
+`spi_tx_done()` 状态:
+```
+├── HEADER_NACK / reset → 重置到 HEADER   ← ❌
+├── HEADER_ACK → 进入 DATA_RX             ← ❌
+├── DATA_TX → 重置到 HEADER               ← ❌
+└── 意外状态 → 重置 + print              ← ❌
+```
+
+**提升方案**: 在 feature 文件中模拟 SPI 事务。需要 `spi_buf_rx` 和 `spi_buf_tx` 可读写（已在 JNA 中暴露），然后直接调用 `spi_rx_done()` 和 `spi_tx_done()` 并验证 `spi_state` 转换。
+
+**预估收益**: +135 行（覆盖率 +6.2%），但投入大，优先级低。
+
+---
+
+### 十二.2 `board/drivers/fdcan.h` — 52.3% (81/155) 🟡 中等难度
+
+**已覆盖**: `can_set_speed()`、`can_init()`、`process_can()`（TX 中断路径）、`can_clear_send()`。
+
+**未覆盖核心**: `can_rx()`（第 121-220 行，99 行未覆盖）— 整个 CAN 接收路径。
+
+**为什么重要**: CAN RX 是核心数据路径，覆盖后 `process_can` + `can_rx` 全部到位。
+
+**未覆盖路径分析**:
+
+```c
+can_rx() 中未覆盖:
+├── FIFO 非满路径 (正常 RX)                  ← ❌
+│   ├── 标准帧 / 扩展帧 解析                  ← ❌
+│   ├── CAN-FD 帧检测 + BRS 检测             ← ❌
+│   ├── safety_rx_hook → 无效计数            ← ❌
+│   ├── ignition_can_hook                    ← ❌
+│   └── can_push → can_rx_q                  ← ❌
+├── FIFO 满 (覆盖模式) → +1 offset + lost    ← ❌
+├── CAN 转发 (forwarding_bus)                ← ❌
+├── canfd_enabled / brs_enabled 自动检测     ← ❌
+├── IRQ 错误处理 (PED/PEA/EP/BO/RF0L)       ← ❌
+└── check_checksum 失败 → error_cnt++        ← ❌
+```
+
+**提升方案**: 向模拟的 FDCAN RX FIFO 内存 (`fake_fdcan_sram`) 中写入 CAN 帧数据，然后调用 `can_rx(can_number)`。需要:
+1. 在 feature 步骤中通过 JNA 写入 RX FIFO 内存
+2. 设置 `FDCANx->RXF0S` 的 `F0FL` 标志表示有数据
+3. 设置 `FDCANx->IR` 的 `RF0N` 标志
+4. 调用 `can_rx()` 并验证 `can_rx_q` 中的结果
+
+测试场景:
+- **正常帧**: 标准 11-bit CAN 帧 → 验证 `can_pop(can_rx_q)` 
+- **扩展帧**: 29-bit 扩展 CAN 帧 → 验证 `extended` 标志
+- **CAN-FD 帧**: `canfd_frame=1` → 验证 `bus_config[].canfd_enabled` 自动设为 true
+- **BRS 帧**: `brs_frame=1` → 验证 `bus_config[].brs_enabled` 自动设为 true
+- **FIFO 满**: 设置 `RXF0S.F0F=1` → 验证 offset +1 和 `total_rx_lost_cnt++`
+- **CAN 转发**: `forwarding_bus != -1` → 验证 TX 队列收到转发帧
+- **IRQ 错误**: 设置 `IR.PED|PEA` → 验证 `update_can_health_pkt()` 被调用
+
+**预估收益**: +74 行（覆盖率 +3.4%），核心路径，高 ROI。
+
+---
+
+### 十二.3 `board/can_comms.h` — 56.6% (43/76) 🟢 低难度
+
+**已覆盖**: 正常 CAN 包的 `comms_can_read` 和 `comms_can_write` 路径（单次传输能装下完整包）。
+
+**未覆盖**: overflow buffer 分片路径。当 CAN 包跨多个 USB/SPI 传输分片时触发。
+
+```
+comms_can_read() 分片路径 (16 行未覆盖):
+├── 前次分片有剩余 (can_read_buffer.ptr > 0)     ← ❌
+│   └── 复制 overflow 到输出 → 缩短 buffer
+└── 当前包超出 max_len                        ← ❌
+    └── 复制部分到输出 → 剩余存入 can_read_buffer
+
+comms_can_write() 分片路径 (26 行未覆盖):
+├── 前次分片有剩余 (can_write_buffer.ptr != 0)   ← ❌
+│   ├── 本次数据足够完成包 → 组装 + can_send
+│   └── 本次数据不够 → 追加到 buffer
+└── 当前包超出本次 len                        ← ❌
+    └── 复制部分到 can_write_buffer → 记录 tail_size
+```
+
+**提升方案**: 构造跨分片的 CAN 包场景。
+- `comms_can_read`: 先调用一次 `comms_can_read` 读取部分数据（触发 buffer 暂存），再调用一次读出剩余
+- `comms_can_write`: 先写入部分数据触发 buffer 暂存，再写入剩余部分触发组装和 `can_send`
+
+**预估收益**: +33 行（覆盖率 +1.5%），低投入高回报。
+
+---
+
+### 十二.4 `board/main.c` — 64.2% (145/226) 🟡 中等难度
+
+**已覆盖**: `set_safety_mode()`、`is_car_safety_mode()`、`tick_handler()`（8Hz 定时器中断处理）。
+
+**未覆盖分析**:
+
+```
+debug_ring_callback() (6 行)      ← UART 调试回环，非关键
+__initialize_hardware_early() (3) ← 硬件早期初始化，依赖 SCB->VTOR
+enable_fpu() (4 行)               ← FPU 使能，纯寄存器操作
+main() 函数 (120 行):
+  ├── 初始化序列 (272-340)       ← 几乎不可测：clock_init、peripherals_init、
+  │                                  detect_board_type、usb_init、spi_init 等
+  ├── LED 呼吸循环 (354-366)     ← 可测：需 mock delay()
+  └── 电源管理 (376-385)         ← 不可测：依赖 enter_stop_mode() + __WFI()
+```
+
+**实际可提升**: 有限。`main()` 初始化序列是纯硬件依赖，不适合 e2e。LED 呼吸循环理论上可测但需要 mock `delay()`（当前 `delay()` 在 e2e 中是 busy loop）。`debug_ring_callback` 需要 UART 数据注入。
+
+**推荐**: 将这部分标记为「硬件依赖，不可在 e2e 中覆盖」，不要投入时间。
+
+---
+
+### 十二.5 `board/boards/unused_funcs.h` — 26.1% (6/23) 🟢 极低难度
+
+**已覆盖**: `unused_set_bootkick()`（通过 tres board 调用）、`unused_set_amp_enabled()`（通过 red board 调用）。
+
+**未覆盖**: 6 个空桩函数，全部是 `UNUSED(param)` 的 no-op。
+
+| 函数 | 需要哪个 board |
+|------|---------------|
+| `unused_init_bootloader()` | tres (无 bootloader init) |
+| `unused_set_ir_power()` | tres (无 IR power) |
+| `unused_set_fan_enabled()` | red (无 fan) |
+| `unused_set_siren()` | red (无 siren) |
+| `unused_read_current()` | red/tres (无电流检测) |
+| `unused_read_som_gpio()` | red/tres (无 SOM GPIO) |
+
+**提升方案**: 在现有 feature 文件中增加对应 board 类型的调用步骤。例如在 `@tres` 场景中增加 `set_ir_power` 调用（会走到 `unused_set_ir_power`），在 `@red` 场景中增加 `set_fan_enabled` / `set_siren` / `read_som_gpio` 调用。
+
+**预估收益**: +17 行（覆盖率 +0.8%），极低投入。
+
+---
+
+### 十二.6 `board/config.h` — 75.0% (3/4) 🟢 极低难度
+
+唯一的未覆盖行: `#define CAN_INIT_TIMEOUT_MS 500U`（第 13 行）。这个宏未在任何测试中被引用。
+
+**提升方案**: 在现有 feature 步骤中引用该宏（例如验证其值），或在 JNA 中暴露它。
+
+**预估收益**: +1 行，极低投入。
+
+---
+
+### 十二.7 `e2e-tests/.../spi.h` + `board/drivers/drivers.h` 🟢 极低难度
+
+- `e2e/.../spi.h`: 3 行 stub，随 §十二.1 的 SPI 测试一起覆盖
+- `board/drivers/drivers.h`: 1 行未覆盖（80.0%），低优先级
+
+---
+
+### 推荐实施顺序
+
+```
+Phase D — 快速提升 (预计 +35 行 / +1.6%)
+  1. config.h: 引用 CAN_INIT_TIMEOUT_MS
+  2. unused_funcs.h: 在 @tres/@red 场景中调用空桩函数
+  3. can_comms.h: overflow buffer 分片场景
+
+Phase E — 核心提升 (预计 +74 行 / +3.4%)
+  4. fdcan.h: can_rx() 完整路径（RX FIFO 模拟 + 多场景）
+
+Phase F — 远期 (预计 +135 行 / +6.2%)
+  5. spi.h: SPI 状态机测试 (需模拟 DMA 回调)
+
+不可提升:
+  6. main.c: debug_ring_callback + main() 初始化 — 硬件依赖
+```
+
+```
+C3 后基线:       78.9% (1705/2160)
+Phase D 完成后:  ~80.5%
+Phase E 完成后:  ~83.9%
+Phase F 完成后:  ~90.1%
 ```
