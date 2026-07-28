@@ -17,5 +17,6 @@ Feature: Health and CAN Packet Version Retrieval
           healthVersion: 0
           canVersionHash: 0
         }
+        canInitTimeoutMs: 500
       }
       """

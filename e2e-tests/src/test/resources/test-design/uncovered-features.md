@@ -5,7 +5,7 @@
 > 综合行覆盖率: **78.9%** (1705/2160 lines), 34 files
 > 数据来源: `e2e-tests/run_all_coverage.sh` (cuatro + tres + red 合并)
 >
-> **本次更新**: C3 fdcan.h + llfdcan.h 去桩化完成，覆盖率基线重置（34 文件 / 2160 行，新增真实代码 ~650 行）；新增 §十二「低于 80% 文件提升分析」
+> **本次更新**: C3 fdcan.h + llfdcan.h 去桩化完成，覆盖率基线重置（34 文件 / 2160 行，新增真实代码 ~650 行）；新增 §十二「低于 80% 文件提升分析」；Phase D.1 完成 (config.h → 100%)
 
 ---
 
@@ -89,7 +89,7 @@ board/boards/unused_funcs.h           — 未使用功能的空桩实现
 | `board/main_comms.h` | 95.5% (257/269) | 仅 default handler print + ALLOW_DEBUG 条件未覆盖 |
 | `board/main.c` | 64.2% (145/226) | 主循环 main()/LED fade 不可达；debug_ring_callback / enable_fpu 硬件依赖 |
 | `board/can_comms.h` | 56.6% (43/76) | overflow buffer 分片路径未触发 — §十二.3 |
-| `board/config.h` | 75.0% (3/4) | `CAN_INIT_TIMEOUT_MS` 宏未引用 — §十二.6 |
+| `board/config.h` | 100% (4/4) | ✅ Phase D.1 已完成 |
 | `board/crc.h` | 100% (17/17) | ✅ C1 已完成 |
 | `board/can.h` | 100% (1/1) | 全部覆盖 |
 | `board/provision.h` | 100% (8/8) | 全部覆盖 |
@@ -1038,7 +1038,7 @@ interrupts.h        — NVIC 初始化
 
 ## 十二、低于 80% 文件提升分析（C3 后基线：78.9%，1705/2160）
 
-C3 完成后，8 个文件覆盖率低于 80%。以下按**提升难度 × 收益**排序，给出具体路径。
+C3 完成后，7 个文件覆盖率低于 80%。以下按**提升难度 × 收益**排序，给出具体路径。
 
 ```
 ┌─ 文件 ──────────────┬─ 覆盖率 ──┬─ 未覆盖行 ──┬─ 提升难度 ──┐
@@ -1047,7 +1047,6 @@ C3 完成后，8 个文件覆盖率低于 80%。以下按**提升难度 × 收�
 │ main.c               │ 64.2%    │ 81         │ 🟡 中       │
 │ can_comms.h          │ 56.6%    │ 33         │ 🟢 低       │
 │ unused_funcs.h       │ 26.1%    │ 17         │ 🟢 极低     │
-│ config.h             │ 75.0%    │ 1          │ 🟢 极低     │
 │ e2e/.../spi.h (stub) │ 0.0%     │ 3          │ 🟢 极低     │
 │ drivers/drivers.h    │ 80.0%    │ 1          │ 🟢 极低     │
 └──────────────────────┴───────────┴────────────┴────────────┘
@@ -1212,13 +1211,14 @@ main() 函数 (120 行):
 
 ---
 
-### 十二.6 `board/config.h` — 75.0% (3/4) 🟢 极低难度
+### 十二.6 `board/config.h` — 75.0% → ✅ 100% (Phase D.1 已完成)
 
-唯一的未覆盖行: `#define CAN_INIT_TIMEOUT_MS 500U`（第 13 行）。这个宏未在任何测试中被引用。
+唯一的未覆盖行: `#define CAN_INIT_TIMEOUT_MS 500U`（第 13 行）。通过新增 `jna_get_can_init_timeout_ms()` JNA getter + `packet_versions.feature` 验证步骤覆盖。
 
-**提升方案**: 在现有 feature 步骤中引用该宏（例如验证其值），或在 JNA 中暴露它。
-
-**预估收益**: +1 行，极低投入。
+**实施**: 
+- `libpanda.c`: 新增 `int jna_get_can_init_timeout_ms(void) { return CAN_INIT_TIMEOUT_MS; }`
+- `PandaClient.java`: JNA 接口声明 + `getCanInitTimeoutMs()` getter
+- `packet_versions.feature`: 新增 `canInitTimeoutMs: 500` 验证
 
 ---
 
@@ -1233,7 +1233,7 @@ main() 函数 (120 行):
 
 ```
 Phase D — 快速提升 (预计 +35 行 / +1.6%)
-  1. config.h: 引用 CAN_INIT_TIMEOUT_MS
+  1. config.h: 引用 CAN_INIT_TIMEOUT_MS ✅ 已完成 (2026-07-28)
   2. unused_funcs.h: 在 @tres/@red 场景中调用空桩函数
   3. can_comms.h: overflow buffer 分片场景
 

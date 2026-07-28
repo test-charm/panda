@@ -566,6 +566,9 @@ public class PandaClient {
 
         // Full firmware init — sets hardware to post-hardware-reset defaults
         void jna_panda_init();
+
+        // Build config constants
+        int jna_get_can_init_timeout_ms();
     }
 
     private static final String ORIGINAL_LIB_PATH = PandaLib.libPath;
@@ -1601,6 +1604,12 @@ public class PandaClient {
 
     public int getFanCooldownCounter() {
         return lib.jna_get_fan_cooldown_counter();
+    }
+
+    // ---- Build config constants ----
+
+    public int getCanInitTimeoutMs() {
+        return lib.jna_get_can_init_timeout_ms();
     }
 
     // ---- Health packet inspection ----

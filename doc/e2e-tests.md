@@ -126,7 +126,7 @@ e2e-tests/
 | FDCAN 中断处理 | `fdcan_interrupt.feature` | 2 | process_can → TXBAR/IR/rxQueue, 0xff 守卫 ✅ C3 |
 | libc 工具函数 | `libc.feature` | 4 | lastMemcmpResult / delay 不挂死 |
 | 固件版本 | `get_version.feature` | 1 | respBuffer |
-| 数据包版本 | `packet_versions.feature` | 1 | packetVersions |
+| 数据包版本 | `packet_versions.feature` | 1 | packetVersions + canInitTimeoutMs |
 | IR 功率 | `ir_power.feature` | 3 | irPwm (TIM1 CCR1) |
 | 硬件类型 | `hw_type.feature` | 1 | respBuffer |
 | CAN 波特率 | `can_bitrate.feature` | 3 | FDCAN NBTP/CCCR/IE/TXBC/RXF0C |
@@ -164,30 +164,31 @@ e2e-tests/
 ## C 代码覆盖率
 
 > 数据来源: `e2e-tests/run_all_coverage.sh` 合并报告 (cuatro + tres + red)
-> 生成时间: 2026-07-27 (B5 harness 去桩化完成)
+> 生成时间: 2026-07-28 (C3 fdcan/llfdcan 去桩化 + Phase D.1 config.h 宏覆盖)
 
 | 源文件 | 行覆盖 | 函数覆盖 | 说明 |
 |--------|--------|---------|------|
-| `board/main_comms.h` | **97.0%** (261/269) | 3/3 | USB 命令处理 |
+| `board/main_comms.h` | **95.5%** (257/269) | 3/3 | USB 命令处理 |
 | `board/main.c` | **64.2%** (145/226) | 4/7 | 主循环 + 初始化 |
 | `board/drivers/can_common.h` | **100%** (107/107) | 10/12 | CAN 通用操作 |
-| `board/drivers/gpio.h` | **70.4%** (50/71) | 5/7 | GPIO 控制 |
-| `board/sys/faults.h` | **100%** (33/33) | 2/2 | 故障设置（含永久故障） ✅ N3 |
+| `board/drivers/gpio.h` | **84.5%** (60/71) | 5/7 | GPIO 控制 |
+| `board/sys/faults.h` | **100%** (20/20) | 2/2 | 故障设置 |
 | `board/libc.h` | **83.9%** (52/62) | 3/5 | memcmp 全覆盖 ✅；delay + assert_fatal(false) 不可覆盖 |
 | `board/drivers/fan.h` | **100%** (27/27) | 3/3 | 风扇 PWM + 冷却 |
-| `board/can_comms.h` | **100%** (76/76) | 4/4 | CAN 通信序列化 |
-| `board/drivers/clock_source.h` | **95.0%** (38/40) | 2/2 | ✅ N1 完成 (`clock_source_init` 全覆盖) |
+| `board/can_comms.h` | **56.6%** (43/76) | 4/4 | CAN 通信序列化 (overflow buffer 分片路径未覆盖) |
+| `board/config.h` | **100%** (4/4) | — | ✅ Phase D.1 (`CAN_INIT_TIMEOUT_MS` 通过 JNA getter 覆盖) |
+| `board/drivers/clock_source.h` | **100%** (40/40) | 2/2 | ✅ N1 完成 |
 | `board/utils.h` | **100%** (10/10) | 1/1 | 工具函数 |
-| `board/sys/power_saving.h` | **95.8%** (92/96) | — | ✅ B1 |
-| `board/drivers/bootkick.h` | **~98%** (预估) | — | ✅ B2 |
-| `board/drivers/can_health_pkt.h` | **~95%** (预估) | — | ✅ B4 (共享文件) |
-| `board/drivers/harness.h` | **~90%** (预估) | — | ✅ B5 (107 行，set_intercept_relay/harness_check_ignition/harness_tick/harness_init/harness_detect_orientation) |
-| `board/stm32h7/llfdcan.h` | **~94%** (预估) | — | ✅ C3 (242 行，fdcan_request_init/fdcan_exit_init/llcan_set_speed/llcan_init/llcan_clear_send/llcan_irq_enable/disable) |
-| `board/drivers/fdcan.h` | **~85%** (预估) | — | ✅ C3 (249 行，can_set_speed/can_clear_send/process_can/can_rx/can_init) |
-| `board/boards/*.h` | **95.0%** (57/60) | — | ✅ N2 完成 + 去桩化 (board_init.feature 7 场景) |
-| **合计** | **~92%** (预估, 31 files) | — | B1/B2/B4/B5/C1/C2/C3 去桩化 + N1-N5 完成 |
-
-> ⚠️ `main.c` 中未覆盖的函数：`sound_tick`。P1-P9 全部覆盖，N1-N5 全部完成。详见 `e2e-tests/src/test/resources/test-design/uncovered-features.md`。
+| `board/sys/power_saving.h` | **96.7%** (89/92) | — | ✅ B1 |
+| `board/drivers/bootkick.h` | **97.9%** (47/48) | — | ✅ B2 |
+| `board/drivers/can_health_pkt.h` | **94.6%** (35/37) | — | ✅ B4 (共享文件) |
+| `board/drivers/harness.h` | — | — | ✅ B5 |
+| `board/stm32h7/llfdcan.h` | **83.2%** (134/161) | — | ✅ C3 |
+| `board/drivers/fdcan.h` | **52.3%** (81/155) | — | ✅ C3 (can_rx 全路径未覆盖) |
+| `board/boards/cuatro.h` | **83.3%** (55/66) | — | ✅ N2 完成 |
+| `board/boards/tres.h` | **88.0%** (81/92) | — | ✅ N2 完成 |
+| `board/boards/red.h` | **90.0%** (63/70) | — | ✅ N2 完成 |
+| **合计** | **78.9%** (1705/2160, 34 files) | — | C3 完成 + Phase D.1 done |
 
 ## 设计原则
 

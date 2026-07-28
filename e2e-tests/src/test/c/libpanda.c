@@ -1595,3 +1595,7 @@ void jna_panda_init(void) {
     simple_watchdog_init(FAULT_HEARTBEAT_LOOP_WATCHDOG, (3U * 1000000U / 8U));
     init_registers();  // clear register_map after init to avoid false divergence
 }
+
+int jna_get_can_init_timeout_ms(void) {
+    return CAN_INIT_TIMEOUT_MS;
+}
