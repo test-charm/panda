@@ -168,7 +168,7 @@ public class PandaClient {
 
         int jna_get_fan_cooldown_counter();
 
-        // CAN comms buffer inspection (comms_can_reset)
+        // CAN comms buffer inspection
         int jna_get_can_read_buffer_ptr();
 
         int jna_get_can_read_buffer_tail();
@@ -177,16 +177,14 @@ public class PandaClient {
 
         int jna_get_can_write_buffer_tail();
 
-        // CAN comms serialization/deserialization (comms_can_read/write)
-        void jna_comms_can_write(byte[] data, int len);
+        // USB endpoint simulation
+        void jna_usb_ep3_out(byte[] data, int len);
 
-        int jna_comms_can_read(byte[] outData, int maxLen);
+        int jna_usb_ep1_in(byte[] outData, int maxLen);
 
-        int jna_get_comms_read_len();
+        int jna_usb_ep1_in_get_len();
 
-        int jna_get_comms_read_byte(int index);
-
-        boolean jna_can_check_checksum(byte[] pktData, int len);
+        int jna_usb_ep1_in_get_byte(int index);
 
         // Packet versions (response from 0xdd)
         void jna_get_packet_versions(int[] outHealthVersion, int[] outCanVersionHash);
@@ -963,42 +961,27 @@ public class PandaClient {
         );
     }
 
-    // ---- CAN comms serialization/deserialization ----
+    // ---- USB endpoint simulation ----
 
-    public void commsCanWrite(byte[] data) {
-        lib.jna_comms_can_write(data, data.length);
+    public void usbEp3Out(byte[] data) {
+        lib.jna_usb_ep3_out(data, data.length);
     }
 
-    public byte[] commsCanRead(int maxLen) {
+    public byte[] usbEp1In(int maxLen) {
         byte[] out = new byte[maxLen];
-        int len = lib.jna_comms_can_read(out, maxLen);
+        int len = lib.jna_usb_ep1_in(out, maxLen);
         byte[] result = new byte[len];
         System.arraycopy(out, 0, result, 0, len);
         return result;
     }
 
-    public List<Byte> getCommsReadBytes() {
-        int len = lib.jna_get_comms_read_len();
+    public List<Byte> getUsbEp1InBytes() {
+        int len = lib.jna_usb_ep1_in_get_len();
         var list = new ArrayList<Byte>();
         for (int i = 0; i < len; i++) {
-            list.add((byte) lib.jna_get_comms_read_byte(i));
+            list.add((byte) lib.jna_usb_ep1_in_get_byte(i));
         }
         return list;
-    }
-
-    public boolean canCheckChecksum(byte[] pktData) {
-        return lib.jna_can_check_checksum(pktData, pktData.length);
-    }
-
-    private boolean lastChecksumResult;
-    private byte[] lastCommsWriteData;
-
-    public boolean isChecksumCheckPassed() {
-        return lastChecksumResult;
-    }
-
-    public void checkCanChecksum(byte[] pktData) {
-        lastChecksumResult = lib.jna_can_check_checksum(pktData, pktData.length);
     }
 
     @AllArgsConstructor

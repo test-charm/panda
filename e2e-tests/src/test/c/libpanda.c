@@ -1084,44 +1084,29 @@ uint32_t jna_get_can_write_buffer_tail(void) {
     return can_write_buffer.tail_size;
 }
 
-// ---- JNA API: CAN comms serialization/deserialization (comms_can_read/write) ----
-
-// Wire-format CAN frame → deserialize via comms_can_write → can_send → queue.
-// Packets end up in can_tx*_q (allowed) or can_rx_q (blocked), depending on safety mode.
-void jna_comms_can_write(const uint8_t *data, uint32_t len) {
-    comms_can_write(data, len);
+// ---- JNA API: CAN comms buffer reset (comms_can_reset) ----
+void jna_comms_can_reset(void) {
+    comms_can_reset();
 }
 
-// Serialize queued packets from can_rx_q to wire-format buffer via comms_can_read.
-// Populate can_rx_q first (e.g. via jna_can_send in SILENT mode).
-static uint8_t jna_comms_read_buf[512];
-static int jna_comms_read_len;
-
-int jna_comms_can_read(uint8_t *out_data, uint32_t max_len) {
-    uint32_t capped = (max_len < 512U) ? max_len : 512U;
-    jna_comms_read_len = comms_can_read(jna_comms_read_buf, capped);
-    if ((out_data != ((void *)0)) && (jna_comms_read_len > 0)) {
-        (void)memcpy(out_data, jna_comms_read_buf, (uint32_t)jna_comms_read_len);
-    }
-    return jna_comms_read_len;
+// ---- JNA API: USB endpoint simulation (exercises comms_can_read/write via USB path) ----
+// usb_sim_ep3_out() → comms_can_write() — simulates host sending CAN data on USB ep3 OUT.
+void jna_usb_ep3_out(const uint8_t *data, uint32_t len) {
+    usb_sim_ep3_out(data, len);
 }
 
-int jna_get_comms_read_len(void) {
-    return jna_comms_read_len;
+// usb_sim_ep1_in() → comms_can_read() — simulates host reading CAN data from USB ep1 IN.
+// Returns number of bytes read; stores in internal buffer accessible via jna_usb_ep1_in_*.
+int jna_usb_ep1_in(uint8_t *out_data, uint32_t max_len) {
+    return usb_sim_ep1_in(out_data, max_len);
 }
 
-int jna_get_comms_read_byte(int index) {
-    if ((index < 0) || (index >= jna_comms_read_len)) return 0;
-    return (int)jna_comms_read_buf[index];
+int jna_usb_ep1_in_get_len(void) {
+    return usb_sim_ep1_in_get_len();
 }
 
-// Checksum validation: CANPacket_t raw bytes → can_check_checksum.
-// Pass a complete CANPacket_t struct (including checksum byte at offset 5).
-bool jna_can_check_checksum(const uint8_t *pkt_data, uint32_t len) {
-    CANPacket_t pkt = {0};
-    uint32_t copy_len = (len < sizeof(CANPacket_t)) ? len : sizeof(CANPacket_t);
-    (void)memcpy((uint8_t*)&pkt, pkt_data, copy_len);
-    return can_check_checksum(&pkt);
+int jna_usb_ep1_in_get_byte(int index) {
+    return usb_sim_ep1_in_get_byte(index);
 }
 
 // ---- JNA API: CAN queue state manipulation for coverage testing ----
@@ -1582,6 +1567,7 @@ void jna_panda_init(void) {
     jna_reset_siren();
     jna_reset_heartbeat();
     jna_reset_bootkick();
+    jna_comms_can_reset();
     simple_watchdog_init(FAULT_HEARTBEAT_LOOP_WATCHDOG, (3U * 1000000U / 8U));
     init_registers();  // clear register_map after init to avoid false divergence
 }

@@ -120,7 +120,7 @@ e2e-tests/
 | 替代体验 | `alternative_experience.feature` | 5 | alternativeExperience |
 | 警笛 | `siren.feature` | 4 | stopModeRegs.gpioBOdr (PB14) via jna_tick_siren + @red unused 验证 ✅ D.2 |
 | CAN 通信重置 | `can_comms_reset.feature` | 2 | safetyTxBlocked + stopModeRegs.gpioAOdr |
-| CAN 通信序列化 | `can_comms.feature` | 4 | comms_can_write → rxQueue, comms_can_read → commsReadBytes |
+| CAN 通信序列化 | `can_comms.feature` | 9 | USB ep3 out → comms_can_write → rxQueue, USB ep1 in → comms_can_read → usbEp1InBytes (含 overflow 分片 5 场景, Phase D.3 ✅) |
 | CAN 环形缓冲 | `can_ring_clear.feature` | 4 | rxQueue/txQueue |
 | CAN 队列回绕 | `can_queue_wrap.feature` | 5 | lastQueueWPtr/lastQueueRPtr/canPushResult/lastCanSlotsEmptyVal via JNA 直接队列操作 |
 | FDCAN 中断处理 | `fdcan_interrupt.feature` | 2 | process_can → TXBAR/IR/rxQueue, 0xff 守卫 ✅ C3 |
@@ -164,7 +164,7 @@ e2e-tests/
 ## C 代码覆盖率
 
 > 数据来源: `e2e-tests/run_all_coverage.sh` 合并报告 (cuatro + tres + red)
-> 生成时间: 2026-07-28 (C3 fdcan/llfdcan 去桩化 + Phase D.1 config.h + Phase D.2 unused_funcs.h + set_fan_enabled 板级去桩)
+> 生成时间: 2026-07-28 (Phase D 全部完成: config.h → 100%, unused_funcs.h → 100%, can_comms.h → 100%)
 
 | 源文件 | 行覆盖 | 函数覆盖 | 说明 |
 |--------|--------|---------|------|
@@ -175,7 +175,7 @@ e2e-tests/
 | `board/sys/faults.h` | **100%** (20/20) | 2/2 | 故障设置 |
 | `board/libc.h` | **83.9%** (52/62) | 3/5 | memcmp 全覆盖 ✅；delay + assert_fatal(false) 不可覆盖 |
 | `board/drivers/fan.h` | **100%** (27/27) | 3/3 | 风扇 PWM + 冷却 |
-| `board/can_comms.h` | **56.6%** (43/76) | 4/4 | CAN 通信序列化 (overflow buffer 分片路径未覆盖) |
+| `board/can_comms.h` | **100%** (76/76) | 4/4 | ✅ Phase D.3 完成 (overflow buffer 分片) |
 | `board/config.h` | **100%** (4/4) | — | ✅ Phase D.1 |
 | `board/boards/unused_funcs.h` | **100%** (23/23) | — | ✅ Phase D.2 (板级 wiring + board-tagged 场景) |
 | `board/drivers/clock_source.h` | **100%** (40/40) | 2/2 | ✅ N1 完成 |
@@ -189,7 +189,7 @@ e2e-tests/
 | `board/boards/cuatro.h` | **83.3%** (55/66) | — | ✅ N2 完成 |
 | `board/boards/tres.h` | **88.0%** (81/92) | — | ✅ N2 完成 |
 | `board/boards/red.h` | **90.0%** (63/70) | — | ✅ N2 完成 |
-| **合计** | **78.9%** (1705/2160, 34 files) | — | C3 完成 + Phase D.1 done |
+| **合计** | **80.5%** (1738/2160, 34 files) | — | Phase D 全部完成 ✅ |
 
 ## 设计原则
 

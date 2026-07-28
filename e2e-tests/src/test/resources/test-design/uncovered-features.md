@@ -1,11 +1,11 @@
 # 端到端测试未覆盖功能清单
 
 > 最后更新: 2026-07-28
-> 基准 e2e 场景数: 197 (cuatro 默认, 含 tres/red 板型特定场景)
-> 综合行覆盖率: **78.9%** (1705/2160 lines), 34 files
+> 基准 e2e 场景数: 203 (cuatro 默认, 含 tres/red 板型特定场景)
+> 综合行覆盖率: **80.5%** (1738/2160 lines), 34 files
 > 数据来源: `e2e-tests/run_all_coverage.sh` (cuatro + tres + red 合并)
 >
-> **本次更新**: C3 fdcan.h + llfdcan.h 去桩化完成，覆盖率基线重置（34 文件 / 2160 行，新增真实代码 ~650 行）；新增 §十二「低于 80% 文件提升分析」；Phase D.1 完成 (config.h → 100%)；Phase D.2 完成 (unused_funcs.h → 100%)
+> **本次更新**: C3 fdcan.h + llfdcan.h 去桩化完成，覆盖率基线重置（34 文件 / 2160 行，新增真实代码 ~650 行）；新增 §十二「低于 80% 文件提升分析」；Phase D.1 完成 (config.h → 100%)；Phase D.2 完成 (unused_funcs.h → 100%)；Phase D.3 完成 (can_comms.h → 100%)
 
 ---
 
@@ -88,7 +88,7 @@ board/boards/unused_funcs.h           — 未使用功能的空桩实现
 |--------|--------|-----------|
 | `board/main_comms.h` | 95.5% (257/269) | 仅 default handler print + ALLOW_DEBUG 条件未覆盖 |
 | `board/main.c` | 64.2% (145/226) | 主循环 main()/LED fade 不可达；debug_ring_callback / enable_fpu 硬件依赖 |
-| `board/can_comms.h` | 56.6% (43/76) | overflow buffer 分片路径未触发 — §十二.3 |
+| `board/can_comms.h` | 100% (76/76) | ✅ Phase D.3 已完成 |
 | `board/config.h` | 100% (4/4) | ✅ Phase D.1 已完成 |
 | `board/crc.h` | 100% (17/17) | ✅ C1 已完成 |
 | `board/can.h` | 100% (1/1) | 全部覆盖 |
@@ -859,7 +859,7 @@ B1 揭示的模式：`libpanda.c` 中的调用计数 / 状态保存跟踪变量�
 ✅ C1 完成:       crc.h 去桩化 → 17 行 + spi_version_packet, 消除 1 个空桩
 ✅ C2 完成:       llfdcan_declarations.h → 23 行真实宏, 消除 fdcan_regs.h 内联重复
 ✅ C3 完成:       llfdcan.h + fdcan.h → 316 行真实代码进入覆盖率, 消除 fdcan_e2e.gen.c + e2e 桩 fdcan.h
-   → C3 后基线: 78.9% (1705/2160), 34 files (新增 6 个真实文件, ~650 行真实代码)
+   → Phase D 后基线: 80.5% (1738/2160), 34 files (+33 行, can_comms.h → 100%)
 ```
 
 ---
@@ -1036,7 +1036,7 @@ interrupts.h        — NVIC 初始化
 
 ---
 
-## 十二、低于 80% 文件提升分析（C3 后基线：78.9%，1705/2160）
+## 十二、低于 80% 文件提升分析（Phase D 后基线：80.5%，1738/2160）
 
 C3 完成后，7 个文件覆盖率低于 80%。以下按**提升难度 × 收益**排序，给出具体路径。
 
@@ -1138,7 +1138,7 @@ can_rx() 中未覆盖:
 
 ---
 
-### 十二.3 `board/can_comms.h` — 56.6% (43/76) 🟢 低难度
+### 十二.3 `board/can_comms.h` — 56.6% (43/76) → ✅ 100% (Phase D.3 已完成)
 
 **已覆盖**: 正常 CAN 包的 `comms_can_read` 和 `comms_can_write` 路径（单次传输能装下完整包）。
 
@@ -1164,6 +1164,15 @@ comms_can_write() 分片路径 (26 行未覆盖):
 - `comms_can_write`: 先写入部分数据触发 buffer 暂存，再写入剩余部分触发组装和 `can_send`
 
 **预估收益**: +33 行（覆盖率 +1.5%），低投入高回报。
+
+**实施** (2026-07-28): 
+- `libpanda.c`: 新增 `jna_comms_can_reset()` 确保场景间缓冲区状态干净
+- `PandaClient.java` + `PandaSteps.java`: 暴露 JNA 绑定 + 步骤定义
+- `can_comms.feature`: 新增 5 个 overflow buffer 场景
+  - `comms_can_read` overflow: 单帧分片读取 (2 场景)
+  - `comms_can_write` overflow: 帧分片写入完成/未完成/多帧尾部 (3 场景)
+- 所有场景都有 When 操作触发溢出 → Then 验证 buffer 状态 (ptr/tail) + 帧完整性
+- 场景数: 203 (+6 vs 基线 197)
 
 ---
 
@@ -1232,10 +1241,10 @@ main() 函数 (120 行):
 ### 推荐实施顺序
 
 ```
-Phase D — 快速提升 (预计 +35 行 / +1.6%)
+Phase D — 快速提升 (实际 +33 行 / +1.6%) — ✅ 全部完成
   1. config.h: 引用 CAN_INIT_TIMEOUT_MS ✅ 已完成 (2026-07-28)
   2. unused_funcs.h: 在 @tres/@red 场景中调用空桩函数 ✅ 已完成 (2026-07-28)
-  3. can_comms.h: overflow buffer 分片场景
+  3. can_comms.h: overflow buffer 分片场景 ✅ 已完成 (2026-07-28)
 
 Phase E — 核心提升 (预计 +74 行 / +3.4%)
   4. fdcan.h: can_rx() 完整路径（RX FIFO 模拟 + 多场景）
@@ -1248,8 +1257,8 @@ Phase F — 远期 (预计 +135 行 / +6.2%)
 ```
 
 ```
-C3 后基线:       78.9% (1705/2160)
-Phase D 完成后:  ~80.5%
+Phase D 后基线:   80.5% (1738/2160)
+Phase E 完成后:  ~83.9%
 Phase E 完成后:  ~83.9%
 Phase F 完成后:  ~90.1%
 ```

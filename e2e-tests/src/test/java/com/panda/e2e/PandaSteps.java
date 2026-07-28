@@ -107,14 +107,14 @@ public class PandaSteps {
         client.detectHarnessOrientation();
     }
 
-    @When("comms can write with hex:")
-    public void commsCanWrite(String hexExpression) {
-        client.commsCanWrite(hexToBytes(hexExpression));
+    @When("USB ep3 out with hex:")
+    public void usbEp3Out(String hexExpression) {
+        client.usbEp3Out(hexToBytes(hexExpression));
     }
 
-    @When("comms can read with max len {int}")
-    public void commsCanRead(int maxLen) {
-        client.commsCanRead(maxLen);
+    @When("USB ep1 in with max len {int}")
+    public void usbEp1In(int maxLen) {
+        client.usbEp1In(maxLen);
     }
 
     private static byte[] hexToBytes(String hex) {
