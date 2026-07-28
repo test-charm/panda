@@ -151,6 +151,11 @@ public class PandaSteps {
         client.boardInit();
     }
 
+    @When("set fan enabled through board {int}")
+    public void setFanEnabledThroughBoard(int en) {
+        client.boardSetFanEnabled(en != 0);
+    }
+
     @When("can push direct to queue {int}")
     public void canPushDirect(int queueIdx) {
         client.canPushDirectAndStore(queueIdx, 0x100, "any".getBytes(StandardCharsets.UTF_8), (byte) 0);

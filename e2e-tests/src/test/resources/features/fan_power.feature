@@ -31,18 +31,28 @@ Feature: Fan Power Control
       }
       """
 
+  # ---- set_fan_enabled on RED is unreachable through firmware paths ----
+  # RED has has_fan=false, so fan_tick() skips set_fan_enabled().
+  # We call current_board->set_fan_enabled() directly via JNA to exercise
+  # the board wiring and unused_set_fan_enabled. Verify it's a no-op:
+  # GPIO PD3 stays 0 and fanPower stays as set by fan_set_power.
+
   @red
-  Scenario: SetFanPower on red calls unused_set_fan_enabled through fan_set_power
+  Scenario: set_fan_enabled through board function pointer is a no-op on red
     When control write:
       """
       SetFanPower: {
         param1: 50
       }
       """
+    And set fan enabled through board 1
     Then control data should be:
       """
       : {
         fanPower: 50
+        stopModeRegs: {
+          gpioDOdr: 0L
+        }
       }
       """
 

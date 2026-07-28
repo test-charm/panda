@@ -137,7 +137,7 @@ e2e-tests/
 | 时钟源初始化 | `clock_source_init.feature` | 6 | clockSourceInit (TIM1×12, TIM8×8, GPIO×4, NVIC×2) |
 | 板级初始化 | `board_init.feature` | 7 | boardInit (GPIO MODER/OTYPER/OSPEEDR/PUPDR/AFR/ODR ×45, PWR_CR3) — N2 完成 |
 | 定时器/风扇 | `timer_fan.feature` | 2 | respBuffer (little-endian) |
-| 风扇功率 | `fan_power.feature` | 9 | fanPower + stopModeRegs.gpioDOdr (PD3 板级验证 ✅ D.2) |
+| 风扇功率 | `fan_power.feature` | 10 | fanPower + stopModeRegs.gpioDOdr (PD3 板级验证 + unused JNA ✅ D.2) |
 | 风扇冷却 | `fan_cooldown.feature` | 3 | fanCooldownCounter + fanPower 通过 jna_call_tick_handler |
 | 系统复位 | `reset_st.feature` | 1 | nvicResetCount |
 | 深度休眠 | `deep_sleep.feature` | 13 | stopModeRegs (25+ 假寄存器: GPIO/ADC/RCC/SYSCFG/EXTI/PWR/SCB/NVIC) |

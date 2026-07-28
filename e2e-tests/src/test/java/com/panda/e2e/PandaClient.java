@@ -570,6 +570,10 @@ public class PandaClient {
 
         // unused_funcs.h: init_bootloader (needs JNA since early_init is stubbed in e2e)
         void jna_unused_init_bootloader();
+
+        // unused_funcs.h: set_fan_enabled via board function pointer
+        // (needs JNA since has_fan==false on RED skips fan_tick)
+        void jna_board_set_fan_enabled(int en);
     }
 
     private static final String ORIGINAL_LIB_PATH = PandaLib.libPath;
@@ -1598,10 +1602,14 @@ public class PandaClient {
         return lib.jna_get_can_init_timeout_ms();
     }
 
-    // ---- unused_funcs.h: init_bootloader (JNA since early_init is stubbed) ----
+    // ---- unused_funcs.h: init_bootloader + set_fan_enabled (JNA since unreachable via e2e paths) ----
 
     public void unusedInitBootloader() {
         lib.jna_unused_init_bootloader();
+    }
+
+    public void boardSetFanEnabled(boolean en) {
+        lib.jna_board_set_fan_enabled(en ? 1 : 0);
     }
 
     // ---- Health packet inspection ----

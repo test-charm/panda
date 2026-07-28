@@ -1576,9 +1576,15 @@ int jna_get_can_init_timeout_ms(void) {
     return CAN_INIT_TIMEOUT_MS;
 }
 
-// ---- unused_funcs.h: init_bootloader JNA wrapper ----
-// unused_init_bootloader is wired into all e2e board structs but can't be
-// exercised through normal e2e paths (early_initialization is stubbed).
+// ---- unused_funcs.h JNA wrappers ----
+// unused_init_bootloader: wired into all e2e board structs but early_initialization is stubbed.
+// unused_set_fan_enabled: wired on RED but fan_tick is skipped (has_fan == false).
+// Both functions cannot be reached through normal firmware paths in e2e.
+// We call through current_board->set_fan_enabled() to test both the board wiring
+// and the unused function itself.
 void jna_unused_init_bootloader(void) {
     unused_init_bootloader();
+}
+void jna_board_set_fan_enabled(int en) {
+    current_board->set_fan_enabled((bool)en);
 }

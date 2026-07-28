@@ -1208,7 +1208,7 @@ main() 函数 (120 行):
 | 函数 | 板 | 触发路径 |
 |------|----|---------|
 | `unused_set_ir_power()` | red | 0xb0 → `current_board->set_ir_power` |
-| `unused_set_fan_enabled()` | red | 0xb1 → `fan_set_power` → `fan_tick` → `set_fan_enabled` |
+| `unused_set_fan_enabled()` | red | ⚠️ `fan_tick` 跳过 (`has_fan=false`)；JNA 通过 `current_board->set_fan_enabled()` 调用 |
 | `unused_set_siren()` | red | `tick_handler` → `current_board->set_siren` |
 | `unused_read_current()` | red, tres | 0xd2 → `get_health_pkt` → `read_current_mA` |
 | `unused_read_som_gpio()` | red | 0xc6 → `current_board->read_som_gpio` |

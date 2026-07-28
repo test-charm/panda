@@ -86,10 +86,12 @@
 - 输入: param1=255
 - 输出: fanPower: 100
 
-### TC6 (@red): unused_set_fan_enabled 路径
-- 前置: red board (`.set_fan_enabled = unused_set_fan_enabled`)
-- 输入: param1=50
-- 输出: fanPower: 50
+### TC6 (@red): set_fan_enabled 通过 board 函数指针走 unused_set_fan_enabled
+- 前置: red board (`.set_fan_enabled = unused_set_fan_enabled`, `has_fan = false`)
+- 说明: RED 的 `has_fan = false` 导致 `fan_tick()` 完全跳过 `set_fan_enabled()`。通过 JNA 调用 `current_board->set_fan_enabled(true)` 验证 board 连线 + unused 函数
+- 输入: SetFanPower(50) → fan_state.power=50, 然后 `current_board->set_fan_enabled(true)`
+- 输出: fanPower: 50 (不变), gpioDOdr: 0L (PD3 不变，no-op)
+- 证明: unused_set_fan_enabled 被调用且确实是 no-op
 
 ### TC7 (@cuatro): cuatro_set_fan_enabled — PD3 low (active-low)
 - 前置: cuatro board (`.set_fan_enabled = cuatro_set_fan_enabled`)
