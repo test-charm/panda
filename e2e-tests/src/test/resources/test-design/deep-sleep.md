@@ -79,7 +79,7 @@ request deep sleep (0xb5):
 
 ### TC1: 触发深度休眠请求
 - 输入: request=0xb5
-- 验证: `stopModeRegs.gpioAOdr: 520L` (继电器关断), `powerSaveEnabled=true`, `stopModeRequested=true`, `irqDisableCount=2`
+- 验证: `stopModeRegs.gpioAOdr: 520L` (继电器关断), `powerSaveEnabled=true`, `stopModeRequested=true`, `irqDisableCount=4 (NVIC 层计数, IT0+IT1)`
 
 ### TC2: GPIO 全模拟模式
 - 前置: TC1

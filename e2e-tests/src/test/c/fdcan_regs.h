@@ -127,6 +127,15 @@ typedef struct {
 #define FDCAN_DBTP_DTSEG1_Pos     (8U)
 #define FDCAN_DBTP_DBRP_Pos       (16U)
 
+// ---- FDCAN TXFQS register bits ----
+#define FDCAN_TXFQS_TFFL_Pos     (0U)
+#define FDCAN_TXFQS_TFFL_Msk     (0x3FUL << FDCAN_TXFQS_TFFL_Pos)
+#define FDCAN_TXFQS_TFFL         FDCAN_TXFQS_TFFL_Msk
+#define FDCAN_TXFQS_TFQPI_Pos    (16U)
+#define FDCAN_TXFQS_TFQF_Pos     (21U)
+#define FDCAN_TXFQS_TFQF_Msk     (0x1UL << FDCAN_TXFQS_TFQF_Pos)
+#define FDCAN_TXFQS_TFQF         FDCAN_TXFQS_TFQF_Msk
+
 // ---- FDCAN TXBC register bits ----
 #define FDCAN_TXBC_TBSA_Pos       (2U)
 #define FDCAN_TXBC_TFQS_Pos       (24U)
@@ -240,6 +249,12 @@ typedef struct {
 #define FDCAN_ECR_TEC          FDCAN_ECR_TEC_Msk
 
 // ---- FDCAN IR register bits ----
+#define FDCAN_IR_RF0N_Pos      (0U)
+#define FDCAN_IR_RF0N_Msk      (0x1UL << FDCAN_IR_RF0N_Pos)
+#define FDCAN_IR_RF0N          FDCAN_IR_RF0N_Msk
+#define FDCAN_IR_TFE_Pos       (11U)
+#define FDCAN_IR_TFE_Msk       (0x1UL << FDCAN_IR_TFE_Pos)
+#define FDCAN_IR_TFE           FDCAN_IR_TFE_Msk
 #define FDCAN_IR_RF0L_Pos      (4U)
 #define FDCAN_IR_RF0L_Msk      (0x1UL << FDCAN_IR_RF0L_Pos)
 #define FDCAN_IR_RF0L          FDCAN_IR_RF0L_Msk
@@ -261,3 +276,18 @@ typedef struct {
 
 // ---- CAN error codes ----
 #define CAN_ACK_ERROR    2U
+
+// ---- FDCAN RXF0S register bits (for can_rx) ----
+#define FDCAN_RXF0S_F0FL_Pos    (0U)
+#define FDCAN_RXF0S_F0FL_Msk    (0x7FUL << FDCAN_RXF0S_F0FL_Pos)
+#define FDCAN_RXF0S_F0FL        FDCAN_RXF0S_F0FL_Msk
+#define FDCAN_RXF0S_F0F_Pos     (8U)
+#define FDCAN_RXF0S_F0F_Msk     (0x1UL << FDCAN_RXF0S_F0F_Pos)
+#define FDCAN_RXF0S_F0F         FDCAN_RXF0S_F0F_Msk
+#define FDCAN_RXF0S_F0GI_Pos    (16U)
+
+// ---- canfd_fifo type (from drivers.h, normally inside #ifdef STM32H7) ----
+typedef struct {
+  volatile uint32_t header[2];
+  volatile uint32_t data_word[64/4U];
+} canfd_fifo;

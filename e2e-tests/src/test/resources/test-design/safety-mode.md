@@ -76,17 +76,17 @@ can_clear:  -   -    bus1      -           -
 
 ### TC3: ALLOUTPUT 模式 — CAN 全部放行
 - 输入: mode=ALLOUTPUT(17), param=0 (default from SetSafetyMode spec)
-- 输出: safetyTxBlocked=0, rxQueue=[], txQueue[0] 含放行消息
+- 输出: safetyTxBlocked=0, rxQueue[0] 含 returned:true 消息 (C3: process_can echo)
 - 路径: set_hooks → ALLOUTPUT case → relay off → alloutput_hooks.tx 放行
 
 ### TC4: ELM327 OBD_CAN2 — param=0 子模式
 - 输入: mode=ELM327(3), param=0
-- 输出: safetyTxBlocked=0, rxQueue=[], txQueue[0] 含放行消息
+- 输出: safetyTxBlocked=0, rxQueue[0] 含 returned:true 消息 (C3: process_can echo)
 - 路径: set_hooks → ELM327 case (param=0) → OBD_CAN2, elm327_hooks 校验通过
 
 ### TC5: ELM327 NORMAL — param≠0 子模式
 - 输入: mode=ELM327(3), param=1
-- 输出: safetyTxBlocked=0, rxQueue=[], txQueue[0] 含放行消息
+- 输出: safetyTxBlocked=0, rxQueue[0] 含 returned:true 消息 (C3: process_can echo)
 - 路径: set_hooks → ELM327 case (param≠0) → NORMAL, elm327_hooks 校验通过
 
 ### TC6: TOYOTA 车辆特定模式 — 非 TOYOTA 消息被阻断
@@ -101,7 +101,7 @@ can_clear:  -   -    bus1      -           -
 
 ### TC8: 模式切换 — 清空 TX 队列 + 重初始化 FDCAN
 - 输入: 先切换到 ALLOUTPUT(17), 发送一条 CAN 消息, 再切换到 ALLOUTPUT(17)
-- 输出: rxQueue=[], txQueue[0]=[], fdcanRegs<<0,1,2>> 所有寄存器被 can_init_all() 重初始化
+- 输出: txQueue[0]=[], rxQueue[0] 含 returned:true echo 消息 (C3: process_can echo), fdcanRegs<<0,1,2>> 所有寄存器被 can_init_all() 重初始化
 - 路径: set_safety_mode → set_safety_hooks → can_init_all() → 所有 FDCAN 寄存器恢复默认值, TX 队列清空
 
 ## 5. 覆盖检查

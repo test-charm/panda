@@ -61,9 +61,9 @@ case 0xe5:
 
 ## e2e 测试环境限制
 
-e2e 测试环境中 `process_can()` 被 stub，FDCAN 硬件不存在，因此：
-- **不支持**：CAN 消息从 TX 自动回环到 RX 队列
-- **可验证**：FDCAN 寄存器配置（CCCR、TEST）、TX 队列清空行为、CAN 发送不阻塞
+C3 完成后，`process_can()` 使用真实生产代码（`board/drivers/fdcan.h`），FDCAN 假寄存器写入后 TXBAR 会真实置位。`can_send()` 后 `process_can()` 自动排空 TX 队列并 echo 到 rxQueue。
+- **可验证**：FDCAN 寄存器配置（CCCR、TEST、TXBAR、IR）、RX 队列 echo（`returned: true`）
+- **不支持**：真实 CAN 总线回环（无硬件）
 
 ## 测试用例
 
@@ -71,8 +71,8 @@ e2e 测试环境中 `process_can()` 被 stub，FDCAN 硬件不存在，因此：
 |---|---------------------------|--------|----------|----------|------|
 | 1 | Enabling-loopback-sets-FDCAN-TEST-and-MON-bits | 1 | silent=true (默认) | cccr=0b1010_0000, ie/nbtp/dbtp/txbc/rxf0c/txesc/rxesc/gfc/ile 全部初始值 | 回环开启后 CCCR 置 TEST+MON，所有 FDCAN 寄存器被 can_init_all() 重初始化 |
 | 2 | Disabling-loopback-clears-FDCAN-TEST-bit-but-keeps-MON-from-silent-mode | 0 | silent=true (默认) | cccr[0]=0x20 (MON only) | 回环关闭后 TEST 清除，MON 由 silent 模式保持 |
-| 3 | Re-enabling-loopback-clears-existing-CAN-TX-queues | 1 | ALLOUTPUT, TX 队列有消息 | txQueue[0] 为空, rxQueue 为空, cccr=0b1010_0000 | can_init_all 清空已有 TX 消息并重初始化 FDCAN |
-| 4 | CAN-send-still-works-after-loopback-is-enabled | 1 | ALLOUTPUT + loopback on | txQueue[0] 含 address=512 的发送消息 | 回环不影响 CAN 发送路径 |
+| 3 | Re-enabling-loopback-clears-existing-CAN-TX-queues | 1 | ALLOUTPUT, TX 队列有消息 | txQueue[0] 为空, rxQueue[0] 含 `queued` (echo), cccr=0b1010_0000 | can_init_all 重初始化 FDCAN，但 rxQueue 保留 process_can echo |
+| 4 | CAN-send-still-works-after-loopback-is-enabled | 1 | ALLOUTPUT + loopback on | rxQueue[0] 含 address=512, returned=true | `can_send` → `process_can` echo 到 rxQueue |
 
 **覆盖度验证：**
 - 代码路径：param1=0 (用例2) + param1>0 (用例1,3,4) ✓
@@ -95,6 +95,8 @@ e2e 测试环境中 `process_can()` 被 stub，FDCAN 硬件不存在，因此：
 
 | 源文件 | 行覆盖 | 说明 |
 |--------|--------|------|
-| `main_comms.h` | 93.3% (251/269) | USB 命令处理 |
-| `can_common.h` | 86.9% (93/107) | CAN 通用操作 |
+| `main_comms.h` | 97.0% (261/269) | USB 命令处理 |
+| `can_common.h` | 100% (107/107) | CAN 通用操作 (C3: process_can 守卫已移除) |
+| `fdcan.h` | ~85% (预估) | FDCAN 驱动 ✅ C3 |
+| `llfdcan.h` | ~94% (预估) | FDCAN 硬件层 ✅ C3 |
 

@@ -19,7 +19,7 @@ Feature: Deep Sleep Request
         powerSaveEnabled: true
         stopModeRequested: true
         powerSaveTracking: {
-          irqDisableCount: 2
+          irqDisableCount: 4
         }
       }
       """

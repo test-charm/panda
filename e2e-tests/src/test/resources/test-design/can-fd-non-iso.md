@@ -73,3 +73,7 @@ set CAN FD non-ISO (0xfc):
 | `main_comms.h` | 93.3% (251/269) | USB 命令处理 |
 | `can_common.h` | 86.9% (93/107) | CAN 通用操作 |
 
+
+## C3 更新
+
+禁用场景新增 `Then FDCAN interrupt handlers are registered` 步骤，验证 `can_init()` 中的 `REGISTER_INTERRUPT` 正确填充了 `interrupts[]` 数组（6 个 FDCAN IRQ 处理器 + max_call_rate=16000）。

@@ -10,7 +10,7 @@ get interrupt call rate (0xc4):
   [controlWrite(0xc4, param1, 0)]
            │
            ▼
-  param1 < NUM_INTERRUPTS (16)?
+  param1 < NUM_INTERRUPTS (161)?
      ├── Y → load = interrupts[param1].call_rate
      │        resp[0..3] = LE(load)
      │        resp_len = 4
@@ -38,7 +38,7 @@ get interrupt call rate (0xc4):
 ## 4. 测试用例
 
 ### TC1: 索引越界 → 零长度响应
-- 输入: request=0xc4, param1=16（>=NUM_INTERRUPTS）
+- 输入: request=0xc4, param1=200（>=NUM_INTERRUPTS）
 - 输出: resp_len=0
 
 ### TC2: 有效索引+预设值 → 返回 4 字节

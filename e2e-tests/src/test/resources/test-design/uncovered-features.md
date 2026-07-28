@@ -796,16 +796,26 @@ B1 揭示的模式：`libpanda.c` 中的调用计数 / 状态保存跟踪变量�
 
 **收益**: 51 行真实宏，gen 文件更干净。
 
-#### C3（远期）— `llfdcan.h` + `fdcan.h` 自变异寄存器方案
+#### C3 — `llfdcan.h` + `fdcan.h` 真实代码纳入 ✅ 已完成
 
-**文件**: `board/stm32h7/llfdcan.h`（228 行）+ `board/drivers/fdcan.h`（227 行），共 455 行
+**文件**: `board/stm32h7/llfdcan.h`（242 行）+ `board/drivers/fdcan.h`（249 行），共 491 行
 
-**障碍**: 
-1. `while()` 硬件轮询循环 → 需实现自变异 FDCAN 寄存器（写 CCCR.INIT 自动置位，对标 TIM 自变异模式）
-2. `cans[3]` 数组重复定义（真实 fdcan.h 和 libpanda.c 各一份）→ 需 `#ifdef E2E_TEST` 条件编译
-3. `REGISTER_INTERRUPT` 需要 `interrupts[]` 数组 → 需 stub
+**实施**: 
+1. `llfdcan.h`：2 处 `#ifdef E2E_TEST` — CCE 自动清除 + 指针安全 RAM 刷新
+2. `fdcan.h`：4 处 `#ifdef E2E_TEST` — `cans[]` 数组、10Hz 速率限制、FDCAN FIFO 指针算术
+3. `llfdcan_declarations.h`：`#ifndef E2E_TEST` 守卫 `FDCAN_START_ADDRESS`
+4. e2e `interrupts.h`：真实 `REGISTER_INTERRUPT`（非 no-op 桩）
+5. e2e `fdcan_regs.h`：新增 TXFQS、TXBAR、RXF0S、IR_RF0N、IR_TFE 寄存器位 + `canfd_fifo` 类型
+6. `libpanda.c`：移除 `fdcan_e2e.gen.c`，改为直接 `#include` 真实 `llfdcan.h`；`NUM_INTERRUPTS` 16→161；`interrupts[]` 完整类型
+7. `jna_can_send` 校验后设 checksum（`process_can` 需要）
+8. `can_common.h`：移除 `#ifndef E2E_TEST` 守卫（`process_can` 无条件执行，守卫已不再需要）
 
-**工作量**: 2-3 天，不推荐当前阶段实施。gen 脚本方案是正确的折中。
+**收益**: 491 行真实代码进入覆盖率，消除 `fdcan_e2e.gen.c` 及其生成脚本，消除 e2e 桩 `fdcan.h`
+
+**新增测试**: `fdcan_interrupt.feature`（2 场景）— `process_can` TXBAR/TXFQS 寄存器验证 + 0xff 守卫
+**更新测试**: `can_fd_non_iso.feature`（+1 步骤）— FDCAN 中断注册验证
+**删除测试**: `can_comms.feature` 2 场景（cross-chunk read + checksum — 非端到端）
+**删除测试**: `can_comms_reset.feature` 1 场景（buffer state — 非端到端）
 
 ---
 
@@ -818,7 +828,7 @@ B1 揭示的模式：`libpanda.c` 中的调用计数 / 状态保存跟踪变量�
 ✅ B5 完成:       harness.h 去桩化 → 107 行进入覆盖率, 消除 3 文件, 综合 90.0%
 ✅ C1 完成:       crc.h 去桩化 → 20 行 + spi_version_packet (43 行), 消除 1 个空桩, 新增 spi_version_packet.feature (2 场景)
 ✅ C2 完成:       llfdcan_declarations.h → 51 行真实宏, 消除 fdcan_regs.h 内联重复
-⚪ C3 远期:       llfdcan.h + fdcan.h 自变异寄存器 → 455 行 (不推荐当前阶段)
+✅ C3 完成:       llfdcan.h + fdcan.h → 491 行真实代码, 消除 fdcan_e2e.gen.c + e2e 桩 fdcan.h
 ```
 
 ---
@@ -841,7 +851,7 @@ libpanda.c (精简后) 编译模型:
   #include "boards/board_declarations.h"     ← ✅ 真实代码
   #include "board/boards/{cuatro,tres,red}.h" ← ✅ 真实代码 (P2, 35-66% 覆盖)
   #include "board/drivers/gpio.h"            ← ✅ 真实代码 (70.4% 覆盖)
-  #include "board/drivers/interrupts.h"      ← ⚠️ e2e 桩 (空实现)
+  #include "board/drivers/interrupts.h"      ← ✅ 真实 REGISTER_INTERRUPT (C3)
   #include "board/stm32h7/stm32h7_config.h"  ← ⚠️ e2e 桩 (最小化)
   #include "board/stm32h7/lladc.h"           ← ⚠️ e2e 桩 (拦截 adc_get_mV)
   #include "board/drivers/pwm.h"             ← ⚠️ e2e 桩 (空实现)
@@ -850,8 +860,6 @@ libpanda.c (精简后) 编译模型:
   #include "board/drivers/spi.h"             ← ⚠️ e2e 桩 (空实现)
   #include "board/drivers/usb.h"             ← ⚠️ e2e 桩 (空实现)
   #include "board/drivers/fake_siren.h"      ← ⚠️ e2e 桩 (空实现)
-  #include "fdcan_e2e.gen.c"                 ← 🔧 从 llfdcan.h 提取 (93.6% 覆盖)
-  #include "harness_detect_e2e.gen.c"        ← 🔧 从 harness.h 提取 (100% 覆盖)
 ```
 
 ### 去桩化机会排序
@@ -865,7 +873,58 @@ libpanda.c (精简后) 编译模型:
 | 🔴 B5 | `harness_detect_e2e.gen.c` + e2e 桩 `harness.h` | `board/drivers/harness.h` | ✅ 已完成 — 107 行真实代码进入覆盖率 + 消除 2 文件 + 1 脚本 | `harness_detect_orientation()` 为 static，`#ifdef E2E_TEST` 暴露 |
 | ✅ C1 | e2e 桩 `crc.h` (空文件) | `board/crc.h` | ✅ 已完成 — 20 行纯 CRC-8 算法，消除空桩 + spi_version_packet 测试 | 零障碍 |
 | ✅ C2 | — (gen 文件内联宏) | `board/stm32h7/llfdcan_declarations.h` | ✅ 已完成 — 51 行真实宏定义，fdcan_regs.h 消除重复 | 零障碍 |
-| ⚪ C3 | `fdcan_e2e.gen.c` + e2e 桩 `fdcan.h` | `board/stm32h7/llfdcan.h` + `board/drivers/fdcan.h` | 455 行真实代码 (远期) | `while()` 轮询 + `cans[]` 冲突 + `REGISTER_INTERRUPT` |
+| ✅ C3 | `fdcan_e2e.gen.c` + e2e 桩 `fdcan.h` | `board/stm32h7/llfdcan.h` + `board/drivers/fdcan.h` | ✅ 已完成 — 491 行真实代码，消除 gen 脚本 + 桩文件 | `while()` 轮询 + `cans[]` + `REGISTER_INTERRUPT` |
+
+---
+
+## 十一、生产代码 `#ifdef E2E_TEST` 使用清单
+
+C3 完成后，生产代码中 `E2E_TEST` 条件编译共涉及 6 个文件，15 处使用：
+
+### `board/drivers/harness.h`（4 处）
+
+| 行 | 守卫 | 用途 |
+|----|------|------|
+| 5 | `#ifndef` | `harness` 全局变量 — e2e 中由 libpanda.c 定义 |
+| 56 | `#ifdef` | `harness_detect_orientation()` static→公开 — 供 e2e JNA 调用 |
+| 99 | `#ifndef` | `harness_tick()` 中跳过 `harness_detect_orientation()` 调用 |
+| 111 | `#ifndef` | `harness_init()` 中跳过初始方向检测 |
+
+### `board/drivers/fdcan.h`（4 处）
+
+| 行 | 守卫 | 用途 |
+|----|------|------|
+| 3 | `#ifndef` | `cans[3]` 数组 — e2e 中由 libpanda.c 定义为 `fake_fdcan[]` |
+| 24 | `#ifdef` | `can_clear_send()` 跳过 10Hz 速率限制（`microsecond_timer_get` 始终为 0） |
+| 63 | `#ifdef` | `process_can()` 中 `TxFIFOSA` 用指针算术替代 `uint32_t` 强转 |
+| 140 | `#ifdef` | `can_rx()` 中 `RxFIFO0SA` 用指针算术替代 `uint32_t` 强转 |
+
+### `board/drivers/bootkick.h`（3 处）
+
+| 行 | 守卫 | 用途 |
+|----|------|------|
+| 7 | `#ifdef` | 提升 `static` 局部变量为文件作用域供 JNA 访问 |
+| 18 | `#ifdef` | `#define` 映射 `e2e_*` 变量到原 `static` 局部变量名 |
+| 90 | `#ifdef` | `#undef` 清理 |
+
+### `board/stm32h7/llfdcan.h`（2 处）
+
+| 行 | 守卫 | 用途 |
+|----|------|------|
+| 32 | `#ifdef` | `fdcan_exit_init()` 中同时清除 CCE（模拟硬件自动行为） |
+| 194 | `#ifdef` | `llcan_init()` 中 RAM 刷新用指针算术替代 `uint32_t` 强转 |
+
+### `board/stm32h7/llfdcan_declarations.h`（1 处）
+
+| 行 | 守卫 | 用途 |
+|----|------|------|
+| 16 | `#ifndef` | `FDCAN_START_ADDRESS` — e2e 中由 libpanda.c 重定义为 `fake_fdcan_sram` |
+
+### `board/sys/faults.h`（1 处）
+
+| 行 | 守卫 | 用途 |
+|----|------|------|
+| 3 | `#ifdef` | 重定义 `PERMANENT_FAULTS` 以测试永久故障路径 |
 
 ### 不可去桩化的文件
 

@@ -33,7 +33,7 @@ Feature: Power Save State Control
       : {
         powerSaveEnabled: true
         powerSaveTracking= {
-          irqDisableCount: 2
+          irqDisableCount: 4
           irqEnableCount: 0
           lastIrqEnabledBus: -1
           irqDisabledBus0: false
@@ -56,7 +56,7 @@ Feature: Power Save State Control
       : {
         powerSaveEnabled: true
         powerSaveTracking: {
-          irqDisableCount: 2
+          irqDisableCount: 4
         }
       }
       """
@@ -79,7 +79,7 @@ Feature: Power Save State Control
       : {
         powerSaveEnabled: true
         powerSaveTracking: {
-          irqDisableCount: 2
+          irqDisableCount: 4
         }
       }
       """
@@ -126,7 +126,7 @@ Feature: Power Save State Control
       : {
         powerSaveEnabled: false
         powerSaveTracking: {
-          irqEnableCount: 2
+          irqEnableCount: 4
           lastIrqEnabledBus: 1
         }
       }
@@ -336,7 +336,7 @@ Feature: Power Save State Control
       : {
         powerSaveEnabled: true
         powerSaveTracking: {
-          irqDisableCount: 2
+          irqDisableCount: 4
         }
         stopModeRegs: {
           gpioBOdr: 3072L          # PB10+PB11: CAN2/4 disabled (same as normal)

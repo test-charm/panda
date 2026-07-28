@@ -9,6 +9,8 @@
 #include "board/drivers/registers.h"   // real register_set / check_registers
 #include "board/drivers/spi.h"         // real spi.h via e2e wrapper (llspi stubs)
 
+#define CAN_INTERRUPT_RATE 16000U
+
 typedef struct {
     uint32_t RESERVED0[0x0C / 4];
     uint32_t AR[0x0C/4];  // placeholder

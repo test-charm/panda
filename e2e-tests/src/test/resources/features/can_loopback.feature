@@ -70,7 +70,11 @@ Feature: CAN Loopback Mode
       """
       : {
         txQueue[0]: []
-        rxQueue: []
+        rxQueue[0]: {
+          rejected: false
+          returned: true
+          data.string: queued
+        }
         fdcanRegs[0]: {
           cccr: [ -96y, 0b0101_0011y ]
         }
@@ -97,8 +101,9 @@ Feature: CAN Loopback Mode
     Then control data should be:
       """
       : {
-        txQueue[0]: {
+        rxQueue[0]: {
           address: 512
+          returned: true
           rejected: false
           data.string: loopback-msg
         }

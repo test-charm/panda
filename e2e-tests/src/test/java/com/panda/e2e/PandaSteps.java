@@ -78,6 +78,11 @@ public class PandaSteps {
         client.callTickHandler();
     }
 
+    @Then("FDCAN interrupt handlers:")
+    public void fdcanInterruptHandlers(String expression) {
+        expect(client).should(expression);
+    }
+
     public static class UsbControlRequest {
         public byte request;
         public short param1, param2;
@@ -121,11 +126,6 @@ public class PandaSteps {
         return bytes;
     }
 
-    @When("check can checksum with hex:")
-    public void checkCanChecksum(String hexExpression) {
-        client.checkCanChecksum(hexToBytes(hexExpression));
-    }
-
     @When("endpoint2 write with hex:")
     public void endpoint2Write(String hexExpression) {
         client.endpoint2Write(hexToBytes(hexExpression));
@@ -166,6 +166,11 @@ public class PandaSteps {
     public void canPopDirect(int queueIdx) {
         client.canPopDirect(queueIdx);
         client.refreshQueueState(queueIdx);
+    }
+
+    @When("process can {int}")
+    public void processCan(int canNumber) {
+        client.processCan(canNumber);
     }
 
     public static class ControlSetup {

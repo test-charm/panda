@@ -65,7 +65,7 @@ clear CAN ring (0xf1):
 ### TC4: 无效 bus 编号 (param1=3)
 - 前置: ALLOUTPUT 模式发送一条消息
 - 输入: request=0xf1, param1=3
-- 输出: txQueue[0] 仍有消息 (不清除)
+- 输出: rxQueue[0] 含消息 (不清除, process_can echo)
 - 路径: param1 >= 3 → print error → no-op
 
 ## 5. 覆盖检查

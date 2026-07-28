@@ -29,6 +29,7 @@ public class PandaClient {
         private final int bus;
         private final byte[] data;
         private final boolean rejected;
+        private final boolean returned;
     }
 
     public interface PandaLib extends Library {
@@ -42,9 +43,9 @@ public class PandaClient {
 
         int jna_get_safety_tx_blocked();
 
-        boolean jna_can_pop_rx(int[] outAddr, byte[] outBus, byte[] outRejected, byte[] outData, byte[] outLen);
+        boolean jna_can_pop_rx(int[] outAddr, byte[] outBus, byte[] outRejected, byte[] outReturned, byte[] outData, byte[] outLen);
 
-        boolean jna_can_pop_tx(int queueIdx, int[] outAddr, byte[] outData, byte[] outLen);
+        boolean jna_can_pop_tx(int queueIdx, int[] outAddr, byte[] outReturned, byte[] outData, byte[] outLen);
 
         void jna_can_clear_all();
 
@@ -81,6 +82,15 @@ public class PandaClient {
         int jna_get_fdcan_ile(int canNumber);
 
         int jna_get_fdcan_ir(int canNumber);
+
+        int jna_get_fdcan_txfqs(int canNumber);
+
+        int jna_get_fdcan_txbar(int canNumber);
+
+        // Manual interrupt-driven CAN processing (C3)
+        void jna_process_can(int canNumber);
+
+        void jna_can_rx(int canNumber);
 
         // Heartbeat state inspection
         int jna_get_heartbeat_counter();
@@ -151,6 +161,7 @@ public class PandaClient {
 
         // NVIC disable IRQ tracking
         int jna_get_nvic_disable_irq_count();
+
         int jna_get_nvic_disable_irq_at(int index);
 
         int jna_get_fan_power();
@@ -315,6 +326,10 @@ public class PandaClient {
 
         void jna_set_interrupt_call_rate(byte index, int val);
 
+        int jna_get_interrupt_handler(int irqn);
+
+        int jna_get_interrupt_call_rate_max(int irqn);
+
 
         void jna_set_serial(byte[] hex, int hexLen);
 
@@ -387,6 +402,7 @@ public class PandaClient {
         int jna_get_stop_mode_requested();
 
         void jna_process_stop_mode();
+
         void jna_process_wfi_idle();
 
         void jna_tick_siren();
@@ -576,30 +592,32 @@ public class PandaClient {
         int[] outAddr = new int[1];
         byte[] outBus = new byte[1];
         byte[] outRejected = new byte[1];
+        byte[] outReturned = new byte[1];
         byte[] outData = new byte[64];
         byte[] outLen = new byte[1];
 
         var canMessages = new ArrayList<CanMessage>();
-        if (lib.jna_can_pop_rx(outAddr, outBus, outRejected, outData, outLen)) {
+        if (lib.jna_can_pop_rx(outAddr, outBus, outRejected, outReturned, outData, outLen)) {
             int len = Byte.toUnsignedInt(outLen[0]);
             byte[] data = new byte[len];
             System.arraycopy(outData, 0, data, 0, len);
-            canMessages.add(new CanMessage(outAddr[0], Byte.toUnsignedInt(outBus[0]), data, outRejected[0] != 0));
+            canMessages.add(new CanMessage(outAddr[0], Byte.toUnsignedInt(outBus[0]), data, outRejected[0] != 0, outReturned[0] != 0));
         }
         return AdaptiveList.staticList(canMessages);
     }
 
     public AdaptiveList<CanMessage> txQueue(int bus) {
         int[] outAddr = new int[1];
+        byte[] outReturned = new byte[1];
         byte[] outData = new byte[64];
         byte[] outLen = new byte[1];
 
         var canMessages = new ArrayList<CanMessage>();
-        if (lib.jna_can_pop_tx(bus, outAddr, outData, outLen)) {
+        if (lib.jna_can_pop_tx(bus, outAddr, outReturned, outData, outLen)) {
             int len = Byte.toUnsignedInt(outLen[0]);
             byte[] data = new byte[len];
             System.arraycopy(outData, 0, data, 0, len);
-            canMessages.add(new CanMessage(outAddr[0], bus, data, false));
+            canMessages.add(new CanMessage(outAddr[0], bus, data, false, outReturned[0] != 0));
         }
         return AdaptiveList.staticList(canMessages);
     }
@@ -645,7 +663,7 @@ public class PandaClient {
             int len = Byte.toUnsignedInt(outLen[0]);
             byte[] data = new byte[len];
             System.arraycopy(outData, 0, data, 0, len);
-            canMessages.add(new CanMessage(outAddr[0], Byte.toUnsignedInt(outBus[0]), data, false));
+            canMessages.add(new CanMessage(outAddr[0], Byte.toUnsignedInt(outBus[0]), data, false, false));
         }
         return AdaptiveList.staticList(canMessages);
     }
@@ -655,7 +673,10 @@ public class PandaClient {
     }
 
     private boolean lastCanPushResult;
-    public boolean isCanPushResult() { return lastCanPushResult; }
+
+    public boolean isCanPushResult() {
+        return lastCanPushResult;
+    }
 
     // Stored queue state for DAL assertions (cannot use parameterized getters in expressions)
     private int lastQueueWPtr;
@@ -663,10 +684,21 @@ public class PandaClient {
     private int lastQueueFifoSize;
     private int lastCanSlotsEmpty;
 
-    public int getLastQueueWPtr() { return lastQueueWPtr; }
-    public int getLastQueueRPtr() { return lastQueueRPtr; }
-    public int getLastQueueFifoSize() { return lastQueueFifoSize; }
-    public int getLastCanSlotsEmptyVal() { return lastCanSlotsEmpty; }
+    public int getLastQueueWPtr() {
+        return lastQueueWPtr;
+    }
+
+    public int getLastQueueRPtr() {
+        return lastQueueRPtr;
+    }
+
+    public int getLastQueueFifoSize() {
+        return lastQueueFifoSize;
+    }
+
+    public int getLastCanSlotsEmptyVal() {
+        return lastCanSlotsEmpty;
+    }
 
     public void refreshQueueState(int queueIdx) {
         CanQueueState s = getCanQueueState(queueIdx);
@@ -786,6 +818,8 @@ public class PandaClient {
         private final List<Byte> gfc;
         private final List<Byte> ile;
         private final List<Byte> ir;
+        private final List<Byte> txfqs;
+        private final List<Byte> txbar;
     }
 
     private static List<Byte> bytes(int val, int count) {
@@ -817,7 +851,9 @@ public class PandaClient {
                     bytes(lib.jna_get_fdcan_rxesc(i), 1),
                     bytes(lib.jna_get_fdcan_gfc(i), 1),
                     bytes(lib.jna_get_fdcan_ile(i), 1),
-                    bytes(lib.jna_get_fdcan_ir(i), 4)
+                    bytes(lib.jna_get_fdcan_ir(i), 4),
+                    bytes(lib.jna_get_fdcan_txfqs(i), 4),
+                    bytes(lib.jna_get_fdcan_txbar(i), 4)
             ));
         }
         return AdaptiveList.staticList(list);
@@ -1223,6 +1259,16 @@ public class PandaClient {
         lib.jna_set_interrupt_call_rate((byte) index, val);
     }
 
+    // C3: Verify REGISTER_INTERRUPT populated the interrupts[] array
+    public boolean isInterruptHandlerRegistered(int irqn) {
+        var i = lib.jna_get_interrupt_handler(irqn);
+        return i != 0;
+    }
+
+    public int getInterruptMaxCallRate(int irqn) {
+        return lib.jna_get_interrupt_call_rate_max(irqn);
+    }
+
     public void setSerial(byte[] hex) {
         lib.jna_set_serial(hex, hex.length);
     }
@@ -1500,6 +1546,15 @@ public class PandaClient {
 
     public void setFdcanEcr(int bus, int val) {
         lib.jna_set_fdcan_ecr(bus, val);
+    }
+
+    // C3: Manual interrupt-driven CAN processing
+    public void processCan(int canNumber) {
+        lib.jna_process_can(canNumber);
+    }
+
+    public void canRx(int canNumber) {
+        lib.jna_can_rx(canNumber);
     }
 
     @AllArgsConstructor

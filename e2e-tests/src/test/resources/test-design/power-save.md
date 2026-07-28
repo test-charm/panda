@@ -51,8 +51,8 @@ set power save state (0xe7):
 | 输出 | 类型 | 说明 |
 |------|------|------|
 | powerSaveEnabled | boolean | 省电模式是否已启用 |
-| irqDisableCount | int | llcan_irq_disable 调用次数 |
-| irqEnableCount | int | llcan_irq_enable 调用次数 |
+| irqDisableCount | int | NVIC_DisableIRQ 调用次数 (C3: NVIC 层计数) |
+| irqEnableCount | int | NVIC_EnableIRQ 调用次数 (C3: NVIC 层计数) |
 | irqDisabledBus1 | boolean | bus 1 是否被禁用 |
 | irqDisabledBus2 | boolean | bus 2 是否被禁用 |
 | lastIrqEnabledBus | int | 最后被启用的 bus 编号 |
@@ -71,12 +71,12 @@ set power save state (0xe7):
 ### TC2: 启用省电模式 (param1=1)
 - 前置: power_save_enabled=false
 - 输入: param1=1
-- 输出: powerSaveEnabled=true, irqDisableCount=2, irqDisabledBus1=true, irqDisabledBus2=true, canTransceiversEnabled=false, canTransceiversCallCount=1, irPowerValue=0, irPowerCallCount=1
+- 输出: powerSaveEnabled=true, irqDisableCount=4, irqDisabledBus1=true, irqDisabledBus2=true, canTransceiversEnabled=false, canTransceiversCallCount=1, irPowerValue=0, irPowerCallCount=1
 
 ### TC3: 任意非零启用 (param1=255)
 - 前置: 初始状态
 - 输入: param1=255
-- 输出: powerSaveEnabled=true, irqDisableCount=2
+- 输出: powerSaveEnabled=true, irqDisableCount=4
 
 ### TC4: 幂等 — 重复启用
 - 前置: power_save_enabled=true
@@ -91,7 +91,7 @@ set power save state (0xe7):
 ### TC6: 启用 → 禁用
 - 前置: power_save_enabled=true
 - 输入: param1=0
-- 输出: powerSaveEnabled=false, irqEnableCount=2, lastIrqEnabledBus=1, canTransceiversEnabled=true, canTransceiversCallCount=1
+- 输出: powerSaveEnabled=false, irqEnableCount=4, lastIrqEnabledBus=1, canTransceiversEnabled=true, canTransceiversCallCount=1
 
 ## 5. 覆盖检查
 

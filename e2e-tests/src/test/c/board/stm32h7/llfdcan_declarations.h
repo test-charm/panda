@@ -39,3 +39,9 @@
 
 #define CAN_NAME_FROM_CANIF(CAN_DEV) (((CAN_DEV)==FDCAN1) ? "FDCAN1" : (((CAN_DEV) == FDCAN2) ? "FDCAN2" : "FDCAN3"))
 #define CAN_NUM_FROM_CANIF(CAN_DEV) (((CAN_DEV)==FDCAN1) ? 0UL : (((CAN_DEV) == FDCAN2) ? 1UL : 2UL))
+
+// kbps multiplied by 10
+#define SPEEDS_ARRAY_SIZE 8
+extern const uint32_t speeds[SPEEDS_ARRAY_SIZE];
+#define DATA_SPEEDS_ARRAY_SIZE 10
+extern const uint32_t data_speeds[DATA_SPEEDS_ARRAY_SIZE];

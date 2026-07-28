@@ -6,7 +6,7 @@ Feature: Interrupt Call Rate Retrieval
       """
       UsbControlRequest: {
         request: -60y            # 0xc4
-        param1: 16
+        param1: 200
         param2: 0
       }
       """

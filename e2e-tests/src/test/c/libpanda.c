@@ -130,10 +130,13 @@ uint16_t spi_error_count;
 // _app_start used by main_comms.h header
 int _app_start[0xC000];
 
-struct { uint32_t call_rate; } interrupts[16];
+// ---- Interrupt tracking (must be before fdcan.h which calls REGISTER_INTERRUPT) ----
+// Full struct defined in e2e board/drivers/interrupts.h (C3)
+#include "board/drivers/interrupts.h"
+#define NUM_INTERRUPTS 161
+interrupt interrupts[NUM_INTERRUPTS];
 static char gitversion[64] = "00000000";
-static const uint32_t speeds[] = {0};
-static const uint32_t data_speeds[] = {20000};
+// speeds[] and data_speeds[] now come from real board/stm32h7/llfdcan.h (C3)
 
 // ---- Fake Serial / Provision ----
 static uint8_t fake_serial[16];
@@ -144,9 +147,6 @@ static uint8_t fake_provision[32];
 #undef PROVISION_CHUNK_ADDRESS
 #define PROVISION_CHUNK_ADDRESS ((void *)fake_provision)
 
-// ---- Macros needed by main_comms.h ----
-#define NUM_INTERRUPTS 16
-
 // ---- Fake FDCAN hardware state ----
 // Synthetic FDCAN peripheral instances — register writes go here instead of MMIO.
 static FDCAN_GlobalTypeDef fake_fdcan[3] = {{0}, {0}, {0}};
@@ -155,7 +155,7 @@ static FDCAN_GlobalTypeDef fake_fdcan[3] = {{0}, {0}, {0}};
 #define FAKE_FDCAN_SRAM_SIZE 0x4000
 static uint8_t fake_fdcan_sram[FAKE_FDCAN_SRAM_SIZE];
 #undef FDCAN_START_ADDRESS
-#define FDCAN_START_ADDRESS ((uint32_t)(uintptr_t)fake_fdcan_sram)
+#define FDCAN_START_ADDRESS ((uintptr_t)fake_fdcan_sram)
 
 // Macro overrides: redirect hardware pointers to fake instances.
 #define FDCAN1 (&fake_fdcan[0])
@@ -169,42 +169,36 @@ FDCAN_GlobalTypeDef *cans[3] = {FDCAN1, FDCAN2, FDCAN3};
 #define NVIC_EnableIRQ(x) e2e_nvic_enable_irq(x)
 #define NVIC_DisableIRQ(x) e2e_nvic_disable_irq(x)
 
-// NVIC_DisableIRQ tracking — records IRQ numbers that were disabled
-#define MAX_NVIC_DISABLE_CALLS 16
-static int nvic_disabled_irqs[MAX_NVIC_DISABLE_CALLS];
-static int nvic_disable_irq_count;
-static void e2e_nvic_disable_irq(int irq) {
-    if (nvic_disable_irq_count < MAX_NVIC_DISABLE_CALLS) {
-        nvic_disabled_irqs[nvic_disable_irq_count++] = irq;
-    }
-}
-
-// Tracking stubs for llcan_irq_enable/disable — records last CAN bus operated on
-static int last_irq_enabled_bus = -1;
-static int last_irq_disabled_bus[3] = {-1, -1, -1};  // track per-bus disable
-static int irq_enable_call_count;
-static int irq_disable_call_count;
-
-void llcan_irq_enable(const FDCAN_GlobalTypeDef *x) {
-    irq_enable_call_count++;
-    if (x == FDCAN1) last_irq_enabled_bus = 0;
-    else if (x == FDCAN2) last_irq_enabled_bus = 1;
-    else if (x == FDCAN3) last_irq_enabled_bus = 2;
-}
-void llcan_irq_disable(const FDCAN_GlobalTypeDef *x) {
-    irq_disable_call_count++;
-    int bus = -1;
-    if (x == FDCAN1) bus = 0;
-    else if (x == FDCAN2) bus = 1;
-    else if (x == FDCAN3) bus = 2;
-    if (bus >= 0) last_irq_disabled_bus[bus] = irq_disable_call_count;
-}
 #define FDCAN1_IT0_IRQn 19
 #define FDCAN1_IT1_IRQn 21
 #define FDCAN2_IT0_IRQn 20
 #define FDCAN2_IT1_IRQn 22
 #define FDCAN3_IT0_IRQn 159
 #define FDCAN3_IT1_IRQn 160
+
+// Tracking stubs for llcan_irq_enable/disable — records last CAN bus operated on
+// Real implementations now come from board/stm32h7/llfdcan.h (C3)
+static int last_irq_enabled_bus = -1;
+static int last_irq_disabled_bus[3] = {-1, -1, -1};  // track per-bus disable
+static int irq_enable_call_count;
+static int irq_disable_call_count;
+
+// NVIC_DisableIRQ tracking — records IRQ numbers that were disabled
+#define MAX_NVIC_DISABLE_CALLS 16
+static int nvic_disabled_irqs[MAX_NVIC_DISABLE_CALLS];
+static int nvic_disable_irq_count;
+static void e2e_nvic_disable_irq(int irq) {
+    irq_disable_call_count++;
+    if (nvic_disable_irq_count < MAX_NVIC_DISABLE_CALLS) {
+        nvic_disabled_irqs[nvic_disable_irq_count++] = irq;
+    }
+    // Track per-bus disable (mapping IRQn → bus number)
+    int bus = -1;
+    if (irq == FDCAN1_IT0_IRQn || irq == FDCAN1_IT1_IRQn) bus = 0;
+    else if (irq == FDCAN2_IT0_IRQn || irq == FDCAN2_IT1_IRQn) bus = 1;
+    else if (irq == FDCAN3_IT0_IRQn || irq == FDCAN3_IT1_IRQn) bus = 2;
+    if (bus >= 0) last_irq_disabled_bus[bus] = 1;  // mark as disabled
+}
 
 // ---- Macros needed by main_comms.h ----
 #define PROVISION_CHUNK_LEN 0x20
@@ -400,9 +394,7 @@ void jna_detect_harness_orientation(void) {
 // ---- Function stubs ----
 void fake_siren_set(bool en) { siren_enabled = en; }
 void fake_i2c_siren_set(bool en) { siren_enabled = en; }
-// can_init is defined in fdcan_e2e.gen.c (generated from real firmware source)
-void can_rx(uint8_t n) { (void)n; }
-void process_can(uint8_t n) { (void)n; }
+// can_init, can_rx, and process_can now come from real board/drivers/fdcan.h (C3)
 void led_init(void) {}
 void led_set(uint8_t led, bool en) { (void)led; (void)en; }
 void pwm_init(TIM_TypeDef *TIM, uint8_t channel) { (void)TIM; (void)channel; }
@@ -574,11 +566,15 @@ int put_char(uart_ring *q, char c) {
 #include "board/drivers/simple_watchdog.h"
 
 #include "board/libc.h"
-#include "board/drivers/interrupts.h"
+// interrupts.h now included earlier (before interrupts[] array) for real REGISTER_INTERRUPT (C3)
 
 // CMSIS intrinsics (must be BEFORE board/main.c — main.c power_save path uses __WFI)
 static void e2e_nvic_enable_irq(int irqn) {
-    (void)irqn;
+    irq_enable_call_count++;
+    // Track per-bus enable (mapping IRQn → bus number)
+    if (irqn == FDCAN1_IT0_IRQn || irqn == FDCAN1_IT1_IRQn) last_irq_enabled_bus = 0;
+    else if (irqn == FDCAN2_IT0_IRQn || irqn == FDCAN2_IT1_IRQn) last_irq_enabled_bus = 1;
+    else if (irqn == FDCAN3_IT0_IRQn || irqn == FDCAN3_IT1_IRQn) last_irq_enabled_bus = 2;
 }
 void __disable_irq(void) { irq_disabled = true; }
 void __enable_irq(void) {}
@@ -632,6 +628,10 @@ void __WFI(void) { wfi_entered = true; }
 #define EXTI9_5_IRQn      23
 #define EXTI15_10_IRQn    40
 #define NVIC_EnableIRQ(x) e2e_nvic_enable_irq(x)
+
+// ---- Real FDCAN hardware layer (C3: de-stubbed llfdcan.h) ----
+// Must be included BEFORE main.c because main.c → fdcan.h → calls llcan_* functions
+#include "board/stm32h7/llfdcan.h"
 
 #include "board/main.c"
 
@@ -775,10 +775,8 @@ void jna_tick_siren(void) {
     current_board->set_siren(siren_enabled);
 }
 
-// ---- Faithful can_init: writes to fake FDCAN_GlobalTypeDef registers ----
-// Auto-generated from real firmware source by generate_fdcan_stubs.py.
-// Regenerate: python3 generate_fdcan_stubs.py > fdcan_e2e.gen.c
-#include "fdcan_e2e.gen.c"
+// ---- can_init, can_rx, process_can, can_clear_send now come from real board/drivers/fdcan.h (C3) ----
+// Included via board/main.c → #include "board/drivers/fdcan.h"
 
 // Override TIM1/TIM8 with fake instances for register-level verification
 #undef TIM1
@@ -831,7 +829,8 @@ int jna_can_send(uint32_t addr, uint8_t bus, const uint8_t *data, uint8_t len) {
     if ((len > 0U) && (len <= 64U)) {
         (void)memcpy(pkt.data, data, len);
     }
-    // can_set_checksum not needed: safety hooks use struct fields, not raw bytes
+    // can_set_checksum required: process_can checks it before writing to FDCAN registers
+    can_set_checksum(&pkt);
 
     uint32_t blocked_before = safety_tx_blocked;
     can_send(&pkt, bus, false);
@@ -846,12 +845,13 @@ uint32_t jna_get_safety_tx_blocked(void) {
 // Pop from can_rx_q (blocked/rejected messages end up here).
 // Returns true if a message was popped.
 bool jna_can_pop_rx(uint32_t *out_addr, uint8_t *out_bus, uint8_t *out_rejected,
-                     uint8_t *out_data, uint8_t *out_len) {
+                     uint8_t *out_returned, uint8_t *out_data, uint8_t *out_len) {
     CANPacket_t pkt;
     if (can_pop(&can_rx_q, &pkt)) {
         *out_addr = pkt.addr;
         *out_bus = pkt.bus;
         *out_rejected = pkt.rejected;
+        *out_returned = pkt.returned;
         *out_len = pkt.data_len_code;
         if (pkt.data_len_code > 0U) {
             (void)memcpy(out_data, pkt.data, pkt.data_len_code);
@@ -863,7 +863,7 @@ bool jna_can_pop_rx(uint32_t *out_addr, uint8_t *out_bus, uint8_t *out_rejected,
 
 // Pop from can_tx{1,2,3}_q (allowed messages end up here).
 // queue_idx: 0=tx1_q (bus 0), 1=tx2_q (bus 1), 2=tx3_q (bus 2)
-bool jna_can_pop_tx(int queue_idx, uint32_t *out_addr, uint8_t *out_data, uint8_t *out_len) {
+bool jna_can_pop_tx(int queue_idx, uint32_t *out_addr, uint8_t *out_returned, uint8_t *out_data, uint8_t *out_len) {
     if ((queue_idx < 0) || (queue_idx >= PANDA_CAN_CNT)) {
         return false;
     }
@@ -871,6 +871,7 @@ bool jna_can_pop_tx(int queue_idx, uint32_t *out_addr, uint8_t *out_data, uint8_
     CANPacket_t pkt;
     if (can_pop(can_queues[queue_idx], &pkt)) {
         *out_addr = pkt.addr;
+        *out_returned = pkt.returned;
         *out_len = pkt.data_len_code;
         if (pkt.data_len_code > 0U) {
             (void)memcpy(out_data, pkt.data, pkt.data_len_code);
@@ -952,11 +953,29 @@ uint32_t jna_get_fdcan_ir(int can_number) {
     if ((can_number < 0) || (can_number >= 3)) return 0;
     return fake_fdcan[can_number].IR;
 }
+uint32_t jna_get_fdcan_txfqs(int can_number) {
+    if ((can_number < 0) || (can_number >= 3)) return 0;
+    return fake_fdcan[can_number].TXFQS;
+}
+uint32_t jna_get_fdcan_txbar(int can_number) {
+    if ((can_number < 0) || (can_number >= 3)) return 0;
+    return fake_fdcan[can_number].TXBAR;
+}
 void jna_set_fdcan_psr(int can_number, uint32_t val) {
     if ((can_number >= 0) && (can_number < 3)) fake_fdcan[can_number].PSR = val;
 }
 void jna_set_fdcan_ecr(int can_number, uint32_t val) {
     if ((can_number >= 0) && (can_number < 3)) fake_fdcan[can_number].ECR = val;
+}
+
+// ---- JNA API: Manual interrupt-driven CAN processing (C3) ----
+// Call process_can to simulate TX interrupt: drains can_queues[] → FDCAN registers → can_rx_q echo
+void jna_process_can(int can_number) {
+    if ((can_number >= 0) && (can_number < 3)) process_can((uint8_t)can_number);
+}
+// Call can_rx to simulate RX interrupt: reads FDCAN FIFO → can_rx_q
+void jna_can_rx(int can_number) {
+    if ((can_number >= 0) && (can_number < 3)) can_rx((uint8_t)can_number);
 }
 
 // ---- JNA API: Heartbeat state inspection ----
@@ -1338,6 +1357,15 @@ void jna_set_interrupt_call_rate(uint8_t index, uint32_t val) {
 }
 void jna_reset_interrupts(void) {
     for (uint8_t i = 0U; i < NUM_INTERRUPTS; i++) { interrupts[i].call_rate = 0U; }
+}
+// Verify REGISTER_INTERRUPT registration (C3: real macro populates interrupts[])
+int jna_get_interrupt_handler(int irqn) {
+    if ((irqn < 0) || (irqn >= NUM_INTERRUPTS)) return 0;
+    return interrupts[irqn].handler != NULL ? 1 : 0;
+}
+int jna_get_interrupt_call_rate_max(int irqn) {
+    if ((irqn < 0) || (irqn >= NUM_INTERRUPTS)) return 0;
+    return (int)interrupts[irqn].max_call_rate;
 }
 void jna_set_serial(const char *hex, size_t hex_len) {
     for (size_t i = 0U; (i < 16U) && (i < hex_len); i++) { fake_serial[i] = (uint8_t)hex[i]; }

@@ -30,6 +30,17 @@ Feature: CAN FD Non-ISO Mode
         }
       }
       """
+    Then FDCAN interrupt handlers:
+      """
+      : {
+        isInterruptHandlerRegistered: {
+          <<19,21,20,22,159,160>>: true
+        }
+        getInterruptMaxCallRate: {
+          <<19,21,20,22,159,160>>: 16000
+        }
+      }
+      """
 
   Scenario: Enabling CAN FD non-ISO mode on bus 0
     When control write:

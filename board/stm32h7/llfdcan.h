@@ -29,7 +29,11 @@ static bool fdcan_request_init(FDCAN_GlobalTypeDef *FDCANx) {
 static bool fdcan_exit_init(FDCAN_GlobalTypeDef *FDCANx) {
   bool ret = true;
 
+#ifdef E2E_TEST
+  FDCANx->CCCR &= ~(FDCAN_CCCR_INIT | FDCAN_CCCR_CCE);  // HW auto-clears CCE
+#else
   FDCANx->CCCR &= ~(FDCAN_CCCR_INIT);
+#endif
   uint32_t timeout_counter = 0U;
   while ((FDCANx->CCCR & FDCAN_CCCR_INIT) != 0U) {
     // Delay for about 1ms
@@ -187,11 +191,22 @@ bool llcan_init(FDCAN_GlobalTypeDef *FDCANx) {
     FDCANx->TXBC |= (FDCAN_TX_FIFO_OFFSET + (can_number * FDCAN_OFFSET_W)) << FDCAN_TXBC_TBSA_Pos;
     FDCANx->TXBC |= FDCAN_TX_FIFO_EL_CNT << FDCAN_TXBC_TFQS_Pos;
 
+#ifdef E2E_TEST
+    // Use pointer arithmetic to avoid 64-bit pointer truncation on host
+    uint8_t *ram_base = (uint8_t *)(uintptr_t)FDCAN_START_ADDRESS;
+    uint32_t start_offset = can_number * FDCAN_OFFSET;
+    uint32_t end_offset = start_offset + (FDCAN_RX_FIFO_0_EL_CNT * FDCAN_RX_FIFO_0_EL_SIZE)
+                                    + (FDCAN_TX_FIFO_EL_CNT * FDCAN_TX_FIFO_EL_SIZE);
+    for (uint32_t i = start_offset; i < end_offset; i += 4U) {
+        *(uint32_t *)(ram_base + i) = 0x00000000;
+    }
+#else
     // Flush allocated RAM
     uint32_t EndAddress = TxFIFOSA + (FDCAN_TX_FIFO_EL_CNT * FDCAN_TX_FIFO_EL_SIZE);
     for (uint32_t RAMcounter = RxFIFO0SA; RAMcounter < EndAddress; RAMcounter += 4U) {
         *(uint32_t *)(RAMcounter) = 0x00000000;
     }
+#endif
 
     // Enable both interrupts for each module
     FDCANx->ILE = (FDCAN_ILE_EINT0 | FDCAN_ILE_EINT1);

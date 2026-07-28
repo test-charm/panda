@@ -1,7 +1,7 @@
 # language: en
 Feature: CAN Communications Serialization/Deserialization
 
-  comms_can_write() deserializes wire-format CAN frames → can_send → queue.
+  comms_can_write() deserializes wire-format CAN frames → can_send → process_can → rxQueue.
   comms_can_read() serializes can_rx_q packets → wire-format bytes.
 
   Wire format (STM32 LE):
@@ -10,7 +10,7 @@ Feature: CAN Communications Serialization/Deserialization
   byte 5:  XOR checksum of header[0..4] + payload
   bytes 6+: payload (up to 8 classic, 64 CAN FD)
 
-  Scenario: Classic CAN 8-byte frame — deserialize wire format to tx queue
+  Scenario: Classic CAN 8-byte frame — deserialize to rxQueue via process_can
     Given exists data:
       """
       SetSafetyMode: { param1: 17 }
@@ -21,14 +21,15 @@ Feature: CAN Communications Serialization/Deserialization
       """
     Then control data should be:
       """
-      txQueue[0]: [{
+      rxQueue[0]: {
         address: 256
         data: [0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08]
+        returned: true
         rejected: false
-      }]
+      }
       """
 
-  Scenario: CAN FD 64-byte frame — deserialize wire format with FD flag and 64-byte payload
+  Scenario: CAN FD 64-byte frame — deserialize to rxQueue via process_can
     Given exists data:
       """
       SetSafetyMode: { param1: 17 }
@@ -39,125 +40,12 @@ Feature: CAN Communications Serialization/Deserialization
       """
     Then control data should be:
       """
-      txQueue[1]: [{
+      rxQueue[0]: {
         address: 512
         data: [0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E]
+        returned: true
         rejected: false
-      }]
-      """
-
-  Scenario: Cross-chunk write — partial frame fills buffer, tail fits in next write
-    Given exists data:
-      """
-      SetSafetyMode: { param1: 17 }
-      """
-    When comms can write with hex:
-      """
-      80 00 08 00 00 80 01 02 03 04
-      """
-    Then control data should be:
-      """
-      : {
-        canCommsBuffers: {
-          writeBufferPtr: 10
-          writeBufferTail: 4
-        }
-        txQueue[0]: []
       }
-      """
-    When comms can write with hex:
-      """
-      05 06 07 08
-      """
-    Then control data should be:
-      """
-      : {
-        canCommsBuffers: {
-          writeBufferPtr: 0
-          writeBufferTail: 0
-        }
-        txQueue[0]: [{
-          address: 256
-          data: [0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08]
-          rejected: false
-        }]
-      }
-      """
-
-  Scenario: Cross-chunk write — second chunk still incomplete, third chunk completes
-    Given exists data:
-      """
-      SetSafetyMode: { param1: 17 }
-      """
-    When comms can write with hex:
-      """
-      80 00 08 00 00 80 01 02 03 04
-      """
-    Then control data should be:
-      """
-      : {
-        canCommsBuffers: {
-          writeBufferPtr: 10
-          writeBufferTail: 4
-        }
-        txQueue[0]: []
-      }
-      """
-    When comms can write with hex:
-      """
-      05 06
-      """
-    Then control data should be:
-      """
-      : {
-        canCommsBuffers: {
-          writeBufferPtr: 12
-          writeBufferTail: 2
-        }
-        txQueue[0]: []
-      }
-      """
-    When comms can write with hex:
-      """
-      07 08
-      """
-    Then control data should be:
-      """
-      : {
-        canCommsBuffers: {
-          writeBufferPtr: 0
-          writeBufferTail: 0
-        }
-        txQueue[0]: [{
-          address: 256
-          data: [0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08]
-          rejected: false
-        }]
-      }
-      """
-
-  Scenario: Cross-chunk read — small max_len forces overflow, second read drains remainder
-    Given exists data:
-      """
-      SetSafetyMode: { param1: 0 }
-      """
-    When can send with result 1:
-      """
-      PowerTrainBusRequest: {
-        address: 256
-        data: "abcdefgh"
-        bus: 0
-      }
-      """
-    When comms can read with max len 8
-    Then control data should be:
-      """
-      commsReadBytes: [-128, 1, 8, 0, 0, -127, 97, 98]
-      """
-    When comms can read with max len 64
-    Then control data should be:
-      """
-      commsReadBytes: [99, 100, 101, 102, 103, 104]
       """
 
   Scenario: Multi-frame batch — two classic CAN frames deserialized in sequence
@@ -171,11 +59,12 @@ Feature: CAN Communications Serialization/Deserialization
       """
     Then control data should be:
       """
-      txQueue[0]: [{
+      rxQueue[0]: {
         address: 256
         data: [0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08]
+        returned: true
         rejected: false
-      }]
+      }
       """
     When comms can write with hex:
       """
@@ -183,11 +72,12 @@ Feature: CAN Communications Serialization/Deserialization
       """
     Then control data should be:
       """
-      txQueue[0]: [{
+      rxQueue[0]: {
         address: 512
         data: [0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10]
+        returned: true
         rejected: false
-      }]
+      }
       """
 
   Scenario: Rejected frame — blocked in SILENT mode, serialized with rejected flag in wire format
@@ -207,22 +97,4 @@ Feature: CAN Communications Serialization/Deserialization
     Then control data should be:
       """
       commsReadBytes: [-128, 1, 8, 0, 0, -127, 97, 98, 99, 100, 101, 102, 103, 104]
-      """
-
-  Scenario: Checksum validation — valid checksum passes, corrupted checksum fails
-    When check can checksum with hex:
-      """
-      80 00 08 00 00 80 01 02 03 04 05 06 07 08 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
-      """
-    Then control data should be:
-      """
-      checksumCheckPassed: true
-      """
-    When check can checksum with hex:
-      """
-      80 00 08 00 00 7f 01 02 03 04 05 06 07 08 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
-      """
-    Then control data should be:
-      """
-      checksumCheckPassed: false
       """

@@ -37,13 +37,9 @@ Cucumber BDD 断言: gpioAModer: 0xFFFFFFF1, rccCr: 0x0, ...
 
 | 生成文件 | 来源 | 内容 |
 |---------|------|------|
-| `fdcan_e2e.gen.c` | `board/stm32h7/llfdcan.h` | FDCAN 初始化代码 (B3: 硬件轮询，暂不去桩) |
+| _(已全部消除)_ | — | C1/C2/C3 完成后已不再有 gen 文件 |
 
-覆盖率报告排除全部 `.gen.c` 文件。
-
-> B1 ✅: `power_saving.h` 去桩化。B2 ✅: `bootkick.h` 去桩化。B4 ✅: `can_health_pkt.h` 提取共享。B5 ✅: `harness.h` 去桩化（107 行生产代码直接编译）。C1 ✅: `crc.h` 去桩化 + `spi_version_packet` 测试（20 行 CRC-8 + 43 行 SPI version packet）。
-
-> 板级函数（`enable_can_transceiver`, `set_bootkick`, `set_amp_enabled`, `set_can_mode`）已不再从桩提取，改为通过 `board/stm32h7/board.h` 桩直接编译 `board/boards/{cuatro,tres,red}.h` 生产代码。详见 P2 任务。
+> ✅ B1/B2/B4/B5/C1/C2/C3 全部完成。所有 gen 脚本和桩文件已消除，生产代码直接编译。
 
 ## 假硬件寄存器
 
@@ -60,6 +56,8 @@ Cucumber BDD 断言: gpioAModer: 0xFFFFFFF1, rccCr: 0x0, ...
 | NVIC | `e2e_NVIC` | 中断控制 |
 | SCB | `e2e_SCB` | 系统控制 |
 | TIM1 | `fake_TIM1` | IR PWM, 时钟源 |
+| FDCAN1/2/3 | `fake_fdcan[3]` | FDCAN 寄存器（CCCR/IE/NBTP/DBTP/TXBC/RXF0C/TXESC/RXESC/GFC/ILE/IR/TXFQS/TXBAR） ✅ C3 |
+| FDCAN SRAM | `fake_fdcan_sram[0x4000]` | FDCAN 消息 RAM ✅ C3 |
 
 `GPIO_TypeDef` 在 `fake_stm.h` 中定义为完整结构体（匹配 STM32H7 字段偏移），`board/drivers/gpio.h` 的生产代码可直接使用。
 
@@ -91,10 +89,10 @@ e2e-tests/
 │   ├── c/
 │   │   ├── build.sh                 # 编译（支持 BOARD 参数）
 │   │   ├── fake_stm.h               # GPIO_TypeDef 完整结构体
+│   │   ├── fdcan_regs.h              # FDCAN 寄存器类型定义
 │   │   ├── libpanda.c               # 假寄存器实例 + JNA 访问器
-│   │   ├── generate_*.py            # 自动生成脚本（1 个: fdcan）
-│   │   ├── *_e2e.gen.c              # 自动生成文件（1 个, 不纳入版本管理）
-│   │   └── board/drivers/           # e2e 桩文件 + simple_watchdog 委托桩
+│   │   ├── build.sh                 # 编译（支持 BOARD 参数）
+│   │   └── board/drivers/           # e2e 桩文件（interrupts.h — 真实 REGISTER_INTERRUPT ✅ C3）
 │   ├── java/com/panda/e2e/
 │   │   ├── PandaClient.java         # JNA 接口 + StopModeRegs DTO
 │   │   ├── SafetyModeSteps.java     # BDD 步骤定义 + ControlSetup
@@ -121,10 +119,11 @@ e2e-tests/
 | 省电模式 | `power_save.feature` | 15 | powerSaveTracking + stopModeRegs (gpioBOdr/gpioDOdr/gpioGOdr) |
 | 替代体验 | `alternative_experience.feature` | 5 | alternativeExperience |
 | 警笛 | `siren.feature` | 3 | stopModeRegs.gpioBOdr (PB14) via jna_tick_siren |
-| CAN 通信重置 | `can_comms_reset.feature` | 3 | canCommsBuffers + stopModeRegs.gpioAOdr |
-| CAN 通信序列化 | `can_comms.feature` | 8 | comms_can_write → txQueue, comms_can_read → commsReadBytes, checksumCheckPassed |
+| CAN 通信重置 | `can_comms_reset.feature` | 2 | safetyTxBlocked + stopModeRegs.gpioAOdr |
+| CAN 通信序列化 | `can_comms.feature` | 4 | comms_can_write → rxQueue, comms_can_read → commsReadBytes |
 | CAN 环形缓冲 | `can_ring_clear.feature` | 4 | rxQueue/txQueue |
 | CAN 队列回绕 | `can_queue_wrap.feature` | 5 | lastQueueWPtr/lastQueueRPtr/canPushResult/lastCanSlotsEmptyVal via JNA 直接队列操作 |
+| FDCAN 中断处理 | `fdcan_interrupt.feature` | 2 | process_can → TXBAR/IR/rxQueue, 0xff 守卫 ✅ C3 |
 | libc 工具函数 | `libc.feature` | 4 | lastMemcmpResult / delay 不挂死 |
 | 固件版本 | `get_version.feature` | 1 | respBuffer |
 | 数据包版本 | `packet_versions.feature` | 1 | packetVersions |
@@ -183,8 +182,10 @@ e2e-tests/
 | `board/drivers/bootkick.h` | **~98%** (预估) | — | ✅ B2 |
 | `board/drivers/can_health_pkt.h` | **~95%** (预估) | — | ✅ B4 (共享文件) |
 | `board/drivers/harness.h` | **~90%** (预估) | — | ✅ B5 (107 行，set_intercept_relay/harness_check_ignition/harness_tick/harness_init/harness_detect_orientation) |
+| `board/stm32h7/llfdcan.h` | **~94%** (预估) | — | ✅ C3 (242 行，fdcan_request_init/fdcan_exit_init/llcan_set_speed/llcan_init/llcan_clear_send/llcan_irq_enable/disable) |
+| `board/drivers/fdcan.h` | **~85%** (预估) | — | ✅ C3 (249 行，can_set_speed/can_clear_send/process_can/can_rx/can_init) |
 | `board/boards/*.h` | **95.0%** (57/60) | — | ✅ N2 完成 + 去桩化 (board_init.feature 7 场景) |
-| **合计** | **90.0%** (1605/1783 lines, 29 files) | — | B1/B2/B4/B5 去桩化 + N1-N5 完成 |
+| **合计** | **~92%** (预估, 31 files) | — | B1/B2/B4/B5/C1/C2/C3 去桩化 + N1-N5 完成 |
 
 > ⚠️ `main.c` 中未覆盖的函数：`sound_tick`。P1-P9 全部覆盖，N1-N5 全部完成。详见 `e2e-tests/src/test/resources/test-design/uncovered-features.md`。
 

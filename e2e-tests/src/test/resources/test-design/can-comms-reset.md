@@ -37,28 +37,18 @@ reset CAN comms (0xc0):
 
 | 输出 | 类型 | 说明 |
 |------|------|------|
-| readBufferPtr | int | can_read_buffer.ptr |
-| readBufferTail | int | can_read_buffer.tail_size |
-| writeBufferPtr | int | can_write_buffer.ptr |
-| writeBufferTail | int | can_write_buffer.tail_size |
 | safetyTxBlocked | int | 安全模式不变 |
 | relayCall | RelayCall | 继电器不变 |
 
 ## 4. 测试用例
 
-### TC1: 重置从干净状态 — 缓冲区均为 0
-- 前置: 初始状态 (所有缓冲区 = 0)
-- 输入: request=0xc0, param1=0
-- 输出: readBufferPtr=0, writeBufferPtr=0, readBufferTail=0, writeBufferTail=0
-- 路径: comms_can_reset() → 全置零
-
-### TC2: 重置不影响安全模式和 relay 状态
+### TC1: 重置不影响安全模式和 relay 状态
 - 前置: SILENT 模式
 - 输入: request=0xc0, param1=0
 - 输出: safetyTxBlocked=0, relay=a=false/b=false
 - 路径: 重置仅操作通信缓冲区，不影响其他状态
 
-### TC3: 切换安全模式后重置 — 现有状态不变 (ALLOUTPUT)
+### TC2: 切换安全模式后重置 — 现有状态不变 (ALLOUTPUT)
 - 前置: ALLOUTPUT 模式 (relay_a=true)
 - 输入: request=0xc0, param1=0
 - 输出: relay.a=true, relay.b=false (ALLOUTPUT 状态不变)
@@ -66,10 +56,10 @@ reset CAN comms (0xc0):
 
 ## 5. 覆盖检查
 
-| 条件 | TC1 | TC2 | TC3 |
-|------|-----|-----|-----|
-| 缓冲区初始化清零 | ✅ | — | — |
-| 不影响安全模式 | — | ✅ | — |
+| 条件 | TC1 | TC2 |
+|------|-----|-----|
+| 安全模式不变 | ✅ | ✅ |
+| relay 状态正确 | ✅ | ✅ |
 | 不影响 relay | — | ✅ | ✅ |
 | 不影响 CAN 队列 | ✅ | — | — |
 

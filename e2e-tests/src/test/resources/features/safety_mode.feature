@@ -25,7 +25,7 @@ Feature: Safety Mode Switching
         stopModeRegs: {
           gpioAOdr: 520L      # PA3+PA9 high (relays off, SILENT)
         }
-        rxQueue= {
+        rxQueue: {
           address: 256
           bus: 0y
           rejected: true
@@ -99,8 +99,8 @@ Feature: Safety Mode Switching
         stopModeRegs: {
           gpioAOdr: 512L      # PA3 low (intercept on), PA9 high (ignition off)
         }
-        rxQueue: []
-        txQueue[0]: {
+        rxQueue[0]: {
+          returned: true
           rejected: false
           data.string: allowed
         }
@@ -137,9 +137,9 @@ Feature: Safety Mode Switching
           gpioAOdr: 520L
         }
         fdcanRegs[1].ir[3]: 0b0011_1111y
-        rxQueue: []
-        txQueue[0]: {
+        rxQueue[0]: {
           address: 2015
+          returned: true
           rejected: false
           data.string: '12345678'
         }
@@ -173,9 +173,9 @@ Feature: Safety Mode Switching
           gpioAOdr: 520L
         }
         fdcanRegs[1].ir[3]: 0b0011_1111y
-        rxQueue: []
-        txQueue[0]: {
+        rxQueue[0]: {
           address: 2015
+          returned: true
           rejected: false
           data.string: '12345678'
         }
@@ -277,8 +277,12 @@ Feature: Safety Mode Switching
           counter: 0
           lost: 0
         }
-        rxQueue: []
         txQueue[0]: []
+        rxQueue[0]: {
+          rejected: false
+          returned: true
+          data.string: allowed
+        }
         fdcanRegs<<0,1,2>>: {
           cccr: [ 0b0000_0000y, 0b0101_0011y ]
           ie: [ 0b0000_1001y, 0b0000_1000y, -128y, 0b0001_1010y ]        # -128y 不能写成 0b1000_0000y

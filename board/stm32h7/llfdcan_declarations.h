@@ -13,7 +13,9 @@
 #define CAN_SEG2(tq, sp) ((tq) * (100U - (sp)) / 100U)
 
 // FDCAN core settings
+#ifndef E2E_TEST
 #define FDCAN_START_ADDRESS 0x4000AC00UL
+#endif
 #define FDCAN_OFFSET 3384UL // bytes for each FDCAN module, equally
 #define FDCAN_OFFSET_W 846UL // words for each FDCAN module, equally
 

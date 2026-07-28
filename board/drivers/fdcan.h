@@ -1,6 +1,8 @@
 #include "board/drivers/drivers.h"
 
+#ifndef E2E_TEST
 FDCAN_GlobalTypeDef *cans[PANDA_CAN_CNT] = {FDCAN1, FDCAN2, FDCAN3};
+#endif
 
 static bool can_set_speed(uint8_t can_number) {
   bool ret = true;
@@ -19,6 +21,12 @@ static bool can_set_speed(uint8_t can_number) {
 }
 
 void can_clear_send(FDCAN_GlobalTypeDef *FDCANx, uint8_t can_number) {
+#ifdef E2E_TEST
+  // No rate-limiting in e2e: always execute immediately
+  can_health[can_number].can_core_reset_cnt += 1U;
+  can_health[can_number].total_tx_lost_cnt += (FDCAN_TX_FIFO_EL_CNT - (FDCANx->TXFQS & FDCAN_TXFQS_TFFL));
+  llcan_clear_send(FDCANx);
+#else
   static uint32_t last_reset = 0U;
   uint32_t time = microsecond_timer_get();
 
@@ -29,6 +37,7 @@ void can_clear_send(FDCAN_GlobalTypeDef *FDCANx, uint8_t can_number) {
     llcan_clear_send(FDCANx);
     last_reset = time;
   }
+#endif
 }
 
 #include "board/drivers/can_health_pkt.h"
@@ -51,12 +60,19 @@ void process_can(uint8_t can_number) {
         if (can_check_checksum(&to_send)) {
           can_health[can_number].total_tx_cnt += 1U;
 
+#ifdef E2E_TEST
+          uint8_t *tx_ram = (uint8_t *)(uintptr_t)FDCAN_START_ADDRESS + (can_number * FDCAN_OFFSET) + (FDCAN_RX_FIFO_0_EL_CNT * FDCAN_RX_FIFO_0_EL_SIZE);
+          uint32_t tx_index = (FDCANx->TXFQS >> FDCAN_TXFQS_TFQPI_Pos) & 0x1FU;
+          canfd_fifo *fifo;
+          fifo = (canfd_fifo *)(tx_ram + (tx_index * FDCAN_TX_FIFO_EL_SIZE));
+#else
           uint32_t TxFIFOSA = FDCAN_START_ADDRESS + (can_number * FDCAN_OFFSET) + (FDCAN_RX_FIFO_0_EL_CNT * FDCAN_RX_FIFO_0_EL_SIZE);
           // get the index of the next TX FIFO element (0 to FDCAN_TX_FIFO_EL_CNT - 1)
           uint32_t tx_index = (FDCANx->TXFQS >> FDCAN_TXFQS_TFQPI_Pos) & 0x1FU;
           // only send if we have received a packet
           canfd_fifo *fifo;
           fifo = (canfd_fifo *)(TxFIFOSA + (tx_index * FDCAN_TX_FIFO_EL_SIZE));
+#endif
 
           fifo->header[0] = (to_send.extended << 30) | ((to_send.extended != 0U) ? (to_send.addr) : (to_send.addr << 18));
 
@@ -121,12 +137,19 @@ void can_rx(uint8_t can_number) {
       can_health[can_number].total_rx_lost_cnt += 1U; // At least one message was lost
     }
 
+#ifdef E2E_TEST
+    uint8_t *rx_ram = (uint8_t *)(uintptr_t)FDCAN_START_ADDRESS + (can_number * FDCAN_OFFSET);
+    CANPacket_t to_push;
+    const canfd_fifo *fifo;
+    fifo = (const canfd_fifo *)(rx_ram + (rx_fifo_idx * FDCAN_RX_FIFO_0_EL_SIZE));
+#else
     uint32_t RxFIFO0SA = FDCAN_START_ADDRESS + (can_number * FDCAN_OFFSET);
     CANPacket_t to_push;
     const canfd_fifo *fifo;
 
     // getting address
     fifo = (const canfd_fifo *)(RxFIFO0SA + (rx_fifo_idx * FDCAN_RX_FIFO_0_EL_SIZE));
+#endif
 
     bool canfd_frame = ((fifo->header[1] >> 21) & 0x1U);
     bool brs_frame = ((fifo->header[1] >> 20) & 0x1U);
