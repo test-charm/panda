@@ -44,3 +44,18 @@ Feature: IR Power Control
         irPwm: 255
       }
       """
+
+  @red
+  Scenario: SetIrPower on red calls unused_set_ir_power with no PWM side-effect
+    When control write:
+      """
+      SetIrPower: {
+        param1: 50
+      }
+      """
+    Then control data should be:
+      """
+      : {
+        irPwm: 0
+      }
+      """

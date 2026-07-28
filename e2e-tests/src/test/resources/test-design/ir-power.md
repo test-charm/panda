@@ -11,13 +11,19 @@ set IR power (0xb0):
            │
            ▼
   current_board->set_ir_power(param1)
-  (tracking: last_ir_power = param1, ir_power_call_count++)
            │
-           ▼
-        (done)
+     ┌─────┴──────────────────┐
+     │ board 类型                │
+     ├──────────────────────────┤
+     │ cuatro/tres               │  red
+     │ ↓                         │  ↓
+     │ set_ir_power(生产函数)      │  unused_set_ir_power
+     │   → pwm_set(TIM3,4,pct)   │    → UNUSED(pct) (no-op)
+     │   → TIM1.CCR1 = pct       │    → irPwm stays 0
+     └──────────────────────────┘
 ```
 
-代码路径为直线，无分支。
+> **输出因子**: `irPwm` — `fake_TIM1.CCR1` 寄存器值（JNA 直接读取）
 
 ## 2. 输入因子
 
@@ -30,41 +36,49 @@ set IR power (0xb0):
 
 | 输出 | 类型 | 说明 |
 |------|------|------|
-| irPower | AdaptiveList\<Integer\> | 所有 set_ir_power 调用历史，未调用时为空列表 |
+| irPwm | int | fake_TIM1.CCR1 寄存器值（board_set_ir_power_stub 写入） |
+| |||
+| cu/tres 设非零 → CCR1 = param1 |
+| cu/tres 设零 → CCR1 = 0 |
+| red 设任意值 → CCR1 = 0（unused_set_ir_power 不操作寄存器） |
 
 ## 4. 测试用例
 
 ### TC1: 设置 IR 功率为 0
-- 前置: 初始状态
 - 输入: param1=0
-- 输出: irPower={value=0, callCount=1}
+- 输出: irPwm: 0
 
 ### TC2: 设置 IR 功率为非零值
-- 前置: 初始状态
 - 输入: param1=50
-- 输出: irPower={value=50, callCount=1}
+- 输出: irPwm: 50
 
 ### TC3: 设置 IR 功率为最大值
-- 前置: 初始状态
 - 输入: param1=255
-- 输出: irPower={value=255, callCount=1}
+- 输出: irPwm: 255
+
+### TC4 (@red): unused_set_ir_power 无 PWM 副作用
+- 前置: red board (`.set_ir_power = unused_set_ir_power`)
+- 输入: param1=50
+- 输出: irPwm: 0
+- 说明: `unused_set_ir_power` 不操作 TIM1.CCR1，与 TC2 (irPwm:50) 形成对比验证
 
 ## 5. 覆盖检查
 
-| 条件 | TC1 | TC2 | TC3 |
-|------|-----|-----|-----|
-| param1 == 0 | ✅ | — | — |
-| param1 > 0 | — | ✅ | ✅ |
+| 条件 | TC1 | TC2 | TC3 | TC4 (@red) |
+|------|-----|-----|-----|------------|
+| param1 == 0 (PWM off) | ✅ | — | — | — |
+| param1 > 0, 有 IR 硬件 | — | ✅ | ✅ | — |
+| param1 > 0, 无 IR 硬件 (unused) | — | — | — | ✅ |
 
-✅ 所有等价类已覆盖。
+✅ 所有等价类 + `unused_set_ir_power` 空桩路径已覆盖。
 
 ## 覆盖率
 
 > 数据来源: `run_all_coverage.sh` 合并报告 (cuatro + tres + red)
-> 综合行覆盖率: **65.1%** (全量), 本功能涉及以下源文件:
+> 综合行覆盖率: **78.9%** (全量), 本功能涉及以下源文件:
 
 | 源文件 | 行覆盖 | 说明 |
 |--------|--------|------|
-| `main_comms.h` | 93.3% (251/269) | USB 命令处理 |
-| `fan.h` | 37.0% (10/27) | 风扇 PWM + 冷却 |
+| `main_comms.h` | 95.5% (257/269) | USB 命令处理 |
+| `unused_funcs.h` | 100% (23/23) | ✅ Phase D.2 |
 

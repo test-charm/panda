@@ -53,3 +53,15 @@ Feature: Siren Control
         }
       }
       """
+
+  @red
+  Scenario: Tick handler on red calls unused_set_siren with no side-effect
+    When call tick handler 8 times
+    Then control data should be:
+      """
+      : {
+        safetyState: {
+          sirenWasActive: 0
+        }
+      }
+      """

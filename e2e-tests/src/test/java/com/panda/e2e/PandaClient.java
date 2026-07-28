@@ -569,6 +569,9 @@ public class PandaClient {
 
         // Build config constants
         int jna_get_can_init_timeout_ms();
+
+        // unused_funcs.h: init_bootloader (needs JNA since early_init is stubbed in e2e)
+        void jna_unused_init_bootloader();
     }
 
     private static final String ORIGINAL_LIB_PATH = PandaLib.libPath;
@@ -1610,6 +1613,12 @@ public class PandaClient {
 
     public int getCanInitTimeoutMs() {
         return lib.jna_get_can_init_timeout_ms();
+    }
+
+    // ---- unused_funcs.h: init_bootloader (JNA since early_init is stubbed) ----
+
+    public void unusedInitBootloader() {
+        lib.jna_unused_init_bootloader();
     }
 
     // ---- Health packet inspection ----

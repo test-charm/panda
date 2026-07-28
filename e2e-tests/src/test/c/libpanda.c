@@ -286,7 +286,6 @@ void board_set_ir_power_stub(uint8_t p) {
     fake_TIM1.CCR1 = p;  // IR PWM duty cycle
     ir_power_values[0] = p;
 }
-void board_set_fan_enabled_stub(bool en);
 void board_set_siren_stub(bool en);
 bool board_read_som_gpio_stub(void);
 
@@ -331,7 +330,7 @@ struct board e2e_board = {
     .read_voltage_mV = board_read_voltage_mV_stub,
     .read_current_mA = board_read_current_mA_stub,
     .set_ir_power = board_set_ir_power_stub,
-    .set_fan_enabled = board_set_fan_enabled_stub,
+    .set_fan_enabled = cuatro_set_fan_enabled,
     .set_siren = board_set_siren_stub,
     .set_bootkick = cuatro_set_bootkick,
     .read_som_gpio = board_read_som_gpio_stub,
@@ -352,9 +351,9 @@ struct board e2e_board = {
     .enable_can_transceiver = tres_enable_can_transceiver,
     .set_can_mode = tres_set_can_mode,
     .read_voltage_mV = board_read_voltage_mV_stub,
-    .read_current_mA = board_read_current_mA_stub,
+    .read_current_mA = unused_read_current,
     .set_ir_power = board_set_ir_power_stub,
-    .set_fan_enabled = board_set_fan_enabled_stub,
+    .set_fan_enabled = tres_set_fan_enabled,
     .set_siren = board_set_siren_stub,
     .set_bootkick = tres_set_bootkick,
     .read_som_gpio = board_read_som_gpio_stub,
@@ -375,12 +374,12 @@ struct board e2e_board = {
     .enable_can_transceiver = red_enable_can_transceiver,
     .set_can_mode = red_set_can_mode,
     .read_voltage_mV = board_read_voltage_mV_stub,
-    .read_current_mA = board_read_current_mA_stub,
-    .set_ir_power = board_set_ir_power_stub,
-    .set_fan_enabled = board_set_fan_enabled_stub,
-    .set_siren = board_set_siren_stub,
+    .read_current_mA = unused_read_current,
+    .set_ir_power = unused_set_ir_power,
+    .set_fan_enabled = unused_set_fan_enabled,
+    .set_siren = unused_set_siren,
     .set_bootkick = unused_set_bootkick,
-    .read_som_gpio = board_read_som_gpio_stub,
+    .read_som_gpio = unused_read_som_gpio,
     .set_amp_enabled = unused_set_amp_enabled,
 };
 #endif
@@ -759,15 +758,6 @@ int jna_get_siren_active(void) {
 }
 int jna_get_siren_was_active(void) {
     return siren_was_active ? 1 : 0;
-}
-
-// Fan enabled (after GPIO macro overrides)
-void board_set_fan_enabled_stub(bool en) {
-#if defined(E2E_BOARD_TRES) || defined(E2E_BOARD_RED)
-    (void)en;  // tres: software-controlled via pwm, red: unused
-#else
-    set_gpio_output(GPIOD, 3, !en);  // Cuatro: PD3 active-low
-#endif
 }
 
 // Simulate main.c tick handler — applies siren_enabled flag to GPIO
@@ -1598,4 +1588,11 @@ void jna_panda_init(void) {
 
 int jna_get_can_init_timeout_ms(void) {
     return CAN_INIT_TIMEOUT_MS;
+}
+
+// ---- unused_funcs.h: init_bootloader JNA wrapper ----
+// unused_init_bootloader is wired into all e2e board structs but can't be
+// exercised through normal e2e paths (early_initialization is stubbed).
+void jna_unused_init_bootloader(void) {
+    unused_init_bootloader();
 }

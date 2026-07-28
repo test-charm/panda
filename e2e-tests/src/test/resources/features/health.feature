@@ -121,3 +121,49 @@ Feature: Health Packet Retrieval
         }
       }
       """
+
+  @red
+  Scenario: GetHealth on red returns current=0 even when stub is set to non-zero
+    Given exists data:
+      """
+      ControlSetup: {
+        currentMA: 500
+      }
+      """
+    When control write:
+      """
+      GetHealth: {
+        param1: 0
+      }
+      """
+    Then control data should be:
+      """
+      : {
+        healthPacket: {
+          current: 0
+        }
+      }
+      """
+
+  @tres
+  Scenario: GetHealth on tres returns current=0 even when stub is set to non-zero
+    Given exists data:
+      """
+      ControlSetup: {
+        currentMA: 500
+      }
+      """
+    When control write:
+      """
+      GetHealth: {
+        param1: 0
+      }
+      """
+    Then control data should be:
+      """
+      : {
+        healthPacket: {
+          current: 0
+        }
+      }
+      """

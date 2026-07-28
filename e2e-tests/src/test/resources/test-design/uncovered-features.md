@@ -5,7 +5,7 @@
 > 综合行覆盖率: **78.9%** (1705/2160 lines), 34 files
 > 数据来源: `e2e-tests/run_all_coverage.sh` (cuatro + tres + red 合并)
 >
-> **本次更新**: C3 fdcan.h + llfdcan.h 去桩化完成，覆盖率基线重置（34 文件 / 2160 行，新增真实代码 ~650 行）；新增 §十二「低于 80% 文件提升分析」；Phase D.1 完成 (config.h → 100%)
+> **本次更新**: C3 fdcan.h + llfdcan.h 去桩化完成，覆盖率基线重置（34 文件 / 2160 行，新增真实代码 ~650 行）；新增 §十二「低于 80% 文件提升分析」；Phase D.1 完成 (config.h → 100%)；Phase D.2 完成 (unused_funcs.h → 100%)
 
 ---
 
@@ -113,7 +113,7 @@ board/boards/unused_funcs.h           — 未使用功能的空桩实现
 | `board/boards/cuatro.h` | 83.3% (55/66) | GPIO 配置路径部分未调用 |
 | `board/boards/tres.h` | 88.0% (81/92) | GPIO 配置路径部分未调用 |
 | `board/boards/red.h` | 90.0% (63/70) | GPIO 配置路径部分未调用 |
-| `board/boards/unused_funcs.h` | 26.1% (6/23) | 🟢 空桩函数未被调用 — §十二.5 |
+| `board/boards/unused_funcs.h` | 100% (23/23) | ✅ Phase D.2 已完成 |
 | `board/stm32h7/llfdcan.h` | 83.2% (134/161) | ✅ C3 完成，部分 LL 路径未触发 |
 | `board/stm32h7/llfdcan_declarations.h` | 91.3% (21/23) | ✅ C2 完成，2 行未覆盖 |
 | `e2e-tests/.../fdcan_regs.h` | 94.1% (160/170) | e2e 测试桩 |
@@ -1190,24 +1190,24 @@ main() 函数 (120 行):
 
 ---
 
-### 十二.5 `board/boards/unused_funcs.h` — 26.1% (6/23) 🟢 极低难度
+### 十二.5 `board/boards/unused_funcs.h` — 26.1% (6/23) → ✅ 100% (Phase D.2 已完成)
 
-**已覆盖**: `unused_set_bootkick()`（通过 tres board 调用）、`unused_set_amp_enabled()`（通过 red board 调用）。
+**已覆盖**: `unused_set_bootkick()`（通过 red board 调用）、`unused_set_amp_enabled()`（通过 red board 调用）。
 
-**未覆盖**: 6 个空桩函数，全部是 `UNUSED(param)` 的 no-op。
+**新增覆盖** (2026-07-28): RED e2e_board 的 `set_ir_power`/`set_fan_enabled`/`set_siren`/`read_current_mA`/`read_som_gpio` 从 stub 改为真正的 `unused_*` 函数（匹配生产 `red.h`）。TRES 的 `read_current_mA` 改为 `unused_read_current`。cuatro/tres 的 `set_fan_enabled` 改为生产函数，`board_set_fan_enabled_stub` 已删除。
 
-| 函数 | 需要哪个 board |
-|------|---------------|
-| `unused_init_bootloader()` | tres (无 bootloader init) |
-| `unused_set_ir_power()` | tres (无 IR power) |
-| `unused_set_fan_enabled()` | red (无 fan) |
-| `unused_set_siren()` | red (无 siren) |
-| `unused_read_current()` | red/tres (无电流检测) |
-| `unused_read_som_gpio()` | red/tres (无 SOM GPIO) |
+| 函数 | 板 | 触发路径 |
+|------|----|---------|
+| `unused_set_ir_power()` | red | 0xb0 → `current_board->set_ir_power` |
+| `unused_set_fan_enabled()` | red | 0xb1 → `fan_set_power` → `fan_tick` → `set_fan_enabled` |
+| `unused_set_siren()` | red | `tick_handler` → `current_board->set_siren` |
+| `unused_read_current()` | red, tres | 0xd2 → `get_health_pkt` → `read_current_mA` |
+| `unused_read_som_gpio()` | red | 0xc6 → `current_board->read_som_gpio` |
 
-**提升方案**: 在现有 feature 文件中增加对应 board 类型的调用步骤。例如在 `@tres` 场景中增加 `set_ir_power` 调用（会走到 `unused_set_ir_power`），在 `@red` 场景中增加 `set_fan_enabled` / `set_siren` / `read_som_gpio` 调用。
-
-**预估收益**: +17 行（覆盖率 +0.8%），极低投入。
+**实施**:
+- `libpanda.c`: RED e2e_board 5 个函数指针从 stub 改为 `unused_*`；cuatro/tres `set_fan_enabled` 改为生产函数；删除 `board_set_fan_enabled_stub`
+- 场景分散到对应 feature: `fan_power.feature` (+4), `health.feature` (+2), `som_gpio.feature` (+1), `ir_power.feature` (+1), `siren.feature` (+1)
+- 所有场景都有 Given 注入非零值 → Then 验证 unused 覆盖了它（避免 false-positive）
 
 ---
 
@@ -1234,7 +1234,7 @@ main() 函数 (120 行):
 ```
 Phase D — 快速提升 (预计 +35 行 / +1.6%)
   1. config.h: 引用 CAN_INIT_TIMEOUT_MS ✅ 已完成 (2026-07-28)
-  2. unused_funcs.h: 在 @tres/@red 场景中调用空桩函数
+  2. unused_funcs.h: 在 @tres/@red 场景中调用空桩函数 ✅ 已完成 (2026-07-28)
   3. can_comms.h: overflow buffer 分片场景
 
 Phase E — 核心提升 (预计 +74 行 / +3.4%)

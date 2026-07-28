@@ -35,25 +35,33 @@ read SOM GPIO (0xc6):
 
 ## 4. 测试用例
 
-### TC1: 预设 SOM GPIO=1 → 通过 handler 写 resp buffer
-- 前置: 设 `som_gpio_value = true`
+### TC1 (@cuatro @tres): 预设 SOM GPIO=1 → resp buffer 返回 1
+- 前置: `somGpio: 1` (e2e 注入)
 - 输入: request=0xc6
-- 输出: resp_len=1, bytes[0]=1
+- 输出: respBuffer.len=1, bytes=[1y]
+
+### TC2 (@red): 预设 SOM GPIO=1 → resp buffer 返回 0 (unused)
+- 前置: `somGpio: 1` + red board (`.read_som_gpio = unused_read_som_gpio`)
+- 输入: request=0xc6
+- 输出: respBuffer.len=1, bytes=[0y]
+- 说明: `unused_read_som_gpio` 始终返回 false，覆盖 e2e 注入值
 
 ## 5. 覆盖检查
 
-| 条件 | TC1 |
-|------|-----|
-| request == 0xc6 | ✅ |
+| 条件 | TC1 | TC2 (@red) |
+|------|-----|------------|
+| request == 0xc6, 有 SOM GPIO 硬件 | ✅ | — |
+| request == 0xc6, 无 SOM GPIO (unused) | — | ✅ |
 
-✅ 代码路径已覆盖。
+✅ 所有代码路径 + `unused_read_som_gpio` 已覆盖。
 
 ## 覆盖率
 
 > 数据来源: `run_all_coverage.sh` 合并报告 (cuatro + tres + red)
-> 综合行覆盖率: **65.1%** (全量), 本功能涉及以下源文件:
+> 综合行覆盖率: **78.9%** (全量), 本功能涉及以下源文件:
 
 | 源文件 | 行覆盖 | 说明 |
 |--------|--------|------|
-| `main_comms.h` | 93.3% (251/269) | USB 命令处理 |
+| `main_comms.h` | 95.5% (257/269) | USB 命令处理 |
+| `unused_funcs.h` | 100% (23/23) | ✅ Phase D.2 |
 

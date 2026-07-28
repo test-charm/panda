@@ -41,38 +41,45 @@ set siren enabled (0xf6):
 ### TC1: 禁用警笛 (param1=0)
 - 前置: 初始状态 (siren_enabled=false)
 - 输入: request=0xf6, param1=0
+- 操作: tick siren
 - 输出: stopModeRegs.gpioBOdr=0L (PB14 low)
-- 等价类: param1 == 0
 
 ### TC2: 启用警笛 (param1=1)
 - 前置: 初始状态
 - 输入: request=0xf6, param1=1
+- 操作: tick siren
 - 输出: stopModeRegs.gpioBOdr=16384L (PB14 high)
-- 等价类: param1 != 0
 
 ### TC3: 任意非零值均启用警笛 (param1=255)
 - 前置: 初始状态
 - 输入: request=0xf6, param1=255
+- 操作: tick siren
 - 输出: stopModeRegs.gpioBOdr=16384L (PB14 high)
-- 等价类: param1 != 0 (验证 !=0 逻辑)
+
+### TC4 (@red): unused_set_siren 在 tick handler 中无副作用
+- 前置: red board (`.set_siren = unused_set_siren`)
+- 操作: call tick handler 8 times
+- 输出: safetyState.sirenWasActive: 0
+- 说明: `unused_set_siren` 不设置 `siren_was_active` 标志，与其他 board 在 heartbeat_loss 时 sirenWasActive=1 形成对比
 
 ## 5. 覆盖检查
 
-| 条件 | TC1 | TC2 | TC3 |
-|------|-----|-----|-----|
-| param1 == 0 | ✅ | — | — |
-| param1 != 0 | — | ✅ | ✅ |
+| 条件 | TC1 | TC2 | TC3 | TC4 (@red) |
+|------|-----|-----|-----|------------|
+| param1 == 0 | ✅ | — | — | — |
+| param1 != 0 | — | ✅ | ✅ | — |
+| unused_set_siren (tick 路径) | — | — | — | ✅ |
 
-✅ 所有等价类已覆盖。
+✅ 所有等价类 + `unused_set_siren` tick handler 路径已覆盖。
 
 ## 覆盖率
 
 > 数据来源: `run_all_coverage.sh` 合并报告 (cuatro + tres + red)
-> 综合行覆盖率: **65.1%** (全量), 本功能涉及以下源文件:
+> 综合行覆盖率: **78.9%** (全量), 本功能涉及以下源文件:
 
 | 源文件 | 行覆盖 | 说明 |
 |--------|--------|------|
-| `main_comms.h` | 93.3% (251/269) | USB 命令处理 |
-| `gpio.h` | 69.1% (47/68) | GPIO 控制 |
-| `main.c` | 46.9% (106/226) | 主循环 + 初始化 |
+| `main_comms.h` | 95.5% (257/269) | USB 命令处理 |
+| `main.c` | 64.2% (145/226) | 主循环 + 初始化 |
+| `unused_funcs.h` | 100% (23/23) | ✅ Phase D.2 |
 

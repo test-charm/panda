@@ -31,6 +31,77 @@ Feature: Fan Power Control
       }
       """
 
+  @red
+  Scenario: SetFanPower on red calls unused_set_fan_enabled through fan_set_power
+    When control write:
+      """
+      SetFanPower: {
+        param1: 50
+      }
+      """
+    Then control data should be:
+      """
+      : {
+        fanPower: 50
+      }
+      """
+
+  @cuatro
+  Scenario: SetFanPower on cuatro drives PD3 low via cuatro_set_fan_enabled
+    When control write:
+      """
+      SetFanPower: {
+        param1: 50
+      }
+      """
+    Then control data should be:
+      """
+      : {
+        fanPower: 50
+        stopModeRegs: {
+          gpioDOdr: 0L
+        }
+      }
+      """
+
+  @cuatro
+  Scenario: SetFanPower to zero on cuatro releases PD3 high after cooldown
+    When control write:
+      """
+      SetFanPower: {
+        param1: 0
+      }
+      """
+    And call tick handler 24 times
+    Then control data should be:
+      """
+      : {
+        fanPower: 0
+        stopModeRegs: {
+          gpioDOdr: 264L
+        }
+      }
+      """
+
+  @tres
+  Scenario: SetFanPower on tres drives PD3 high via tres_set_fan_enabled
+    When control write:
+      """
+      SetFanPower: {
+        param1: 50
+      }
+      """
+    And call tick handler 1 times
+    Then control data should be:
+      """
+      : {
+        fanPower: 50
+        stopModeRegs: {
+          gpioDOdr: 8L
+        }
+      }
+      """
+
   Scenario: Setting fan power below 20 clamps to 20
     When control write:
       """

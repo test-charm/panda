@@ -26,3 +26,29 @@ Feature: SOM GPIO Reading
         }
       }
       """
+
+  @red
+  Scenario: ReadSomGpio on red returns 0 even when stub is set to non-zero
+    Given exists data:
+      """
+      ControlSetup: {
+        somGpio: 1
+      }
+      """
+    When control write:
+      """
+      UsbControlRequest: {
+        request: -58y
+        param1: 0
+        param2: 0
+      }
+      """
+    Then control data should be:
+      """
+      : {
+        respBuffer: {
+          len: 1
+          bytes: [ 0y ]
+        }
+      }
+      """

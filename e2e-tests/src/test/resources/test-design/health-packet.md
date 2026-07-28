@@ -56,6 +56,8 @@ USB 控制请求 `0xd2` (get_health) — 调用 `get_health_pkt()` 函数，将�
 | CAN TX 阻断计数 (safety_tx_blocked) | 整数 | 0, ≥1 | 0, 1 |
 | 心跳丢失 (heartbeat_lost) | 布尔 | false, true | false, true |
 | 心跳已启用 (heartbeat_engaged) | 布尔 | false, true | false, true |
+| 电压 (e2e_voltage_mV) | 整数 | 默认 12000, 可设定 | 12000, 13500 |
+| 电流 (e2e_current_mA) | 整数 | 默认 0, 可设定; red/tres 强制 0 (unused) | 0, 500 |
 
 ## 输出因子（被测字段）
 
@@ -69,9 +71,10 @@ USB 控制请求 `0xd2` (get_health) — 调用 `get_health_pkt()` 函数，将�
 | heartbeat_engaged (从safety.h) | bool | heartbeat_engaged |
 | uptime_pkt | uint32 | uptime_cnt |
 | voltage_pkt | uint32 | board stub (12000) |
-| current_pkt | uint32 | board stub (0) |
+| current_pkt | uint32 | `current_board->read_current_mA()` |
+| | | cuatro: stub (可设定); red/tres: unused_read_current (固定 0) |
 
-> **说明**: 电压/电流由硬件 stub 固定返回 12000mV / 0mA，只验证非零/零即可。uptime 验证 ≥0 即可（固件初始化后为 0）。其余 20+ 字段值固定为 0/false，不做逐一验证。
+> **说明**: 电压由硬件 stub 固定返回 12000mV。电流在 cuatro 上可通过 `currentMA` 注入，在 red/tres 上 `unused_read_current` 始终返回 0。uptime 验证 ≥0 即可（固件初始化后为 0）。其余 20+ 字段值固定为 0/false，不做逐一验证。
 
 ## 测试用例
 
@@ -91,21 +94,31 @@ USB 控制请求 `0xd2` (get_health) — 调用 `get_health_pkt()` 函数，将�
 |----------|:---------------:|:----------------:|:------------------:|
 | SetSafetyMode(2) | 2 (TOYOTA) | 0 | 0 |
 
-### 用例 3: 阻断 CAN 后健康数据包反映阻断计数
+### 用例 4: 健康数据包电压反映可设 e2e 值
+- 前置: ControlSetup { voltageMV: 13500 }
+- 输出: voltage: 13500
 
-**路径**：set_safety_mode(SILENT) → 发送被阻断 CAN → get_health → safety_tx_blocked ≥ 1。
+### 用例 5: 健康数据包电流反映可设 e2e 值
+- 前置: ControlSetup { currentMA: 500 }
+- 输出: current: 500
 
-| 前置操作 | safety_mode_pkt | safety_tx_blocked_pkt | safety_rx_invalid_pkt |
-|----------|:---------------:|:---------------------:|:---------------------:|
-| SILENT + 阻断CAN | 0 (SILENT) | ≥1 | ≥1 |
+### 用例 6 (@red): 预设电流非零，unused_read_current 仍返回 0
+- 前置: ControlSetup { currentMA: 500 } + red board (`.read_current_mA = unused_read_current`)
+- 输出: current: 0
+- 说明: `unused_read_current` 始终返回 0U，覆盖 e2e 注入值
+
+### 用例 7 (@tres): 预设电流非零，unused_read_current 仍返回 0
+- 前置: ControlSetup { currentMA: 500 } + tres board (`.read_current_mA = unused_read_current`)
+- 输出: current: 0
 
 ## 覆盖率
 
 > 数据来源: `run_all_coverage.sh` 合并报告 (cuatro + tres + red)
-> 综合行覆盖率: **65.1%** (全量), 本功能涉及以下源文件:
+> 综合行覆盖率: **78.9%** (全量), 本功能涉及以下源文件:
 
 | 源文件 | 行覆盖 | 说明 |
 |--------|--------|------|
-| `main_comms.h` | 93.3% (251/269) | USB 命令处理 |
-| `main.c` | 46.9% (106/226) | 主循环 + 初始化 |
+| `main_comms.h` | 95.5% (257/269) | USB 命令处理 |
+| `unused_funcs.h` | 100% (23/23) | ✅ Phase D.2 |
+| `main.c` | 64.2% (145/226) | 主循环 |
 

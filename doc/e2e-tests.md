@@ -101,7 +101,7 @@ e2e-tests/
 │   │       ├── UsbControlRequests.java  # 33 个 USB 控制请求 spec
 │   │       └── ControlSetups.java       # 前置数据 spec
 │   └── resources/
-│       ├── features/                # 43 个 feature 文件
+│       ├── features/                # 42 个 feature 文件（D.2 后将 unused 场景融入对应文件）
 │       └── test-design/             # 测试设计文档
 ```
 
@@ -113,12 +113,12 @@ e2e-tests/
 | CAN 回环 | `can_loopback.feature` | 4 | FDCAN TEST/MON |
 | 心跳 | `heartbeat.feature` | 6 | heartbeat_* 变量 |
 | 心跳丢失 | `heartbeat_loss.feature` | 9 | safetyState + powerSaveTracking 通过 jna_call_tick_handler |
-| 健康数据包 | `health.feature` | 5 | healthPacket + 可设 voltage/current |
+| 健康数据包 | `health.feature` | 7 | healthPacket + 可设 voltage/current + @red/@tres unused 验证 ✅ D.2 |
 | CAN 模式 | `can_mode.feature` | 6 | stopModeRegs (gpioBModer/gpioBOdr/gpioBPupdr) |
 | 继电器 | `relay.feature` | 6 | stopModeRegs.gpioAOdr (PA3/PA9) |
 | 省电模式 | `power_save.feature` | 15 | powerSaveTracking + stopModeRegs (gpioBOdr/gpioDOdr/gpioGOdr) |
 | 替代体验 | `alternative_experience.feature` | 5 | alternativeExperience |
-| 警笛 | `siren.feature` | 3 | stopModeRegs.gpioBOdr (PB14) via jna_tick_siren |
+| 警笛 | `siren.feature` | 4 | stopModeRegs.gpioBOdr (PB14) via jna_tick_siren + @red unused 验证 ✅ D.2 |
 | CAN 通信重置 | `can_comms_reset.feature` | 2 | safetyTxBlocked + stopModeRegs.gpioAOdr |
 | CAN 通信序列化 | `can_comms.feature` | 4 | comms_can_write → rxQueue, comms_can_read → commsReadBytes |
 | CAN 环形缓冲 | `can_ring_clear.feature` | 4 | rxQueue/txQueue |
@@ -127,7 +127,7 @@ e2e-tests/
 | libc 工具函数 | `libc.feature` | 4 | lastMemcmpResult / delay 不挂死 |
 | 固件版本 | `get_version.feature` | 1 | respBuffer |
 | 数据包版本 | `packet_versions.feature` | 1 | packetVersions + canInitTimeoutMs |
-| IR 功率 | `ir_power.feature` | 3 | irPwm (TIM1 CCR1) |
+| IR 功率 | `ir_power.feature` | 4 | irPwm (TIM1 CCR1) + @red unused 验证 ✅ D.2 |
 | 硬件类型 | `hw_type.feature` | 1 | respBuffer |
 | CAN 波特率 | `can_bitrate.feature` | 3 | FDCAN NBTP/CCCR/IE/TXBC/RXF0C |
 | CAN FD 自动 | `can_fd_auto.feature` | 3 | canFdConfig |
@@ -137,11 +137,11 @@ e2e-tests/
 | 时钟源初始化 | `clock_source_init.feature` | 6 | clockSourceInit (TIM1×12, TIM8×8, GPIO×4, NVIC×2) |
 | 板级初始化 | `board_init.feature` | 7 | boardInit (GPIO MODER/OTYPER/OSPEEDR/PUPDR/AFR/ODR ×45, PWR_CR3) — N2 完成 |
 | 定时器/风扇 | `timer_fan.feature` | 2 | respBuffer (little-endian) |
-| 风扇功率 | `fan_power.feature` | 5 | fanPower |
+| 风扇功率 | `fan_power.feature` | 9 | fanPower + stopModeRegs.gpioDOdr (PD3 板级验证 ✅ D.2) |
 | 风扇冷却 | `fan_cooldown.feature` | 3 | fanCooldownCounter + fanPower 通过 jna_call_tick_handler |
 | 系统复位 | `reset_st.feature` | 1 | nvicResetCount |
 | 深度休眠 | `deep_sleep.feature` | 13 | stopModeRegs (25+ 假寄存器: GPIO/ADC/RCC/SYSCFG/EXTI/PWR/SCB/NVIC) |
-| SOM GPIO | `som_gpio.feature` | 1 | respBuffer |
+| SOM GPIO | `som_gpio.feature` | 2 | respBuffer + @red unused 验证 ✅ D.2 |
 | CAN 健康 | `can_health.feature` | 6 | canHealth0 (PSR/ECR 提取) |
 | 微秒定时器 | `microsecond_timer.feature` | 2 | respBuffer (4-byte LE) |
 | MCU UID | `mcu_uid.feature` | 2 | respBuffer (12 bytes) |
@@ -164,7 +164,7 @@ e2e-tests/
 ## C 代码覆盖率
 
 > 数据来源: `e2e-tests/run_all_coverage.sh` 合并报告 (cuatro + tres + red)
-> 生成时间: 2026-07-28 (C3 fdcan/llfdcan 去桩化 + Phase D.1 config.h 宏覆盖)
+> 生成时间: 2026-07-28 (C3 fdcan/llfdcan 去桩化 + Phase D.1 config.h + Phase D.2 unused_funcs.h + set_fan_enabled 板级去桩)
 
 | 源文件 | 行覆盖 | 函数覆盖 | 说明 |
 |--------|--------|---------|------|
@@ -176,7 +176,8 @@ e2e-tests/
 | `board/libc.h` | **83.9%** (52/62) | 3/5 | memcmp 全覆盖 ✅；delay + assert_fatal(false) 不可覆盖 |
 | `board/drivers/fan.h` | **100%** (27/27) | 3/3 | 风扇 PWM + 冷却 |
 | `board/can_comms.h` | **56.6%** (43/76) | 4/4 | CAN 通信序列化 (overflow buffer 分片路径未覆盖) |
-| `board/config.h` | **100%** (4/4) | — | ✅ Phase D.1 (`CAN_INIT_TIMEOUT_MS` 通过 JNA getter 覆盖) |
+| `board/config.h` | **100%** (4/4) | — | ✅ Phase D.1 |
+| `board/boards/unused_funcs.h` | **100%** (23/23) | — | ✅ Phase D.2 (板级 wiring + board-tagged 场景) |
 | `board/drivers/clock_source.h` | **100%** (40/40) | 2/2 | ✅ N1 完成 |
 | `board/utils.h` | **100%** (10/10) | 1/1 | 工具函数 |
 | `board/sys/power_saving.h` | **96.7%** (89/92) | — | ✅ B1 |
