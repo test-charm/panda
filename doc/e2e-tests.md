@@ -124,7 +124,7 @@ e2e-tests/
 | 继电器 | `relay.feature` | 6 | stopModeRegs.gpioAOdr (PA3/PA9) |
 | 省电模式 | `power_save.feature` | 15 | powerSaveTracking + stopModeRegs (gpioBOdr/gpioDOdr/gpioGOdr) |
 | 替代体验 | `alternative_experience.feature` | 5 | alternativeExperience |
-| 警笛 | `siren.feature` | 4 | stopModeRegs.gpioBOdr (PB14) via jna_tick_siren + @red unused 验证 ✅ D.2 |
+| 警笛 | `siren.feature` | 4 | stopModeRegs.gpioBOdr (PB14) via tick_handler + @red unused 验证 ✅ D.2 |
 | 系统复位与 Bootloader | `system_reset_bootloader.feature` | 4 | 合并了 reset_st + bootloader (第十三节 D4+D5) |
 | CAN 通信序列化 | `can_comms.feature` | 14 | USB ep3 out → comms_can_write → rxQueue, USB ep1 in → comms_can_read → usbEp1InBytes (含 overflow 分片 5 场景 + 队列指针回绕 5 场景, Phase D.3 + C1 ✅) |
 | CAN 环形缓冲 | `can_ring_clear.feature` | 4 | rxQueue/txQueue |

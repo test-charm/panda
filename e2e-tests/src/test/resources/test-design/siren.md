@@ -34,7 +34,7 @@ set siren enabled (0xf6):
 | disabled (param1==0) → ODR bit14=0 (0L) |
 | enabled (param1!=0) → ODR bit14=1 (16384L) |
 
-> 注: 警笛启用后通过 `jna_tick_siren()` 将 `siren_enabled` 标志应用到 GPIO 输出。
+> 注: 警笛启用后通过 `tick_handler()` (8Hz) 将 `siren_enabled` 标志应用到 GPIO 输出。e2e 使用 `When call tick handler 8 times` 触发 siren tick。
 
 ## 4. 测试用例
 

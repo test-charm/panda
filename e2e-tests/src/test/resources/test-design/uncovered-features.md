@@ -1468,7 +1468,24 @@ Phase F 完成后:  91.1% (1989/2183) ✅
   ❌ 无法被 E2E 覆盖:            4 个  (20%)  — recover_fault/set_forwarding/set_fdcan_ir/red_set_fan_enabled
 ```
 
-### 结论
+### 12 个"已被 E2E 等价覆盖"步骤的转换分析 (2026-07-29)
+
+| # | 非 E2E When 步骤 | 可转换? | 原因 |
+|---|-----------------|---------|------|
+| 1 | `When can push direct` | ❌ 保留 | 测试特定 w_ptr/r_ptr 位置的回绕/满队列，USB 路径无法精确控制队列指针 |
+| 2 | `When can pop direct` | ❌ 保留 | 同上，需特定 r_ptr 位置 |
+| 3 | `When refresh can slots empty` | ❌ 保留 | 同上，边缘条件测试 |
+| 4 | `When clock source init` | ❌ 保留 | `board_init` 不验证 TIM 寄存器值，仅 GPIO 副作用 |
+| 5 | `When process can 255` | ❌ 保留 | 0xff 守卫在 `can_send()` 调用 `process_can()` 之前被拦截，USB 路径无法触发 |
+| 6 | `When can rx send:` | ❌ 保留 | 扩展帧/CAN-FD/BRS/FIFO 满等帧类型需直接注入假 FDCAN SRAM，loopback 只能产生标准帧 |
+| 7 | **`When tick siren`** | ✅ **已转换** | `tick_handler()` 8Hz 中调用 `set_siren()`，`When call tick handler 8 times` 等价覆盖 |
+| 8 | `When spi tx done` | ❌ 保留 | DMA 完成回调，`SpiProcessData` 只触发 `spi_rx_done`，`tx_done` 是独立路径 |
+| 9 | `When spi set state N` | ❌ 保留 | 测试 `spi_tx_done` 的 default/unexpected 分支，正常 SPI 协议不会进入该状态 |
+| 10 | `When endpoint2 write with hex:` | ❌ 保留 | SPI 路径仅覆盖 ring 0，rings 1-4 的 `get_ring_by_number()` 过滤逻辑需直接调用 |
+| 11 | `When SPI version packet` | ❌ 保留 | SPI 状态机 VERSION 场景仅验证状态转换，不验证 CRC-8/UID/hw_type/PID 数据内容 |
+| 12 | `And detect harness orientation` (tick_paths) | ❌ 保留 | 作为 setup 步骤设置 `harness.status` 触发 reinit，`tick_handler` 内部调用同一函数 |
+
+**结论**: 仅 siren.feature 的 3 个 `When tick siren` 可无损耗转换为 `When call tick handler 8 times`（已完成）。其余 11 个因测试的是 E2E 路径无法触发的边界条件或数据验证，保留非 E2E 调用方式。
 
 1. **60% 的非 E2E When 步骤有对应的 E2E 等价路径**——同一段 C 代码被 USB 命令、CAN 传输、tick_handler 或 SPI 协议自然触发。这些非 E2E 步骤主要是为了测试边界条件（队列回绕、满队列等）时更精确地控制内部状态。
 
