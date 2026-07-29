@@ -1399,12 +1399,15 @@ Phase F 完成后:  91.1% (1989/2183) ✅
 
 🟠 第 3 梯队 (中等风险，需设计 scenario):
    ✅ C1: can_queue_wrap → 已合并到 can_comms (5 scenarios, can_common.h 100% 覆盖)
-   C4+C5: register_divergence + watchdog → 合并到 tick_paths
-   C2: clock_source_init → 合并到 clock_source
-   C6: endpoint2_write → 合并到 spi_state_machine
-   D3: can_comms_reset → 合并到 safety_mode
-   B7: signature → 合并到 health
-   B6: interrupt_rate → 合并到 fdcan_interrupt
+   ✅ C4+C5: register_divergence + watchdog → 已合并到 tick_paths (6 scenarios)
+   ✅ C2: clock_source_init → 已合并到 clock_source (6 scenarios)
+   ✅ C6: endpoint2_write → 已合并到 spi_state_machine (6 scenarios)
+   ✅ D3: can_comms_reset → 已合并到 safety_mode (2 scenarios)
+   ✅ B7: signature → 已合并到 health (2 scenarios)
+   ✅ B6: interrupt_rate → 已合并到 fdcan_interrupt (3 scenarios)
+   ✅ 第 3 梯队全部完成 (2026-07-29), feature 文件从 42 → 35
+   
+   📊 合并后覆盖率: 1985/2183 lines (90.9%), 与合并前完全一致
 
 🔴 第 4 梯队 (高风险/争议大，暂缓):
    C3: board_init → 分散到其他按板 feature

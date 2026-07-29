@@ -1,5 +1,7 @@
 # 寄存器发散检测 — 测试设计文档
 
+> **⚠️ 已合并**: 此文档对应的 `register_divergence.feature` 已于 2026-07-29 合并至 `tick_paths.feature`（第十三节 C4）。测试用例 TC7-TC9 见 `tick-paths.md`。
+
 > 功能: `check_registers()` in `board/drivers/registers.h`
 > 被测路径: 1Hz tick → `check_registers()` → `FAULT_REGISTER_DIVERGENT`
 > 调用: `main.c:248` (tick_handler 1Hz 路径)

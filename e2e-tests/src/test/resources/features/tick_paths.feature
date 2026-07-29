@@ -133,3 +133,122 @@ Feature: Tick handler edge paths
         }
       }
       """
+
+  # ---- register divergence (check_registers) ----
+  # check_registers() runs at 1Hz (every 8 tick_handler calls). It compares
+  # shadow register values against actual hardware register reads.
+  # If any masked bit differs, FAULT_REGISTER_DIVERGENT (bit 18 = 262144)
+  # is raised. The e2e test injects divergence via jna_set_register_divergent().
+
+  Scenario: Non-divergent registers do not trigger a fault
+    Given exists data:
+      """
+      ControlSetup: {
+        registerDivergent: 0
+      }
+      """
+    When call tick handler 8 times
+    Then control data should be:
+      """
+      : {
+        readFaults: 0
+      }
+      """
+
+  Scenario: Divergent register triggers FAULT_REGISTER_DIVERGENT
+    Given exists data:
+      """
+      ControlSetup: {
+        registerDivergent: 1
+      }
+      """
+    When call tick handler 8 times
+    Then control data should be:
+      """
+      : {
+        readFaults: 262144
+      }
+      """
+
+  Scenario: Register divergence fault persists after register is fixed
+    Given exists data:
+      """
+      ControlSetup: {
+        registerDivergent: 1
+      }
+      """
+    When call tick handler 8 times
+    Given exists data:
+      """
+      ControlSetup: {
+        registerDivergent: 0
+      }
+      """
+    When call tick handler 8 times
+    Then control data should be:
+      """
+      : {
+        readFaults: 262144
+      }
+      """
+
+  # ---- heartbeat loop watchdog (simple_watchdog_kick) ----
+  # tick_handler (8Hz) calls simple_watchdog_kick() on every invocation.
+  # The watchdog fires FAULT_HEARTBEAT_LOOP_WATCHDOG (bit 26 = 67108864)
+  # if the microsecond timer interval between kicks exceeds 375ms.
+  # Each scenario gets a fresh dylib load so wd_state is zeroed.
+
+  Scenario: Normal tick rate within threshold does not trigger watchdog
+    When tick handler
+    Given exists data:
+      """
+      ControlSetup: {
+        timerValue: 200000
+      }
+      """
+    When tick handler
+    Then control data should be:
+      """
+      : {
+        readFaults: 0
+      }
+      """
+
+  Scenario: Slow tick rate exceeding threshold triggers watchdog fault
+    When tick handler
+    Given exists data:
+      """
+      ControlSetup: {
+        timerValue: 400000
+      }
+      """
+    When tick handler
+    Then control data should be:
+      """
+      : {
+        readFaults: 67108864
+      }
+      """
+
+  Scenario: Watchdog fault persists after tick rate recovers
+    When tick handler
+    Given exists data:
+      """
+      ControlSetup: {
+        timerValue: 400000
+      }
+      """
+    When tick handler
+    Given exists data:
+      """
+      ControlSetup: {
+        timerValue: 500000
+      }
+      """
+    When tick handler
+    Then control data should be:
+      """
+      : {
+        readFaults: 67108864
+      }
+      """

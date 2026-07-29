@@ -1,5 +1,7 @@
 # 心跳循环看门狗 — 测试设计文档
 
+> **⚠️ 已合并**: 此文档对应的 `watchdog.feature` 已于 2026-07-29 合并至 `tick_paths.feature`（第十三节 C5）。测试用例 TC10-TC12 见 `tick-paths.md`。
+
 > 功能: `simple_watchdog_kick()` in `board/drivers/simple_watchdog.h`
 > 被测路径: 8Hz tick → `simple_watchdog_kick()` → `FAULT_HEARTBEAT_LOOP_WATCHDOG`
 > 调用: `main.c:131` (tick_handler 8Hz 路径，每次调用都执行)

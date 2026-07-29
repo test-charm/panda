@@ -1,5 +1,7 @@
 # 固件签名读取 — 测试设计文档
 
+> **⚠️ 已合并**: 此文档对应的 `signature.feature` 已于 2026-07-29 合并至 `health.feature`（第十三节 B7）。测试用例 TC-S1/TC-S2 见 `health-packet.md`。
+
 > 功能: get firmware signature via `comms_control_handler()` in `board/main_comms.h`
 > 被测接口: USB control request 0xd3 (first 64 bytes) / 0xd4 (second 64 bytes)
 

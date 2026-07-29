@@ -1,5 +1,7 @@
 # CAN 通信重置 — 测试设计文档
 
+> **⚠️ 已合并**: 此文档对应的 `can_comms_reset.feature` 已于 2026-07-29 合并至 `safety_mode.feature`（第十三节 D3）。测试用例 TC9-TC10 见 `safety-mode.md`。
+
 > 功能: `comms_can_reset()` via `comms_control_handler()` in `board/main_comms.h`
 > 被测接口: USB control request 0xc0 (reset communications state)
 

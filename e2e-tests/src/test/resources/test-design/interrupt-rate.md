@@ -1,5 +1,7 @@
 # 中断调用率读取 — 测试设计文档
 
+> **⚠️ 已合并**: 此文档对应的 `interrupt_rate.feature` 已于 2026-07-29 合并至 `fdcan_interrupt.feature`（第十三节 B6）。测试用例见 `fdcan_interrupt.md`。
+
 > 功能: get interrupt call rate via `comms_control_handler()` in `board/main_comms.h`
 > 被测接口: USB control request 0xc4 (get interrupt call rate)
 

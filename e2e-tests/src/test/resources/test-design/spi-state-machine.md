@@ -181,7 +181,29 @@ SPI 驱动通过 e2e 包装文件 `e2e-tests/src/test/c/board/drivers/spi.h` 引
 - 通过相对路径 `#include "../../../../../../board/drivers/spi.h"` 引入真实 SPI 状态机代码
 - 所有业务逻辑（checksum 校验、endpoint 分发、状态转换）运行在生产代码中
 
-## 7. 覆盖率
+## 7. 端点 2 写入 — 环分发 (第十三节 C6 合并)
+
+> 合并自: `endpoint2_write.feature` (6 scenarios)
+> 被测函数: `comms_endpoint2_write()` in `board/main_comms.h`
+
+### 7.1 SPI 路径覆盖 (B4 场景)
+
+SPI DATA_RX endpoint 2 → `comms_endpoint2_write()` 调用已在 B4 场景中覆盖，验证状态机转换到 DACK（state=5, ack=true）。
+
+### 7.2 直接 JNA 调用 — 环分发
+
+通过 `jna_comms_endpoint2_write()` 直接调用，覆盖 `get_ring_by_number()` 的环选择逻辑。
+
+| ID | 场景 | 输入 | 预期 |
+|----|------|------|------|
+| E1 | Ring 0 UART debug | `[00 48 45 4C 4C 4F]` | len=5, bytes="HELLO" |
+| E2 | Ring 0 空数据 | `[00]` | len=0 |
+| E3 | Ring 1 无效 | `[01 41 42 43]` | len=0 |
+| E4 | Ring 2 被过滤 | `[02 58 59 5A]` | len=0 |
+| E5 | Ring 3 被过滤 | `[03 50 51 52]` | len=0 |
+| E6 | Ring 4 SOM debug | `[04 53 4F 4D]` | len=3, bytes="SOM" |
+
+## 8. 覆盖率
 
 > 数据来源: `run_all_coverage.sh` 合并报告 (cuatro + tres + red)
 > 综合行覆盖率: **91.1%** (1989/2183)

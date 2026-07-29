@@ -223,6 +223,63 @@ Feature: Safety Mode Switching
       }
       """
 
+  # ---- CAN comms reset (merged from can_comms_reset.feature) ----
+  # reset_can_comms() clears TX/RX queues, CAN health, and re-initializes CAN.
+  # It does NOT change safety mode or relay state.
+
+  Scenario: Reset CAN comms does not affect safety mode or relay state
+    Given exists data:
+      """
+      SetSafetyMode: {
+        param1: 0
+      }
+      """
+    When control write:
+      """
+      ResetCanComms: {
+        param1: 0
+      }
+      """
+    Then control data should be:
+      """
+      : {
+        safetyTxBlocked: 0
+        stopModeRegs: {
+          gpioAOdr: 520L
+        }
+        rxQueue: []
+        txQueue[0]: []
+      }
+      """
+
+  Scenario: Reset CAN comms preserves ALLOUTPUT safety mode relay state
+    Given exists data:
+      """
+      ControlSetup: {
+        harnessStatus: 1
+      }
+      """
+    Given exists data:
+      """
+      SetSafetyMode: {
+        param1: 17
+      }
+      """
+    When control write:
+      """
+      ResetCanComms: {
+        param1: 0
+      }
+      """
+    Then control data should be:
+      """
+      : {
+        stopModeRegs: {
+          gpioAOdr: 512L
+        }
+      }
+      """
+
   Scenario: Invalid safety mode falls back to SILENT
     Given exists data:
       """

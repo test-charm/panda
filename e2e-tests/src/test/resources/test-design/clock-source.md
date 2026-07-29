@@ -3,6 +3,7 @@
 > 功能: `clock_source_set_timer_params()` + `clock_source_init()`
 > 被测接口: USB control request 0xe6 (`set_timer_params`) + JNA 直接调用 (`clock_source_init`)
 > 覆盖目标: `board/drivers/clock_source.h` (67 行)
+> 合并来源: 第十三节 C2 (clock_source_init.feature)
 
 ## 1. 被测功能流程图
 
@@ -144,7 +145,7 @@ e2e 环境使用假 TIM 寄存器 + 假 GPIO 寄存器 + NVIC 追踪 stub，`reg
 - 输出: ccr1=1270, ccr2=2550, ccr3=1270, arr=2549, ccr4=1275
 - 验证 16-bit 边界拆分
 
-### TC4-9: `clock_source_init` (clock_source_init.feature)
+### TC4-9: `clock_source_init` (clock_source.feature, 第十三节 C2 合并)
 
 #### TC4: enable_channel1=true (全量寄存器)
 - 输入: `clock_source_init(true)`

@@ -246,6 +246,75 @@ Feature: FDCAN Interrupt-Driven Processing (C3)
       }
       """
 
+  # ---- interrupt rate retrieval (merged from interrupt_rate.feature) ----
+  # get_interrupt_rate(uint16_t interrupt_index) returns the call rate
+  # for a registered interrupt handler as a 4-byte little-endian value.
+
+  Scenario: Get interrupt rate returns zero-length response for out-of-range index
+    When control write:
+      """
+      UsbControlRequest: {
+        request: -60y            # 0xc4
+        param1: 200
+        param2: 0
+      }
+      """
+    Then control data should be:
+      """
+      : {
+        respBuffer: {
+          len: 0
+        }
+      }
+      """
+
+  Scenario: Get interrupt rate returns 4-byte LE value for valid index with preset rate
+    Given exists data:
+      """
+      ControlSetup: {
+        interruptIndex: 7
+        interruptCallRate: 0x12345678
+      }
+      """
+    When control write:
+      """
+      GetInterruptRate: {
+        param1: 7
+      }
+      """
+    Then control data should be:
+      """
+      : {
+        respBuffer= {
+          len: 4
+          bytes[0]: 0x78
+          bytes[1]: 0x56
+          bytes[2]: 0x34
+          bytes[3]: 0x12
+        }
+      }
+      """
+
+  Scenario: Get interrupt rate returns all zero bytes for zero call rate
+    When control write:
+      """
+      GetInterruptRate: {
+        param1: 0
+      }
+      """
+    Then control data should be:
+      """
+      : {
+        respBuffer= {
+          len: 4
+          bytes[0]: 0y
+          bytes[1]: 0y
+          bytes[2]: 0y
+          bytes[3]: 0y
+        }
+      }
+      """
+
   Scenario: can_rx increments safety_rx_invalid when safety_rx_hook rejects frame
     # TOYOTA mode has rx_checks for 0x260; panda XOR checksum ≠ Toyota sum checksum → rejected
     Given exists data:

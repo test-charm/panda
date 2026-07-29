@@ -1,9 +1,10 @@
 # Tick 路径边缘行为 — 测试设计文档
 
-> 功能: `fan_tick()` has_fan=false 分支、`heartbeat_counter` 溢出封顶、`safety_mode_cnt` 溢出回绕、harness reinit 路径
-> 被测路径: `board/drivers/fan.h:22`, `board/main.c:144-152` (8Hz), `board/main.c:179-181,257` (1Hz)
-> 实现来源: 真实 `board/main.c` + `board/drivers/fan.h` (e2e include 生产代码)
-> 新增 JNA: `jna_set_heartbeat_counter`, `jna_set_safety_mode_cnt`, `jna_get_safety_mode_cnt`
+> 功能: `fan_tick()` has_fan=false 分支、`heartbeat_counter` 溢出封顶、`safety_mode_cnt` 溢出回绕、harness reinit 路径、register divergence、heartbeat loop watchdog
+> 被测路径: `board/drivers/fan.h:22`, `board/main.c:144-152` (8Hz), `board/main.c:179-181,257` (1Hz), `board/drivers/registers.h` (1Hz), `board/drivers/simple_watchdog.h` (8Hz)
+> 实现来源: 真实 `board/main.c` + `board/drivers/fan.h` + `board/drivers/registers.h` + `board/drivers/simple_watchdog.h` (e2e include 生产代码)
+> 新增 JNA: `jna_set_heartbeat_counter`, `jna_set_safety_mode_cnt`, `jna_get_safety_mode_cnt`, `jna_set_register_divergent`, `jna_set_microsecond_timer`
+> 合并来源: 第十三节 C4+C5 (register_divergence.feature + watchdog.feature)
 
 ## 1. 被测功能数据流
 
@@ -138,20 +139,70 @@ harness.status != prev_harness_status?
 - 路径: harness.status≠prev → set_safety_mode(2) → heartbeat_counter=0 → set_power_save_state(false) 幂等
 - 场景: `tick_paths.feature:117`
 
+### TC7: Non-divergent registers do not trigger fault
+- 前置: ControlSetup { registerDivergent: 0 }
+- 执行: `jna_call_tick_handler` × 8 (1 次 1Hz, 触发 check_registers)
+- 预期: `readFaults=0`
+- 路径: check_registers() → 所有 shadow==actual → 不触发 fault
+- 合并自: register_divergence.feature (第十三节 C4)
+- 场景: `tick_paths.feature:143`
+
+### TC8: Divergent register triggers FAULT_REGISTER_DIVERGENT
+- 前置: ControlSetup { registerDivergent: 1 }
+- 执行: `jna_call_tick_handler` × 8
+- 预期: `readFaults=262144` (bit 18)
+- 路径: jna_set_register_divergent(1) → shadow=0xAAAA, actual=0x5555 → mismatched → fault_occurred(FAULT_REGISTER_DIVERGENT)
+- 合并自: register_divergence.feature (第十三节 C4)
+- 场景: `tick_paths.feature:158`
+
+### TC9: Register divergence fault persists after register is fixed
+- 前置: registerDivergent=1 → tick×8 → registerDivergent=0 → tick×8
+- 预期: `readFaults=262144` (fault 仍存在)
+- 路径: Temporary fault 在 fault_occurred 中设置，fault_recovered 无法清除（非 relay_malfunction 临时故障路径）
+- 合并自: register_divergence.feature (第十三节 C4)
+- 场景: `tick_paths.feature:173`
+
+### TC10: Normal tick rate does not trigger watchdog
+- 前置: 先 tick → ControlSetup { timerValue: 200000 } → 再 tick
+- 预期: `readFaults=0`
+- 路径: simple_watchdog_kick() → et=200ms < 375ms threshold → 不触发 fault
+- 合并自: watchdog.feature (第十三节 C5)
+- 场景: `tick_paths.feature:201`
+
+### TC11: Slow tick rate triggers FAULT_HEARTBEAT_LOOP_WATCHDOG
+- 前置: 先 tick → ControlSetup { timerValue: 400000 } → 再 tick
+- 预期: `readFaults=67108864` (bit 26)
+- 路径: simple_watchdog_kick() → et=400ms > 375ms → print + fault_occurred(FAULT_HEARTBEAT_LOOP_WATCHDOG)
+- 合并自: watchdog.feature (第十三节 C5)
+- 场景: `tick_paths.feature:217`
+
+### TC12: Watchdog fault persists after tick rate recovers
+- 前置: tick → timerValue=400000 → tick → timerValue=500000 → tick
+- 预期: `readFaults=67108864` (fault 仍存在)
+- 路径: fault 已设置→后续 tick 不改变 fault 状态
+- 合并自: watchdog.feature (第十三节 C5)
+- 场景: `tick_paths.feature:233`
+
 ## 6. 覆盖检查
 
-| 条件 | TC1 @red | TC2 | TC3 | TC4 | TC5 | TC6 |
-|------|----------|-----|-----|-----|-----|-----|
-| `has_fan` — false (fan_tick 体跳过) | ✅ | — | — | — | — | — |
-| `heartbeat_counter < UINT32_MAX` — false (封顶) | — | ✅ | — | — | — | — |
-| `heartbeat_counter < UINT32_MAX` — true (递增) | — | — | ✅ | — | — | — |
-| `heartbeat_counter += 1U` 执行 | — | — | ✅ | — | — | — |
-| `safety_mode_cnt += 1U` 自然回绕 | — | — | — | ✅ | — | — |
-| `harness.status != prev_harness_status` — true | — | — | — | — | ✅ | ✅ |
-| `set_safety_mode()` 心跳复位 (car mode) | — | — | — | — | ✅ | ✅ |
-| `set_power_save_state(true)` 幂等 | — | — | — | — | ✅ | — |
-| `set_power_save_state(false)` 幂等 | — | — | — | — | — | ✅ |
-| fan_state 读验证 (power, cooldown) | ✅ | — | — | — | — | — |
+| 条件 | TC1 @red | TC2 | TC3 | TC4 | TC5 | TC6 | TC7 | TC8 | TC9 | TC10 | TC11 | TC12 |
+|------|----------|-----|-----|-----|-----|-----|-----|-----|-----|------|------|------|
+| `has_fan` — false (fan_tick 体跳过) | ✅ | — | — | — | — | — | — | — | — | — | — | — |
+| `heartbeat_counter < UINT32_MAX` — false (封顶) | — | ✅ | — | — | — | — | — | — | — | — | — | — |
+| `heartbeat_counter < UINT32_MAX` — true (递增) | — | — | ✅ | — | — | — | — | — | — | — | — | — |
+| `heartbeat_counter += 1U` 执行 | — | — | ✅ | — | — | — | — | — | — | — | — | — |
+| `safety_mode_cnt += 1U` 自然回绕 | — | — | — | ✅ | — | — | — | — | — | — | — | — |
+| `harness.status != prev_harness_status` — true | — | — | — | — | ✅ | ✅ | — | — | — | — | — | — |
+| `set_safety_mode()` 心跳复位 (car mode) | — | — | — | — | ✅ | ✅ | — | — | — | — | — | — |
+| `set_power_save_state(true)` 幂等 | — | — | — | — | ✅ | — | — | — | — | — | — | — |
+| `set_power_save_state(false)` 幂等 | — | — | — | — | — | ✅ | — | — | — | — | — | — |
+| fan_state 读验证 (power, cooldown) | ✅ | — | — | — | — | — | — | — | — | — | — | — |
+| check_registers — 非 divergent | — | — | — | — | — | — | ✅ | — | — | — | — | — |
+| check_registers — divergent 触发 fault | — | — | — | — | — | — | — | ✅ | — | — | — | — |
+| check_registers — fault 持久 | — | — | — | — | — | — | — | — | ✅ | — | — | — |
+| simple_watchdog_kick — 正常速率 | — | — | — | — | — | — | — | — | — | ✅ | — | — |
+| simple_watchdog_kick — 超时触发 | — | — | — | — | — | — | — | — | — | — | ✅ | — |
+| simple_watchdog_kick — fault 持久 | — | — | — | — | — | — | — | — | — | — | — | ✅ |
 
 ✅ 所有目标分支、边界条件和边缘路径已覆盖。
 
@@ -171,3 +222,7 @@ harness.status != prev_harness_status?
 | `main.c:179` | `if (heartbeat_counter < UINT32_MAX)` | false(TC2) / true(TC3) 全覆盖 |
 | `main.c:180` | `heartbeat_counter += 1U` | TC3 覆盖, TC2 跳过 |
 | `main.c:257` | `safety_mode_cnt += 1U` | TC4 覆盖 (溢出回绕) |
+| `registers.h:57-70` | `check_registers()` loop body | TC7 (非 divergent), TC8 (divergent fault), TC9 (fault persistance) 全路径 |
+| `registers.h:61` | `fault_occurred(FAULT_REGISTER_DIVERGENT)` | TC8/TC9 覆盖 |
+| `simple_watchdog.h:9-14` | `simple_watchdog_kick()` 阈值判断 | TC10 (正常), TC11 (超时), TC12 (持久) 全路径 |
+| `simple_watchdog.h:11` | `fault_occurred(FAULT_HEARTBEAT_LOOP_WATCHDOG)` | TC11/TC12 覆盖 |

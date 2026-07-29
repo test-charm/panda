@@ -221,3 +221,57 @@ get packet versions (0xdd):
 | CAN_INIT_TIMEOUT_MS == 500 | ✅ |
 
 ✅ 代码路径已覆盖。
+
+---
+
+## 固件签名读取 (0xd3 + 0xd4)
+
+> 合并自: `signature.md` (第十三节 B7)
+
+### 被测功能流程图
+
+```
+get signature chunk (0xd3 / 0xd4):
+  [controlWrite(0xd3/d4, chunk_idx, 0)]
+           │
+           ▼
+  chunk = signature_chunks[chunk_idx]  (预先通过 jna_set_signature_chunk 注入)
+  memcpy(resp, chunk, 64)
+  resp_len = 64
+           │
+           ▼
+        (done)
+```
+
+### 输入因子
+
+| 因子 | 类型 | 等价类 | 取值 |
+|------|------|--------|------|
+| `request` | uint8 | 0xd3 (chunk 0), 0xd4 (chunk 1) | 0xd3, 0xd4 |
+| `signatureChunkN` (前置) | byte[64] | 64 字节签名数据 | "AA...DD", "01...04" |
+
+### 输出因子
+
+| 输出 | 类型 | 说明 |
+|------|------|------|
+| respBuffer.len | int | resp_len = 64 |
+| respBuffer.bytes[0..63] | List\<Byte\> | 64 字节签名分块 |
+
+### 测试用例
+
+**TC-S1**: 获取第一个 64 字节 (0xd3)
+- 前置: codeLen=256, signatureChunk0 前 32 字节=0xAA, 后 32 字节=0xDD
+- 输出: resp_len=64, bytes[0]=0xAA, bytes[31]=0xAA, bytes[32]=0xDD, bytes[63]=0xDD
+
+**TC-S2**: 获取第二个 64 字节 (0xd4)
+- 前置: codeLen=256, signatureChunk1 前 32 字节=0x01, 后 32 字节=0x04
+- 输出: resp_len=64, bytes[0]=0x01, bytes[31]=0x01, bytes[32]=0x04, bytes[63]=0x04
+
+### 覆盖检查
+
+| 条件 | TC-S1 | TC-S2 |
+|------|:--:|:--:|
+| request == 0xd3 + chunk 0 | ✅ | — |
+| request == 0xd4 + chunk 1 | — | ✅ |
+
+✅ 全部签名分块路径已覆盖。

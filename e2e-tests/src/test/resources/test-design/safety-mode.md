@@ -104,20 +104,34 @@ can_clear:  -   -    bus1      -           -
 - 输出: txQueue[0]=[], rxQueue[0] 含 returned:true echo 消息 (C3: process_can echo), fdcanRegs<<0,1,2>> 所有寄存器被 can_init_all() 重初始化
 - 路径: set_safety_mode → set_safety_hooks → can_init_all() → 所有 FDCAN 寄存器恢复默认值, TX 队列清空
 
+### TC9-10: CAN comms 重置 (合并自 can_comms_reset.feature, 第十三节 D3)
+
+#### TC9: 重置不影响安全模式或继电器状态
+- 输入: 先 SetSafetyMode(SILENT) → ResetCanComms
+- 输出: safetyTxBlocked=0, gpioAOdr=520L (SILENT 模式), rxQueue/txQueue 全空
+- 路径: reset_can_comms() → CAN 队列清空 + CAN 健康复位 → 不影响 safety_mode/relay
+
+#### TC10: 重置保留 ALLOUTPUT 安全模式继电器状态
+- 输入: harnessStatus=1 → SetSafetyMode(ALLOUTPUT) → ResetCanComms
+- 输出: gpioAOdr=512L (intercept on, ALLOUTPUT 模式)
+- 路径: reset_can_comms() → 不改变 relay 状态
+
 ## 5. 覆盖检查
 
-| 条件 | TC1 | TC2 | TC3 | TC4 | TC5 | TC6 | TC7 | TC8 |
-|------|-----|-----|-----|-----|-----|-----|-----|-----|
-| SILENT branch | ✅ | — | — | — | — | — | ✅ | — |
-| NOOUTPUT branch | — | ✅ | — | — | — | — | — | — |
-| ALLOUTPUT branch | — | — | ✅ | — | — | — | — | ✅ |
-| ELM327 param=0 | — | — | — | ✅ | — | — | — | — |
-| ELM327 param≠0 | — | — | — | — | ✅ | — | — | — |
-| default (car) branch | — | — | — | — | — | ✅ | — | — |
-| set_hooks error fallback | — | — | — | — | — | — | ✅ | — |
-| can_init_all() 重初始化 | — | — | — | — | — | — | — | ✅ |
-| 所有 mode 等价类覆盖 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| param 等价类覆盖 | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | — |
+| 条件 | TC1 | TC2 | TC3 | TC4 | TC5 | TC6 | TC7 | TC8 | TC9 | TC10 |
+|------|-----|-----|-----|-----|-----|-----|-----|-----|-----|------|
+| SILENT branch | ✅ | — | — | — | — | — | ✅ | — | — | — |
+| NOOUTPUT branch | — | ✅ | — | — | — | — | — | — | — | — |
+| ALLOUTPUT branch | — | — | ✅ | — | — | — | — | ✅ | — | ✅ |
+| ELM327 param=0 | — | — | — | ✅ | — | — | — | — | — | — |
+| ELM327 param≠0 | — | — | — | — | ✅ | — | — | — | — | — |
+| default (car) branch | — | — | — | — | — | ✅ | — | — | — | — |
+| set_hooks error fallback | — | — | — | — | — | — | ✅ | — | — | — |
+| can_init_all() 重初始化 | — | — | — | — | — | — | — | ✅ | — | — |
+| reset_can_comms 队列清空 | — | — | — | — | — | — | — | — | ✅ | ✅ |
+| reset_can_comms 保留 relay | — | — | — | — | — | — | — | — | ✅ | ✅ |
+| 所有 mode 等价类覆盖 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | — | — |
+| param 等价类覆盖 | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | — | — | — |
 
 ✅ 所有条件分支、等价类和副作用（can_init_all 重初始化）已覆盖。
 

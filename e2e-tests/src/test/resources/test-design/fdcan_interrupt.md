@@ -67,3 +67,21 @@ C3 完成后，`board/stm32h7/llfdcan.h` + `board/drivers/fdcan.h` 共 491 行�
 | `fdcan.h:63` | `#ifdef` | `process_can()` 指针安全 FIFO 访问（C3） |
 | `fdcan.h:140` | `#ifdef` | `can_rx()` 指针安全 FIFO 访问（C3） |
 | `fdcan.h:214` | `#ifdef` | **`can_rx()` 手动清除 RXF0S 防止死循环**（E.4 新增） |
+
+---
+
+## 中断调用率读取 (0xc4)
+
+> 合并自: `interrupt_rate.md` (第十三节 B6)
+
+### 被测功能
+
+`get_interrupt_rate(uint16_t interrupt_index)` — 返回注册中断处理器的调用率（4 字节 LE）
+
+### 测试用例
+
+| # | 场景 | 输入 | 验证点 |
+|---|------|------|--------|
+| 1 | 越界索引返回空 | request=0xc4, param1=200 | respBuffer.len=0 |
+| 2 | 有效索引返回 LE 值 | interruptIndex=7, interruptCallRate=0x12345678 | resp_len=4, bytes=[0x78,0x56,0x34,0x12] |
+| 3 | 零调用率返回全零 | interruptIndex=0, 未预设 | resp_len=4, bytes=[0,0,0,0] |

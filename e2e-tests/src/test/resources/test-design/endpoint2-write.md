@@ -1,5 +1,7 @@
 # SPI/USB Endpoint 2 批量写入 — 测试设计文档
 
+> **⚠️ 已合并**: 此文档对应的 `endpoint2_write.feature` 已于 2026-07-29 合并至 `spi_state_machine.feature`（第十三节 C6）。测试用例 E1-E6 见 `spi-state-machine.md`。
+
 > 功能: `comms_endpoint2_write()` in `board/main_comms.h`
 > 被测路径: SPI endpoint 2 / USB endpoint 2 批量写入 → UART ring
 > 调用位置: `board/drivers/spi.h:159` (SPI), `board/drivers/usb.h:674` (USB)

@@ -107,7 +107,7 @@ e2e-tests/
 │   │       ├── UsbControlRequests.java  # 33 个 USB 控制请求 spec
 │   │       └── ControlSetups.java       # 前置数据 spec
 │   └── resources/
-│       ├── features/                # 42 个 feature 文件（第十三节合并后减少 10 个）
+│       ├── features/                # 35 个 feature 文件（第十三节合并后减少 17 个）
 │       └── test-design/             # 测试设计文档
 ```
 
@@ -115,48 +115,42 @@ e2e-tests/
 
 | 功能 | Feature | 场景 | 验证方式 |
 |------|---------|------|---------|
-| 安全模式 | `safety_mode.feature` | 8 | FDCAN CCCR, gpioAOdr |
+| 安全模式 | `safety_mode.feature` | 10 | FDCAN CCCR, gpioAOdr |
 | CAN 回环 | `can_loopback.feature` | 4 | FDCAN TEST/MON |
 | 心跳 | `heartbeat.feature` | 6 | heartbeat_* 变量 |
 | 心跳丢失 | `heartbeat_loss.feature` | 9 | safetyState + powerSaveTracking 通过 jna_call_tick_handler |
-| 健康/版本数据包 | `health.feature` | 9 | 合并了 health + get_version + packet_versions (第十三节 B2+B4) |
+| 健康/版本数据包 | `health.feature` | 11 | 合并了 health + get_version + packet_versions + signature (第十三节 B2+B4+B7) |
 | CAN 模式 | `can_mode.feature` | 6 | stopModeRegs (gpioBModer/gpioBOdr/gpioBPupdr) |
 | 继电器 | `relay.feature` | 6 | stopModeRegs.gpioAOdr (PA3/PA9) |
 | 省电模式 | `power_save.feature` | 15 | powerSaveTracking + stopModeRegs (gpioBOdr/gpioDOdr/gpioGOdr) |
 | 替代体验 | `alternative_experience.feature` | 5 | alternativeExperience |
 | 警笛 | `siren.feature` | 4 | stopModeRegs.gpioBOdr (PB14) via jna_tick_siren + @red unused 验证 ✅ D.2 |
-| CAN 通信重置 | `can_comms_reset.feature` | 2 | safetyTxBlocked + stopModeRegs.gpioAOdr |
+| 系统复位与 Bootloader | `system_reset_bootloader.feature` | 4 | 合并了 reset_st + bootloader (第十三节 D4+D5) |
 | CAN 通信序列化 | `can_comms.feature` | 14 | USB ep3 out → comms_can_write → rxQueue, USB ep1 in → comms_can_read → usbEp1InBytes (含 overflow 分片 5 场景 + 队列指针回绕 5 场景, Phase D.3 + C1 ✅) |
 | CAN 环形缓冲 | `can_ring_clear.feature` | 4 | rxQueue/txQueue |
-| FDCAN 中断处理 | `fdcan_interrupt.feature` | 10 | process_can → TXBAR/IR/rxQueue, 0xff 守卫, can_rx 全路径 (标准帧/扩展帧/CAN-FD/BRS/FIFO满/转发/IRQ错误/safety_rx_invalid) ✅ C3 + E.4 |
+| FDCAN 中断处理 | `fdcan_interrupt.feature` | 13 | process_can → TXBAR/IR/rxQueue, 0xff 守卫, can_rx 全路径 (标准帧/扩展帧/CAN-FD/BRS/FIFO满/转发/IRQ错误/safety_rx_invalid), interrupt_rate 合并 (第十三节 B6) ✅ C3 + E.4 |
 | libc 工具函数 | `libc.feature` | 4 | lastMemcmpResult / delay 不挂死 |
 | IR 功率 | `ir_power.feature` | 4 | irPwm (TIM1 CCR1) + @red unused 验证 ✅ D.2 |
 | CAN 波特率 | `can_bitrate.feature` | 3 | FDCAN NBTP/CCCR/IE/TXBC/RXF0C |
 | CAN FD 配置 | `can_fd_data_bitrate.feature` | 9 | 合并了 FD 数据波特率 + Non-ISO + 自动切换 (第十三节 D1+D2) |
-| 时钟源 | `clock_source.feature` | 3 | clockSource (TIM1/TIM8 CCR) |
-| 时钟源初始化 | `clock_source_init.feature` | 6 | clockSourceInit (TIM1×12, TIM8×8, GPIO×4, NVIC×2) |
+| 时钟源 | `clock_source.feature` | 9 | clockSource (TIM1/TIM8 CCR) + clockSourceInit (第十三节 C2) |
 | 板级初始化 | `board_init.feature` | 7 | boardInit (GPIO MODER/OTYPER/OSPEEDR/PUPDR/AFR/ODR ×45, PWR_CR3) — N2 完成 |
 | 定时器/风扇 | `timer_fan.feature` | 2 | 合并覆盖 microsecond_timer (第十三节 A1) |
 | 风扇功率 | `fan_power.feature` | 10 | fanPower + stopModeRegs.gpioDOdr (PD3 板级验证 + unused JNA ✅ D.2) |
 | 风扇冷却 | `fan_cooldown.feature` | 3 | fanCooldownCounter + fanPower 通过 jna_call_tick_handler |
-| 系统复位与 Bootloader | `system_reset_bootloader.feature` | 4 | 合并了 reset_st + bootloader (第十三节 D4+D5) |
 | 深度休眠 | `deep_sleep.feature` | 13 | stopModeRegs (25+ 假寄存器: GPIO/ADC/RCC/SYSCFG/EXTI/PWR/SCB/NVIC) |
 | SOM GPIO | `som_gpio.feature` | 2 | respBuffer + @red unused 验证 ✅ D.2 |
 | CAN 健康 | `can_health.feature` | 6 | canHealth0 (PSR/ECR 提取) |
-| 中断调用率 | `interrupt_rate.feature` | 3 | respBuffer (4-byte LE / 空) |
-| 固件签名 | `signature.feature` | 2 | respBuffer (64 bytes 分块) |
 | UART 读取 | `uart_read.feature` | 3 | respBuffer (字符读取 / 空) |
 | Bootkick SOM 复位 | `bootkick.feature` | 14 | tick_handler FSM (state/waitingCountdown/resetCountdown/resetTriggered) + stopModeRegs (gpioAOdr/gpioCOdr) 通过 jna_call_tick_handler |
 | 继电器故障 | `relay_malfunction.feature` | 3 | readFaults (FAULT_RELAY_MALFUNCTION 边沿检测) |
 | 永久故障 | `permanent_fault.feature` | 2 | readFaults + faultStatus (FAULT_STATUS_PERMANENT 不可恢复) |
-| 看门狗 | `watchdog.feature` | 3 | readFaults (FAULT_HEARTBEAT_LOOP_WATCHDOG, 直接 include 生产代码 `simple_watchdog.h`) |
-| 寄存器发散 | `register_divergence.feature` | 3 | readFaults (FAULT_REGISTER_DIVERGENT, 真实 `registers.h` + `jna_set_register_divergent` 注入) |
 | WFI 空闲路径 | `wfi_idle.feature` | 3 | stopModeRegs (wfiEntered + scbScr, 通过 `jna_process_wfi_idle`) |
 | ignition_can 自动复位 | `ignition_can.feature` | 2 | ignitionCan (通过 `jna_set_ignition_can` + `jna_call_tick_handler`) |
 | 线束翻转检测 | `harness_detect.feature` | 8 | harnessStatus (生产 `harness_detect_orientation()` ✅ B5 + ADC 拦截桩) |
-| Tick 路径 | `tick_paths.feature` | 6 | has_fan=false, heartbeat_counter 溢出, safety_mode_cnt 溢出, harness reinit (P1) |
+| Tick 路径 | `tick_paths.feature` | 12 | has_fan=false, heartbeat_counter 溢出, safety_mode_cnt 溢出, harness reinit + register_divergence + watchdog (P1 + C4+C5) |
 | SPI Version Packet + Device ID | `spi_version_packet.feature` | 5 | spiVersionResult + serial/provision (第十三节 B1+B3+B5) |
-| SPI 状态机 | `spi_state_machine.feature` | 21 | spiStateResult (生产 `spi_rx_done()` + `spi_tx_done()` 全状态覆盖 ✅ Phase F.5) |
+| SPI 状态机 | `spi_state_machine.feature` | 27 | spiStateResult (生产 `spi_rx_done()` + `spi_tx_done()` 全状态覆盖 + endpoint2_write 合并 (第十三节 C6) ✅ Phase F.5) |
 
 ## C 代码覆盖率
 
