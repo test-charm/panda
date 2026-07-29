@@ -2,6 +2,7 @@ package com.panda.e2e;
 
 import com.panda.e2e.spec.CanRxSendRequests;
 import com.panda.e2e.spec.CanSendRequests;
+import com.panda.e2e.spec.SpiControlRequests;
 import com.panda.e2e.spec.UsbControlRequests;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
@@ -93,6 +94,29 @@ public class PandaSteps {
         client.setFdcanRxf0s(request.rxf0sBus, val);
         client.setFdcanIr(request.irBus, request.rf0n != 0 ? 1 : 0);
         client.canRx(request.canNumber);
+    }
+
+    @When("spi operates:")
+    public void spiOperates(String expression) {
+        var jFactory = createJFactoryWithSpec(SpiControlRequests.SpiControlRequest.class);
+        jFactory.useDAL().createAll(expression);
+        var request = jFactory.type(SpiControlRequest.class).query();
+        client.setSpiState(request.state);
+        client.resetSpiErrorCount();
+        client.spiWriteRxBuf(hexToBytes(request.rxBufHex), request.rxBufOffset);
+        client.spiRxDone();
+        if (request.txDone) {
+            client.spiTxDone(false);
+            client.setSpiCanTxReady(request.txReady);
+            client.spiWriteRxBuf(hexToBytes(request.rxDataBufHex), request.rxDataBufOffset);
+            client.spiRxDone();
+        }
+    }
+
+    public static class SpiControlRequest {
+        public int state, rxBufOffset, rxDataBufOffset;
+        public String rxBufHex, rxDataBufHex;
+        public boolean txDone, txReady;
     }
 
     public static class CanRxSendRequest {
@@ -226,6 +250,48 @@ public class PandaSteps {
     @When("set forwarding bus {int} to bus {int}")
     public void setForwardingBus(int bus, int fwdBus) {
         client.setBusForwardingBus(bus, fwdBus);
+    }
+
+    // ---- SPI state machine steps (Phase F.5) ----
+
+    @When("spi rx done")
+    public void spiRxDone() {
+        client.spiRxDone();
+    }
+
+    @When("spi tx done")
+    public void spiTxDone() {
+        client.spiTxDone(false);
+    }
+
+    @When("spi tx done with reset")
+    public void spiTxDoneWithReset() {
+        client.spiTxDone(true);
+    }
+
+    @When("spi write rx buf offset {int} with hex: {string}")
+    public void spiWriteRxBuf(int offset, String hexExpression) {
+        client.spiWriteRxBuf(hexToBytes(hexExpression), offset);
+    }
+
+    @When("spi set state {int}")
+    public void spiSetState(int state) {
+        client.setSpiState(state);
+    }
+
+    @When("spi set can tx ready")
+    public void spiSetCanTxReady() {
+        client.setSpiCanTxReady(true);
+    }
+
+    @When("spi clear can tx ready")
+    public void spiClearCanTxReady() {
+        client.setSpiCanTxReady(false);
+    }
+
+    @When("spi reset error count")
+    public void spiResetErrorCount() {
+        client.resetSpiErrorCount();
     }
 
     public static class ControlSetup {

@@ -1,11 +1,11 @@
 # 端到端测试未覆盖功能清单
 
-> 最后更新: 2026-07-28
-> 基准 e2e 场景数: 203 (cuatro 默认, 含 tres/red 板型特定场景)
-> 综合行覆盖率: **80.5%** (1738/2160 lines), 34 files
+> 最后更新: 2026-07-29
+> 基准 e2e 场景数: 224 (cuatro 默认, 含 tres/red 板型特定场景)
+> 综合行覆盖率: **91.1%** (1989/2183 lines), 35 files
 > 数据来源: `e2e-tests/run_all_coverage.sh` (cuatro + tres + red 合并)
 >
-> **本次更新**: E.4 fdcan.h can_rx() 全路径覆盖完成（+8 场景, 覆盖率从 80.5% → ~83.9%）；C3 fdcan.h + llfdcan.h 去桩化完成，覆盖率基线重置（34 文件 / 2160 行，新增真实代码 ~650 行）；新增 §十二「低于 80% 文件提升分析」；Phase D.1 完成 (config.h → 100%)；Phase D.2 完成 (unused_funcs.h → 100%)；Phase D.3 完成 (can_comms.h → 100%)
+> **本次更新**: Phase F.5 spi.h 全状态机覆盖完成（+21 场景, 覆盖率从 83.9% → 91.1%, spi.h 从 13.5% → 94.2%）；E.4 fdcan.h can_rx() 全路径覆盖完成；Phase D.1/D.2/D.3 全部完成
 
 ---
 
@@ -105,7 +105,7 @@ board/boards/unused_funcs.h           — 未使用功能的空桩实现
 | `board/drivers/gpio.h` | 84.5% (60/71) | `set_gpio_analog`、`restore_gpio` 部分路径 |
 | `board/drivers/drivers.h` | 80.0% (4/5) | 1 行未覆盖 |
 | `board/drivers/fdcan.h` | ~97% (~175/181) | ✅ E.4 已完成 |
-| `board/drivers/spi.h` | 13.5% (21/156) | 🔴 SPI 状态机全未覆盖 — §十二.1 |
+| `board/drivers/spi.h` | **94.2%** (147/156) | ✅ Phase F.5 已完成 — spi_rx_done + spi_tx_done 全状态机覆盖 (仅 spi_init 8行 + 防御 print 4行未覆盖) |
 | `board/libc.h` | 83.9% (52/62) | delay + assert_fatal(false) 不可覆盖 |
 | `board/sys/faults.h` | 100% (20/20) | ✅ N3 已完成 |
 | `board/sys/power_saving.h` | 96.7% (89/92) | ✅ B1 完成 |
@@ -1052,45 +1052,44 @@ C3 完成后，7 个文件覆盖率低于 80%。以下按**提升难度 × 收�
 └──────────────────────┴───────────┴────────────┴────────────┘
 ```
 
-### 十二.1 `board/drivers/spi.h` — 13.5% (21/156) 🔴 高难度
+### 十二.1 `board/drivers/spi.h` — **94.2%** (147/156) ✅ Phase F.5 已完成 (2026-07-29)
 
-**已覆盖**: `spi_version_packet()` (VERSION 请求处理) + `can_tx_comms_resume_spi()`（通过 `refresh_can_tx_slots_available` 间接调用）。
+**已覆盖**: `spi_version_packet()` (VERSION), `validate_checksum()` (全场景), `spi_rx_done()` 全状态机 (HEADER + DATA_RX 全 endpoint), `spi_tx_done()` 全状态转换, `can_tx_comms_resume_spi()`。
 
-**未覆盖**: 整个 SPI 状态机 — `spi_init()`、`validate_checksum()`、`spi_rx_done()`（148 行大状态机）、`spi_tx_done()`。
-
-**为什么难**: SPI 用于 panda ↔ comma four (SOM) 通信。e2e 测试主要走 USB 路径。SPI DMA 回调 (`spi_rx_done`/`spi_tx_done`) 无法在 e2e 中自然触发。
-
-**可测试路径**（需模拟 DMA 完成回调）:
-
+**spi_rx_done() 状态机 — 全部 ✅**:
 ```
-spi_rx_done() 状态机分支:
-├── VERSION 匹配 → spi_version_packet()     ← ✅ 已覆盖
+├── VERSION 匹配 → spi_version_packet()        ← ✅ B9
 ├── SPI_STATE_HEADER:
-│   ├── 有效 sync + checksum → ACK        ← ❌
-│   └── 无效 sync/checksum → NACK         ← ❌
-└── SPI_STATE_DATA_RX:
-    ├── checksum 无效 → NACK               ← ❌
-    ├── endpoint 0 (控制传输)              ← ❌
-    ├── endpoint 1/0x81 (CAN read)        ← ❌
-    ├── endpoint 2 (endpoint2 write)      ← ❌
-    ├── endpoint 3 (CAN write)            ← ❌
-    │   ├── can_tx_ready → 发送
-    │   └── !can_tx_ready → NACK
-    ├── endpoint 0xAB (测试: device→panda) ← ❌
-    └── endpoint 0xAC (测试: NACK)         ← ❌
+│   ├── 有效 sync + checksum → ACK            ← ✅ A1
+│   └── 无效 sync/checksum → NACK             ← ✅ A2,A3
+├── SPI_STATE_DATA_RX:
+│   ├── checksum 无效 → NACK                  ← ✅ B1
+│   ├── endpoint 0 (控制传输)                  ← ✅ B10 (有效), B11 (数据不足)
+│   ├── endpoint 1/0x81 (CAN read)            ← ✅ B5,B6
+│   ├── endpoint 2 (endpoint2 write)          ← ✅ B4
+│   ├── endpoint 3 (CAN write)                ← ✅ B7 (ready), B8 (!ready)
+│   ├── endpoint 0xAB (test echo)             ← ✅ B2
+│   ├── endpoint 0xAC (test NACK)             ← ✅ B3
+│   ├── unexpected endpoint                   ← ✅ B12
+│   └── RX unexpected state + no response     ← ✅ B13
+└── 尾部: NACK/DACK response, error_count     ← ✅ ALL
 ```
 
-`spi_tx_done()` 状态:
+**spi_tx_done() 状态 — 全部 ✅**:
 ```
-├── HEADER_NACK / reset → 重置到 HEADER   ← ❌
-├── HEADER_ACK → 进入 DATA_RX             ← ❌
-├── DATA_TX → 重置到 HEADER               ← ❌
-└── 意外状态 → 重置 + print              ← ❌
+├── HEADER_NACK / reset → HEADER              ← ✅ C1,C5
+├── HEADER_ACK → DATA_RX                      ← ✅ C2
+├── DATA_TX → HEADER                          ← ✅ C3
+└── 意外状态 → HEADER + print                 ← ✅ C4
 ```
 
-**提升方案**: 在 feature 文件中模拟 SPI 事务。需要 `spi_buf_rx` 和 `spi_buf_tx` 可读写（已在 JNA 中暴露），然后直接调用 `spi_rx_done()` 和 `spi_tx_done()` 并验证 `spi_state` 转换。
+**未覆盖 (9 行, 5.8%)**: `spi_init()` (8行, 硬件 DMA 初始化) + CAN read/write 防御性 print (2行)。
 
-**预估收益**: +135 行（覆盖率 +6.2%），但投入大，优先级低。
+**实施要点**:
+1. `libpanda.c`: 新增 10 个 JNA 函数（`jna_spi_get/set_state`, `jna_spi_write_rx_buf`, `jna_spi_read_tx_buf`, `jna_spi_rx_done`, `jna_spi_tx_done`, `jna_spi_get/reset_error_count`, `jna_spi_get/set_can_tx_ready`）
+2. `PandaClient.java`: 新增 `SpiStateResult` (state + errorCount + rx(SpiRxDetail)) DTO
+3. `PandaSteps.java`: 新增 10 个 When 步骤
+4. `spi_state_machine.feature`: 21 个场景，覆盖 spi_rx_done 13 个 + spi_tx_done 5 个 + 边界 3 个
 
 ---
 
@@ -1233,8 +1232,11 @@ Phase D — 快速提升 (实际 +33 行 / +1.6%) — ✅ 全部完成
 Phase E — 核心提升 (预计 +74 行 / +3.4%)
   4. fdcan.h: can_rx() 完整路径（RX FIFO 模拟 + 多场景）✅ 已完成 (2026-07-29, +8 场景, ~96 行)
 
-Phase F — 远期 (预计 +135 行 / +6.2%)
-  5. spi.h: SPI 状态机测试 (需模拟 DMA 回调)
+Phase F — 远期 (实际 +251 行 / +7.2%)
+  5. spi.h: SPI 状态机测试 (需模拟 DMA 回调) ✅ 已完成 (2026-07-29, +21 场景, ~126 行)
+     → spi_rx_done 全路径 (13 场景): HEADER ACK/NACK, VERSION, DATA_RX 全 endpoint (0/1/2/3/0x81/0xAB/0xAC)
+     → spi_tx_done 全状态 (5 场景): HEADER_NACK→HEADER, HEADER_ACK→DATA_RX, DATA_TX→HEADER, reset, unexpected
+     → 额外覆盖 (3 场景): RX unexpected state, no response fallback, unexpected endpoint
 
 不可提升:
   6. main.c: debug_ring_callback + main() 初始化 — 硬件依赖
@@ -1243,5 +1245,5 @@ Phase F — 远期 (预计 +135 行 / +6.2%)
 ```
 Phase D 后基线:   80.5% (1738/2160)
 Phase E 完成后:  ~83.9% (~1814/2160) ✅
-Phase F 完成后:  ~90.1%
+Phase F 完成后:  91.1% (1989/2183) ✅
 ```

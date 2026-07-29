@@ -1687,3 +1687,60 @@ void jna_unused_init_bootloader(void) {
 void jna_board_set_fan_enabled(int en) {
     current_board->set_fan_enabled((bool)en);
 }
+
+// ---- JNA API: SPI state machine (spi_rx_done + spi_tx_done) ----
+// Phase F.5: Expose full SPI state machine for e2e testing.
+// spi_state, spi_data_len_mosi, spi_can_tx_ready are static in spi.h
+// but accessible here because spi.h is included into this translation unit.
+
+int jna_spi_get_state(void) {
+    return spi_state;
+}
+
+void jna_spi_set_state(int state) {
+    spi_state = (uint8_t)state;
+}
+
+int jna_spi_get_can_tx_ready(void) {
+    return spi_can_tx_ready ? 1 : 0;
+}
+
+void jna_spi_set_can_tx_ready(int ready) {
+    spi_can_tx_ready = (bool)ready;
+}
+
+void jna_spi_write_rx_buf(uint8_t *data, int offset, int len) {
+    for (int i = 0; i < len; i++) {
+        spi_buf_rx[offset + i] = data[i];
+    }
+}
+
+void jna_spi_read_tx_buf(uint8_t *out, int len) {
+    for (int i = 0; i < len; i++) {
+        out[i] = spi_buf_tx[i];
+    }
+}
+
+// Wraps spi_rx_done(). Returns response length (non-zero on success).
+// DACK (0x85): length = 4 + data_len (header[3] + data[1..2] + checksum[1])
+// HACK (0x79) / NACK (0x1F): length = 1
+int jna_spi_rx_done(void) {
+    spi_rx_done();
+    if (spi_buf_tx[0] == SPI_DACK) {
+        uint16_t data_len = spi_buf_tx[1] | ((uint16_t)spi_buf_tx[2] << 8);
+        return 4 + data_len;
+    }
+    return 1;
+}
+
+void jna_spi_tx_done(int reset) {
+    spi_tx_done((bool)reset);
+}
+
+int jna_spi_get_error_count(void) {
+    return (int)spi_error_count;
+}
+
+void jna_spi_reset_error_count(void) {
+    spi_error_count = 0U;
+}

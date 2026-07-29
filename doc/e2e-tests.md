@@ -107,7 +107,7 @@ e2e-tests/
 │   │       ├── UsbControlRequests.java  # 33 个 USB 控制请求 spec
 │   │       └── ControlSetups.java       # 前置数据 spec
 │   └── resources/
-│       ├── features/                # 42 个 feature 文件（D.2 后将 unused 场景融入对应文件）
+│       ├── features/                # 43 个 feature 文件（Phase F.5 新增 spi_state_machine.feature）
 │       └── test-design/             # 测试设计文档
 ```
 
@@ -166,11 +166,12 @@ e2e-tests/
 | 线束翻转检测 | `harness_detect.feature` | 8 | harnessStatus (生产 `harness_detect_orientation()` ✅ B5 + ADC 拦截桩) |
 | Tick 路径 | `tick_paths.feature` | 6 | has_fan=false, heartbeat_counter 溢出, safety_mode_cnt 溢出, harness reinit (P1) |
 | SPI Version Packet | `spi_version_packet.feature` | 2 | spiVersionResult (生产 `spi_version_packet()` + `crc_checksum()` ✅ C1) |
+| SPI 状态机 | `spi_state_machine.feature` | 21 | spiStateResult (生产 `spi_rx_done()` + `spi_tx_done()` 全状态覆盖 ✅ Phase F.5) |
 
 ## C 代码覆盖率
 
 > 数据来源: `e2e-tests/run_all_coverage.sh` 合并报告 (cuatro + tres + red)
-> 生成时间: 2026-07-29 (Phase E.4 完成: fdcan.h can_rx() 全路径覆盖)
+> 生成时间: 2026-07-29 (Phase F.5 完成: spi.h 全状态机覆盖)
 
 | 源文件 | 行覆盖 | 函数覆盖 | 说明 |
 |--------|--------|---------|------|
@@ -195,7 +196,8 @@ e2e-tests/
 | `board/boards/cuatro.h` | **83.3%** (55/66) | — | ✅ N2 完成 |
 | `board/boards/tres.h` | **88.0%** (81/92) | — | ✅ N2 完成 |
 | `board/boards/red.h` | **90.0%** (63/70) | — | ✅ N2 完成 |
-| **合计** | **~83.9%** (~1814/2160, 34 files) | — | Phase D + E.4 全部完成 ✅ |
+| `board/drivers/spi.h` | **94.2%** (147/156) | — | ✅ Phase F.5 (spi_rx_done + spi_tx_done 全状态机, 仅 spi_init 8行 + 防御 print 4行未覆盖) |
+| **合计** | **91.1%** (1989/2183, 35 files) | — | Phase D + E.4 + F.5 全部完成 ✅ |
 
 ## 设计原则
 

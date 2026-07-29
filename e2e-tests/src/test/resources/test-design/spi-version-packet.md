@@ -142,9 +142,9 @@ SPI 驱动去桩策略：
 ## 覆盖率
 
 > 数据来源: `run_all_coverage.sh` 合并报告 (cuatro + tres + red)
-> 综合行覆盖率: **~90%** (全量), 本功能涉及以下源文件:
+> 综合行覆盖率: **91.1%** (1989/2183, 35 files)
 
 | 源文件 | 行覆盖 | 说明 |
 |--------|--------|------|
 | `board/crc.h` | 100% (20/20) | ✅ C1 去桩化 — 纯 CRC-8 算法，通过 spi_version_packet 调用覆盖 |
-| `board/drivers/spi.h` | ~18% (部分) | spi_version_packet (43 行) 覆盖，其余为 DMA 中断驱动代码（需硬件） |
+| `board/drivers/spi.h` | **94.2%** (147/156) | ✅ Phase F.5 — spi_version_packet + spi_rx_done + spi_tx_done 全状态机覆盖

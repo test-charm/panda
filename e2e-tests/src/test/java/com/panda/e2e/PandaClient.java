@@ -606,6 +606,18 @@ public class PandaClient {
         // unused_funcs.h: set_fan_enabled via board function pointer
         // (needs JNA since has_fan==false on RED skips fan_tick)
         void jna_board_set_fan_enabled(int en);
+
+        // SPI state machine (Phase F.5)
+        int jna_spi_get_state();
+        void jna_spi_set_state(int state);
+        int jna_spi_get_can_tx_ready();
+        void jna_spi_set_can_tx_ready(int ready);
+        void jna_spi_write_rx_buf(byte[] data, int offset, int len);
+        void jna_spi_read_tx_buf(byte[] out, int len);
+        int jna_spi_rx_done();
+        void jna_spi_tx_done(int reset);
+        int jna_spi_get_error_count();
+        void jna_spi_reset_error_count();
     }
 
     private static final String ORIGINAL_LIB_PATH = PandaLib.libPath;
@@ -1789,5 +1801,79 @@ public class PandaClient {
 
     public SpiVersionResult getSpiVersionResult() {
         return spiVersionResult;
+    }
+
+    // ---- SPI state machine (Phase F.5) ----
+
+    @AllArgsConstructor
+    @Getter
+    public static class SpiRxDetail {
+        private final AdaptiveList<Byte> txBytes;
+        private final int txLen;
+        private final boolean ack;
+    }
+
+    @AllArgsConstructor
+    @Getter
+    public static class SpiStateResult {
+        private final int state;
+        private final int errorCount;
+        private final SpiRxDetail rx;
+    }
+
+    private SpiStateResult spiStateResult;
+
+    public void spiRxDone() {
+        int txLen = lib.jna_spi_rx_done();
+        int state = lib.jna_spi_get_state();
+        int errorCount = lib.jna_spi_get_error_count();
+        byte firstByte = 0;
+        if (txLen > 0) {
+            byte[] b = new byte[1];
+            lib.jna_spi_read_tx_buf(b, 1);
+            firstByte = b[0];
+        }
+        boolean ack = firstByte != 0x1F;
+        var list = new ArrayList<Byte>();
+        byte[] buf = new byte[txLen];
+        lib.jna_spi_read_tx_buf(buf, txLen);
+        for (int i = 0; i < txLen; i++) {
+            list.add(buf[i]);
+        }
+        this.spiStateResult = new SpiStateResult(state, errorCount,
+                new SpiRxDetail(AdaptiveList.staticList(list), txLen, ack));
+    }
+
+    public void spiTxDone(boolean reset) {
+        lib.jna_spi_tx_done(reset ? 1 : 0);
+        this.spiStateResult = new SpiStateResult(lib.jna_spi_get_state(), lib.jna_spi_get_error_count(), null);
+    }
+
+    public SpiStateResult getSpiStateResult() {
+        return spiStateResult;
+    }
+
+    public int getSpiState() {
+        return lib.jna_spi_get_state();
+    }
+
+    public void setSpiState(int state) {
+        lib.jna_spi_set_state(state);
+    }
+
+    public void spiWriteRxBuf(byte[] data, int offset) {
+        lib.jna_spi_write_rx_buf(data, offset, data.length);
+    }
+
+    public void resetSpiErrorCount() {
+        lib.jna_spi_reset_error_count();
+    }
+
+    public boolean isSpiCanTxReady() {
+        return lib.jna_spi_get_can_tx_ready() != 0;
+    }
+
+    public void setSpiCanTxReady(boolean ready) {
+        lib.jna_spi_set_can_tx_ready(ready ? 1 : 0);
     }
 }
