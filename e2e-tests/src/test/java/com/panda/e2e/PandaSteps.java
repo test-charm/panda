@@ -218,6 +218,23 @@ public class PandaSteps {
         client.processCan(canNumber);
     }
 
+    @When("handle interrupt {int}")
+    public void handleInterrupt(int irqn) {
+        client.handleInterrupt(irqn);
+    }
+
+    @When("handle interrupt {int} {int} times")
+    public void handleInterruptNTimes(int irqn, int times) {
+        for (int i = 0; i < times; i++) {
+            client.handleInterrupt(irqn);
+        }
+    }
+
+    @When("interrupt timer tick")
+    public void interruptTimerTick() {
+        client.interruptTimerTick();
+    }
+
     @When("can rx {int}")
     public void canRx(int canNumber) {
         client.canRx(canNumber);

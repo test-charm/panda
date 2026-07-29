@@ -122,10 +122,15 @@ uint16_t spi_error_count;
 int _app_start[0xC000];
 
 // ---- Interrupt tracking (must be before fdcan.h which calls REGISTER_INTERRUPT) ----
-// Full struct defined in e2e board/drivers/interrupts.h (C3)
+// NUM_INTERRUPTS must be defined before interrupts.h (real handler uses it)
+#define NUM_INTERRUPTS 163U
+// Full struct + REGISTER_INTERRUPT macro in e2e wrapper, real implementation
+// also defines interrupts[NUM_INTERRUPTS] as a global.
 #include "board/drivers/interrupts.h"
-#define NUM_INTERRUPTS 161
-interrupt interrupts[NUM_INTERRUPTS];
+
+// ---- Real timer functions (de-stubbed) ----
+// microsecond_timer_get(), tick_timer_init(), microsecond_timer_init(), interrupt_timer_init()
+#include "board/drivers/timers.h"
 static char gitversion[64] = "00000000";
 // speeds[] and data_speeds[] now come from real board/stm32h7/llfdcan.h (C3)
 
@@ -211,26 +216,6 @@ uint8_t harness_detect_orientation(void);
 struct harness_t harness = {.sbu1_voltage_mV = 3300U, .sbu2_voltage_mV = 3300U};
 
 #include "board/drivers/uart.h"
-uart_ring uart_ring_debug = {0};
-uart_ring uart_ring_som_debug = {0};
-static uint8_t uart_debug_rx_buf[256];
-static uint8_t uart_debug_tx_buf[256];
-static uint8_t uart_som_debug_tx_buf[256];
-uart_ring *get_ring_by_number(int a) {
-    if (a == 0) {
-        uart_ring_debug.elems_rx = uart_debug_rx_buf;
-        uart_ring_debug.rx_fifo_size = 256;
-        uart_ring_debug.elems_tx = uart_debug_tx_buf;
-        uart_ring_debug.tx_fifo_size = 256;
-        return &uart_ring_debug;
-    }
-    if (a == 4) {
-        uart_ring_som_debug.elems_tx = uart_som_debug_tx_buf;
-        uart_ring_som_debug.tx_fifo_size = 256;
-        return &uart_ring_som_debug;
-    }
-    return NULL;
-}
 
 #include "boards/board_declarations.h"
 
@@ -407,10 +392,6 @@ void detect_board_type(void) {
 void sound_init(void) {}
 void sound_tick(void) {}
 void sound_init_dac(void) {}
-void init_interrupts(bool en) { (void)en; }
-void tick_timer_init(void) {}
-void microsecond_timer_init(void) {}
-void interrupt_timer_init(void) {}
 void gpio_spi_init(void) {}
 void disable_interrupts(void) {}
 void enable_interrupts(void) {}
@@ -528,22 +509,6 @@ void adc_init(ADC_TypeDef *adc) { (void)adc; }
 
 #define SCB_SCR_SLEEPDEEP_Msk 0x4U
 #define SCB_SCR_SLEEPONEXIT_Msk 0x2U
-
-// UART helpers
-bool get_char(uart_ring *q, char *elem) {
-    if ((q == NULL) || (q->w_ptr_rx == q->r_ptr_rx)) return false;
-    if (elem != NULL) *elem = (char)q->elems_rx[q->r_ptr_rx];
-    q->r_ptr_rx = (q->r_ptr_rx + 1U) % q->rx_fifo_size;
-    return true;
-}
-int put_char(uart_ring *q, char c) {
-    if ((q == NULL) || (q->elems_tx == ((void *)0))) return 0;
-    uint32_t next_w = (q->w_ptr_tx + 1U) % q->tx_fifo_size;
-    if (next_w == q->r_ptr_tx) return 0; // full
-    q->elems_tx[q->w_ptr_tx] = (uint8_t)c;
-    q->w_ptr_tx = next_w;
-    return 1;
-}
 
 // ---- Real firmware headers ----
 #include "board/health.h"
@@ -1431,6 +1396,31 @@ void jna_set_interrupt_call_rate(uint8_t index, uint32_t val) {
 void jna_reset_interrupts(void) {
     for (uint8_t i = 0U; i < NUM_INTERRUPTS; i++) { interrupts[i].call_rate = 0U; }
 }
+// Simulate an interrupt firing — calls the real handle_interrupt() path.
+void jna_handle_interrupt(int irqn) {
+    if ((irqn >= 0) && (irqn < NUM_INTERRUPTS)) {
+        handle_interrupt((IRQn_Type)irqn);
+    }
+}
+// Trigger the 1-second interrupt timer handler (sets SR, calls interrupt_timer_handler).
+void jna_interrupt_timer_tick(void) {
+    INTERRUPT_TIMER->SR = 1U;
+    interrupt_timer_handler();
+}
+// Read interrupt_load (computed by interrupt_timer_handler every second).
+float jna_get_interrupt_load(void) {
+    return interrupt_load;
+}
+// Read current call_counter for a registered interrupt handler.
+int jna_get_interrupt_call_counter(int irqn) {
+    if ((irqn < 0) || (irqn >= NUM_INTERRUPTS)) return 0;
+    return (int)interrupts[irqn].call_counter;
+}
+// Verify that an interrupt handler is specifically unused_interrupt_handler (not just non-NULL).
+int jna_is_unused_handler(int irqn) {
+    if ((irqn < 0) || (irqn >= NUM_INTERRUPTS)) return 0;
+    return (interrupts[irqn].handler == unused_interrupt_handler) ? 1 : 0;
+}
 // Verify REGISTER_INTERRUPT registration (C3: real macro populates interrupts[])
 int jna_get_interrupt_handler(int irqn) {
     if ((irqn < 0) || (irqn >= NUM_INTERRUPTS)) return 0;
@@ -1457,10 +1447,6 @@ void jna_reset_signature(void) { _app_start[0] = 0; }
 uint32_t jna_get_enter_bootloader_mode(void) { return enter_bootloader_mode; }
 void jna_reset_enter_bootloader_mode(void) { enter_bootloader_mode = 0U; }
 void jna_uart_push(const char *data, size_t len) {
-    if (uart_ring_debug.elems_rx == NULL) {
-        uart_ring_debug.elems_rx = (uint8_t *)uart_debug_rx_buf;
-        uart_ring_debug.rx_fifo_size = 256;
-    }
     for (size_t i = 0U; (i < len) && (i < 256U); i++) {
         uart_ring_debug.elems_rx[i] = (uint8_t)data[i];
     }
@@ -1656,10 +1642,19 @@ uint16_t jna_spi_version_packet(uint8_t *buf) {
 void jna_panda_init(void) {
     detect_board_type();
     led_init();   // mirrors real main() — initializes LED GPIO/PWM after board detection
+    // Init interrupt table FIRST (mirrors real main(): line 272).
+    // All handlers set to unused_interrupt_handler, then individual drivers
+    // (can_init, etc.) register their specific handlers via REGISTER_INTERRUPT.
+    init_interrupts(true);
+    microsecond_timer_init();  // mirrors real main(): line 304
     can_init(0);
     can_init(1);
     can_init(2);
     fan_init();
+    // 8Hz tick timer — register handler first, then init (mirrors real main(): lines 321-322)
+    // This is inside main() in real firmware, so must be done manually in e2e.
+    REGISTER_INTERRUPT(TICK_TIMER_IRQ, tick_handler, 10U, FAULT_INTERRUPT_RATE_TICK)
+    tick_timer_init();
     jna_reset_safety();
     jna_reset_power_save_tracking();
     jna_reset_stop_mode_tracking();
@@ -1669,6 +1664,9 @@ void jna_panda_init(void) {
     jna_comms_can_reset();
     simple_watchdog_init(FAULT_HEARTBEAT_LOOP_WATCHDOG, (3U * 1000000U / 8U));
     init_registers();  // clear register_map after init to avoid false divergence
+    // Reset fault state for clean scenario isolation
+    faults = 0U;
+    fault_status = FAULT_STATUS_NONE;
 }
 
 int jna_get_can_init_timeout_ms(void) {

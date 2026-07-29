@@ -78,6 +78,11 @@ Cucumber BDD 断言: gpioAModer: 0xFFFFFFF1, rccCr: 0x0, ...
 | `jna_set_interrupt_call_rate()` | 预设中断调用率 |
 | `jna_set_signature_chunk()` / `jna_set_app_code_len()` | 预设固件签名数据 |
 | `jna_uart_push()` | 向 UART debug ring 推送字符 |
+| `jna_handle_interrupt()` | 模拟中断触发 → `handle_interrupt()` ✅ Phase H |
+| `jna_interrupt_timer_tick()` | 触发 1 秒定时器中断 → `interrupt_timer_handler()` ✅ Phase H |
+| `jna_get_interrupt_load()` | 读取 `interrupt_load` ✅ Phase H |
+| `jna_get_interrupt_call_counter()` | 读取中断调用计数器 ✅ Phase H |
+| `jna_is_unused_handler()` | 检查中断 handler 是否为 `unused_interrupt_handler` ✅ Phase H |
 | `jna_board_init()` | 重置 GPIO/PWR/TIM，预置 USB33RDY → `current_board->init()` (N2) |
 | `jna_get_TIM3_*` 系列 (9) | 读取 TIM3 CR1/ARR/CCMR1/CCMR2/CCER/CCR1-4 (LED PWM 验证) |
 | `jna_reset_*` 系列 (15+) | 每次 `@Before` 中重置所有假状态 |
@@ -110,7 +115,7 @@ e2e-tests/
 │   │       ├── UsbControlRequests.java  # 33 个 USB 控制请求 spec
 │   │       └── ControlSetups.java       # 前置数据 spec
 │   └── resources/
-│       ├── features/                # 35 个 feature 文件（pwm.h/led.h 去桩化 + led_pwm.feature 新增）
+│       ├── features/                # 36 个 feature 文件（含 interrupt_rate.feature ✅ Phase H）
 │       └── test-design/             # 测试设计文档
 ```
 
@@ -132,6 +137,7 @@ e2e-tests/
 | CAN 通信序列化 | `can_comms.feature` | 14 | USB ep3 out → comms_can_write → rxQueue, USB ep1 in → comms_can_read → usbEp1InBytes (含 overflow 分片 5 场景 + 队列指针回绕 5 场景, Phase D.3 + C1 ✅) |
 | CAN 环形缓冲 | `can_ring_clear.feature` | 4 | rxQueue/txQueue |
 | FDCAN 中断处理 | `fdcan_interrupt.feature` | 13 | process_can → TXBAR/IR/rxQueue, 0xff 守卫, can_rx 全路径 (标准帧/扩展帧/CAN-FD/BRS/FIFO满/转发/IRQ错误/safety_rx_invalid), interrupt_rate 合并 (第十三节 B6) ✅ C3 + E.4 |
+| 中断处理与频率限制 | `interrupt_rate.feature` | 4 | handle_interrupt → unused_handler fault + rate-limit fault, interrupt_timer_handler 重置计数器、USB 0xc4 验证 call_rate ✅ Phase H |
 | libc 工具函数 | `libc.feature` | 4 | lastMemcmpResult / delay 不挂死 |
 | IR 功率 | `ir_power.feature` | 4 | irPwm (TIM1 CCR1) + @red unused 验证 ✅ D.2 |
 | CAN 波特率 | `can_bitrate.feature` | 3 | FDCAN NBTP/CCCR/IE/TXBC/RXF0C |
@@ -159,7 +165,7 @@ e2e-tests/
 ## C 代码覆盖率
 
 > 数据来源: `e2e-tests/run_all_coverage.sh` 合并报告 (cuatro + tres + red)
-> 生成时间: 2026-07-29 (pwm.h/led.h 去桩化完成)
+> 生成时间: 2026-07-29 (interrupts.h/timers.h/uart.h/llfdcan_declarations.h 去桩化完成)
 
 | 源文件 | 行覆盖 | 函数覆盖 | 说明 |
 |--------|--------|---------|------|
@@ -187,7 +193,11 @@ e2e-tests/
 | `board/boards/tres.h` | **88.0%** (81/92) | — | ✅ N2 完成 |
 | `board/boards/red.h` | **90.0%** (63/70) | — | ✅ N2 完成 |
 | `board/drivers/spi.h` | **94.2%** (147/156) | — | ✅ Phase F.5 (spi_rx_done + spi_tx_done 全状态机, 仅 spi_init 8行 + 防御 print 4行未覆盖) |
-| **合计** | **90.8%** (2046/2253, 37 files) | — | pwm.h/led.h 去桩化 + TIM3 JNA 验证 ✅ |
+| `board/drivers/timers.h` | **100%** (27/27) | 4/4 | ✅ Phase H (timer_init, microsecond_timer_init, interrupt_timer_init, tick_timer_init 全覆盖) |
+| `board/drivers/interrupts.h` | **96.2%** (51/53) | 4/4 | ✅ Phase H (init_interrupts, unused_interrupt_handler, handle_interrupt, interrupt_timer_handler 覆盖; 仅打印日志 2 行未覆盖) |
+| `board/drivers/uart.h` | **94.8%** (73/77) | — | ✅ Phase H (UART_BUFFER 直接使用, 无 E2E_TEST 守卫; putch/print/puthx/puth 覆盖; hexdump/puth4 未覆盖) |
+| `board/stm32h7/llfdcan_declarations.h` | **91.3%** (21/23) | — | ✅ Phase H (直接使用真实头文件; CAN_NAME_FROM_CANIF/CAN_NUM_FROM_CANIF 未覆盖) |
+| **合计** | **~91%** (~2100/2300, ~40 files) | — | interrupts.h/timers.h/uart.h/llfdcan_declarations.h 去桩化 ✅ |
 
 ## 设计原则
 

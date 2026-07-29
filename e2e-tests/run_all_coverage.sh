@@ -133,7 +133,7 @@ run_coverage \
 # Coverage Merge Phase
 # ===========================================================================
 
-IGNORE_REGEX='\.venv/|fake_stm\.h|libpanda\.c|stm32h7_config\.h|harness\.h|interrupts\.h|uart\.h'
+IGNORE_REGEX='\.venv/|fake_stm\.h|libpanda\.c|stm32h7_config\.h'
 
 # ---------------------------------------------------------------------------
 # Phase 5: Per-board profraw → profdata → lcov

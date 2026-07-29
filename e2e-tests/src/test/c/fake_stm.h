@@ -1,11 +1,16 @@
 // Override for host e2e testing — extends board/fake_stm.h
 // with extra TIM_TypeDef fields needed by board/main.c (SR for tick handler).
 // Path priority: -I src/test/c is searched before -I board/
+//
+// This file provides ALL types, macros, and stubs that real production headers
+// (interrupts.h, timers.h, uart.h) need but normally get from STM32 CMSIS/HAL.
+// With these in place, the real headers can be included directly — no e2e wrappers needed.
 #pragma once
 
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <stdbool.h>
 
 #include "utils.h"
 
@@ -14,8 +19,90 @@
 #define ENTER_CRITICAL()
 #define EXIT_CRITICAL()
 
-void print(const char *a) { printf("%s", a); }
-void puth(unsigned int i) { printf("%u", i); }
+// ---- NVIC stubs (overridden later in libpanda.c for tracking) ----
+#define NVIC_EnableIRQ(x)  ((void)(x))
+#define NVIC_DisableIRQ(x) ((void)(x))
+
+// =============================================================================
+//  interrupts.h dependencies
+// =============================================================================
+// These normally come from drivers.h (#ifdef STM32H7 section) and stm32h7_config.h.
+
+typedef int IRQn_Type;
+
+typedef struct interrupt {
+  IRQn_Type irq_type;
+  void (*handler)(void);
+  uint32_t call_counter;
+  uint32_t call_rate;
+  uint32_t max_call_rate;
+  uint32_t call_rate_fault;
+} interrupt;
+
+#define REGISTER_INTERRUPT(irq_num, func_ptr, call_rate_max, rate_fault) \
+  interrupts[irq_num].irq_type = (irq_num); \
+  interrupts[irq_num].handler = (func_ptr);  \
+  interrupts[irq_num].call_counter = 0U;   \
+  interrupts[irq_num].call_rate = 0U;   \
+  interrupts[irq_num].max_call_rate = (call_rate_max); \
+  interrupts[irq_num].call_rate_fault = (rate_fault);
+
+#define TICK_TIMER_IRQ 0
+
+// Forward declarations for functions defined in timers.h (included later)
+uint32_t microsecond_timer_get(void);
+void interrupt_timer_init(void);
+
+// =============================================================================
+//  timers.h dependencies
+// =============================================================================
+
+#define INTERRUPT_TIMER_IRQ 54   // TIM6_DAC_IRQn
+
+// enable_interrupt_timer() — real impl in board/stm32h7/peripherals.h:
+//   register_set_bits(&(RCC->APB1LENR), RCC_APB1LENR_TIM6EN)
+static inline void enable_interrupt_timer(void) {}
+
+// =============================================================================
+//  uart.h dependencies
+// =============================================================================
+// uart_ring type matching board/drivers/drivers.h, but void* instead of USART_TypeDef*.
+
+typedef struct uart_ring {
+    volatile uint16_t w_ptr_tx;
+    volatile uint16_t r_ptr_tx;
+    uint8_t *elems_tx;
+    uint32_t tx_fifo_size;
+    volatile uint16_t w_ptr_rx;
+    volatile uint16_t r_ptr_rx;
+    uint8_t *elems_rx;
+    uint32_t rx_fifo_size;
+    void *uart;
+    void (*callback)(struct uart_ring *);
+    bool overwrite;
+} uart_ring;
+
+// Stub for uart_tx_ring — real impl in board/stm32h7/lluart.h, not available in e2e.
+static inline void uart_tx_ring(struct uart_ring *q) { (void)q; }
+
+// Forward declarations — definitions come from board/main.c (debug_ring_callback)
+// and libpanda.c (uart_ring_debug, uart_ring_som_debug).
+void debug_ring_callback(uart_ring *ring);
+extern uart_ring uart_ring_debug;
+extern uart_ring uart_ring_som_debug;
+
+// Shims for STM32 HAL USART peripheral macros referenced in real uart.h.
+#define USART2  ((void*)0)
+#define UART7   ((void*)1)
+#define FIFO_SIZE_INT 0x400U
+
+// Forward declarations for uart functions — real implementations from board/drivers/uart.h.
+void print(const char *a);
+void puth(unsigned int i);
+
+// =============================================================================
+//  Timer + GPIO hardware types
+// =============================================================================
 
 typedef struct {
   uint32_t CR1;     // 0x00
@@ -41,11 +128,12 @@ typedef struct {
 
 TIM_TypeDef timer;
 TIM_TypeDef *MICROSECOND_TIMER = &timer;
-uint32_t microsecond_timer_get(void);
 
-uint32_t microsecond_timer_get(void) {
-  return MICROSECOND_TIMER->CNT;
-}
+// INTERRUPT_TIMER (TIM6) — needed by real interrupts.h for interrupt_timer_handler()
+TIM_TypeDef interrupt_timer_inst;
+TIM_TypeDef *INTERRUPT_TIMER = &interrupt_timer_inst;
+
+// microsecond_timer_get() is now provided by real board/drivers/timers.h
 
 // Real GPIO_TypeDef matching STM32H7 field offsets (for board/drivers/gpio.h)
 typedef struct {
@@ -127,4 +215,6 @@ typedef struct {
 #define PWR_CR3_USB33RDY         (1UL << 26)
 
 // ---- APB2 timer frequency (200 MHz for STM32H725) ----
+// APB1 is 120MHz, timer clock is 2x = 240MHz
+#define APB1_TIMER_FREQ     240000000U
 #define APB2_TIMER_FREQ     200000000U

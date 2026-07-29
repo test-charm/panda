@@ -73,5 +73,6 @@ get fan RPM (0xb2):
 | 源文件 | 行覆盖 | 说明 |
 |--------|--------|------|
 | `main_comms.h` | 93.3% (251/269) | USB 命令处理 |
-| `fan.h` | 37.0% (10/27) | 风扇 PWM + 冷却 |
+| `fan.h` | 100% (27/27) | 风扇 PWM + 冷却 |
+| `timers.h` | 100% (27/27) | microsecond_timer_get / microsecond_timer_init / tick_timer_init / interrupt_timer_init ✅ Phase H |
 

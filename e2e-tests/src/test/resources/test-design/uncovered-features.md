@@ -1,8 +1,8 @@
 # 端到端测试覆盖分析
 
-> 最后更新: 2026-07-29
-> Feature 文件: 35 个, 场景总数: 230 (cuatro/tres/red 合并)
-> 综合行覆盖率: **90.8%** (2046/2253 lines), 37 files
+> 最后更新: 2026-07-30
+> Feature 文件: 36 个, 场景总数: 235 (cuatro/tres/red 合并)
+> 综合行覆盖率: **~91%** (~2100/~2300 lines), ~40 files
 > 数据来源: `e2e-tests/run_all_coverage.sh`
 
 ---
@@ -14,7 +14,7 @@ e2e 通过 `libpanda.c` 编译完整 `board/main.c`，利用 `-I` 优先级覆�
 - `-I /path/to/panda` (项目根)
 - `-I /path/to/panda/board` (board 目录)
 
-### 1.1 进入覆盖率的 25 个真实 `board/` 文件
+### 1.1 进入覆盖率的 31 个真实 `board/` 文件
 
 ```
 board/main.c                          — 主固件逻辑
@@ -31,6 +31,8 @@ board/drivers/drivers.h               — 中央驱动声明
 board/drivers/registers.h             — 寄存器影子校验
 board/drivers/can_common.h            — CAN 队列、can_send、can_init_all
 board/drivers/fan.h                   — 风扇控制 (fan_set_power, fan_tick)
+board/drivers/pwm.h                   — PWM 控制 (Phase G)
+board/drivers/led.h                   — LED 控制 (Phase G)
 board/drivers/gpio.h                  — GPIO 控制
 board/drivers/clock_source.h          — 时钟源定时器
 board/drivers/simple_watchdog.h       — 看门狗
@@ -39,6 +41,9 @@ board/drivers/harness.h               — Harness 检测/继电器 (B5)
 board/drivers/fdcan.h                 — FDCAN 高层驱动 (C3)
 board/drivers/spi.h                   — SPI 协议层 (C3)
 board/drivers/can_health_pkt.h        — CAN 健康统计更新 (B4)
+board/drivers/timers.h                — 定时器初始化/读取 (Phase H)
+board/drivers/interrupts.h            — 中断处理/频率限制 (Phase H)
+board/drivers/uart.h                  — UART 调试输出 (Phase H)
 board/crc.h                           — CRC-8 校验 (C1)
 board/libc.h                          — memcpy, memset, delay
 board/stm32h7/lladc_declarations.h    — ADC 信号类型声明
@@ -54,8 +59,8 @@ board/provision.h                     — 设备 Provision 读取
 ```
 ┌─ board/ 全部 C/H 文件 (~90 个)
 │
-├── ✅ 已编译为真实代码 (25 个)
-├── ⚠️ 被 e2e 桩替换 (15 个) — 见第三节
+├── ✅ 已编译为真实代码 (31 个)
+├── ⚠️ 被 e2e 桩替换 (11 个) — 见第三节
 ├── ❌ 被 stm32h7_config.h 切断 — 纯硬件外设 (peripherals.h, clock.h, llfan.h 等)
 ├── 🚫 其他固件目标 (25 个) — 见第七节
 └── 📦 CMSIS/HAL 头 + 工具脚本 — 见第八节
@@ -91,6 +96,9 @@ board/provision.h                     — 设备 Provision 读取
 | `board/drivers/drivers.h` | 80.0% (4/5) | 1 行未覆盖 |
 | `board/drivers/fdcan.h` | ~97% (~175/181) | ✅ body_can_rx() 仅 PANDA_BODY 固件 |
 | `board/drivers/spi.h` | 94.2% (147/156) | ✅ spi_init (8行 DMA) + 防御 print (4行) |
+| `board/drivers/timers.h` | **100%** (27/27) | ✅ Phase H (timer_init, microsecond_timer_init, interrupt_timer_init, tick_timer_init) |
+| `board/drivers/interrupts.h` | **96.2%** (51/53) | ✅ Phase H (init_interrupts, handle_interrupt, interrupt_timer_handler, unused_interrupt_handler) |
+| `board/drivers/uart.h` | **94.8%** (73/77) | ✅ Phase H (UART_BUFFER 直接使用, 无 E2E_TEST 守卫) |
 | `board/libc.h` | 83.9% (52/62) | delay() + assert_fatal(false) 不可覆盖 |
 | `board/sys/faults.h` | 100% (20/20) | ✅ |
 | `board/sys/power_saving.h` | 96.7% (89/92) | ✅ |
@@ -100,11 +108,11 @@ board/provision.h                     — 设备 Provision 读取
 | `board/boards/red.h` | 90.0% (63/70) | GPIO 配置路径部分未调用 |
 | `board/boards/unused_funcs.h` | 100% (23/23) | ✅ |
 | `board/stm32h7/llfdcan.h` | 83.2% (134/161) | ✅ 部分 LL 路径未触发 |
-| `board/stm32h7/llfdcan_declarations.h` | 91.3% (21/23) | ✅ |
+| `board/stm32h7/llfdcan_declarations.h` | 91.3% (21/23) | ✅ 真实代码 (Phase H) |
 | `e2e-tests/.../fdcan_regs.h` | 94.1% (160/170) | e2e 桩 |
 | `e2e-tests/.../board/stm32h7/board.h` | 100% (41/41) | e2e 桩 |
 | `e2e-tests/.../board/stm32h7/lladc.h` | 88.9% (8/9) | e2e 桩 |
-| `e2e-tests/.../board/drivers/spi.h` | 0.0% (0/3) | e2e 桩 |
+| `e2e-tests/.../board/drivers/spi.h` | 66.7% (2/3) | e2e spi.h 包装器 |
 
 ---
 
@@ -134,34 +142,34 @@ libpanda.c (2026-07-29 现状):
   #include "board/stm32h7/stm32h7_config.h"  ← ⚠️ e2e 桩 (CMSIS 切断 + include 转发)
   #include "board/stm32h7/board.h"           ← ⚠️ e2e 桩 (GPIO/ADC/PWR 宏 → 真实 board)
   #include "board/stm32h7/lladc.h"           ← ⚠️ e2e 桩 (拦截 adc_get_mV)
-  #include "board/stm32h7/llfdcan_declarations.h" ← ⚠️ e2e 桩 (宏定义 + FDCAN_START_ADDRESS=0)
-  #include "board/drivers/uart.h"            ← ⚠️ e2e 桩 (uart_ring 类型)
-  #include "board/drivers/interrupts.h"      ← ⚠️ e2e 桩 (REGISTER_INTERRUPT)
+  #include "board/stm32h7/llfdcan_declarations.h" ← ✅ 真实代码 (91.3%, Phase H — 包装器已删除)
+  #include "board/drivers/uart.h"            ← ✅ 真实代码 (94.8%, Phase H)
+  #include "board/drivers/interrupts.h"      ← ✅ 真实代码 (96.2%, Phase H)
   #include "board/drivers/pwm.h"             ← ✅ 真实代码 (82.2%)
   #include "board/drivers/led.h"             ← ✅ 真实代码 (96.0%)
-  #include "board/drivers/timers.h"          ← ⚠️ e2e 桩 (空)
+  #include "board/drivers/timers.h"          ← ✅ 真实代码 (100%, Phase H)
   #include "board/drivers/usb.h"             ← ⚠️ e2e 桩 (USB endpoint 模拟)
   #include "board/drivers/fake_siren.h"      ← ⚠️ e2e 桩 (声明)
 ```
 
-### 3.2 桩文件清单 (15 个) 与去桩化评估
+### 3.2 桩文件清单 (15 个, 8 已完成) 与去桩化评估
 
 | 文件 | 类型 | 可去桩? | 方案 / 障碍 |
 |------|------|---------|------------|
 | `stm32h7_config.h` | 配置枢纽 | ❌ 不可 | 切断 CMSIS/HAL 依赖链的必须枢纽。真实文件引入 `stm32h7xx.h`，无法在 macOS 编译。 |
 | `stm32h7/board.h` | 桥接桩 | ❌ 不可 | 让真实 board init 编译的必经之路。GPIO/ADC/PWR 宏映射无可替代。 |
 | `stm32h7/lladc.h` | 拦截桩 | ❌ 不可 | 真实 `lladc.h` 直读 ADC 寄存器。e2e 必须注入受控电压测试 harness 检测。 |
-| `stm32h7/llfdcan_declarations.h` | 定义桩 | 🟡 低 ROI | 真实文件已有 `#ifndef E2E_TEST`。需在 libpanda.c 中 `#define FDCAN_START_ADDRESS 0U`，但收益极低（仅宏定义）。 |
+| `stm32h7/llfdcan_declarations.h` | 定义桩 | ✅ 已完成 | 真实文件已有 `#ifndef E2E_TEST` 守卫。`llfdcan.h` 用 `#include "llfdcan_declarations.h"`（相对路径），编译器先查同目录，直接命中真实文件。e2e 包装器多余，已删除。覆盖率 91.3%。 |
 | `stm32h7/sound.h` | 空桩 | ❌ 不可 | 229 行 SAI4/DMA/DAC/DFSDM 外设初始化，无独立业务逻辑。 |
 | `early_init.h` | 空桩 | ❌ 不可 | SCB->VTOR、DBGMCU->IDCODE、jump_to_bootloader()，纯启动流程。 |
 | `drivers/pwm.h` | 空桩 | ✅ 已完成 (Phase G) | 真实代码仅用 `register_set`/`register_set_bits`。扩展 `fake_stm.h` 中 `TIM_TypeDef` 为完整 20 字段布局，修复 `led_init()` 调用链（`jna_panda_init` 中添加）。覆盖率 82.2% (37/45)。 |
 | `drivers/led.h` | 空桩 | ✅ 已完成 (Phase G) | 依赖 `pwm_init`/`pwm_set`。pwm.h 去桩后去桩。修复 `led_init()` 未调用问题（仅 `main.c:281` 调用，e2e 永不执行 `panda_main`）。覆盖率 96.0% (24/25)。 |
-| `drivers/timers.h` | 空桩 | 🟡 有条件 | `microsecond_timer_get()` 读 fake CNT=0，10Hz 限速已由 fdcan.h `#ifdef E2E_TEST` 绕过。需验证无其他调用者依赖非零返回值。 |
+| `drivers/timers.h` | 空桩 | ✅ 已完成 | 所有类型/宏/桩集中到 `fake_stm.h`（`INTERRUPT_TIMER_IRQ`、`enable_interrupt_timer`、`NVIC_EnableIRQ`）。`init_interrupts(true)` + `microsecond_timer_init()` + `tick_timer_init()` 在 `jna_panda_init()` 中调用。覆盖率 100% (27/27)。 |
 | `drivers/usb.h` | 功能桩 | ❌ 不可 | e2e 专属 USB endpoint 模拟器，非简单桩。真实 usb.h 为完整 USB OTG 驱动 (31KB)。 |
 | `drivers/fake_siren.h` | 声明桩 | ❌ 不可 | 116 行 I2C codec/DMA/TIM7/DAC，深度耦合硬件。 |
-| `drivers/uart.h` | 类型桩 | 🟡 低 ROI | 真实 `uart_ring` 用 `USART_TypeDef*`，e2e 用 `void*`。libpanda.c 已有完整 `get_char`/`put_char` 重定义。 |
-| `drivers/interrupts.h` | 功能桩 | 🟡 低 ROI | REGISTER_INTERRUPT 宏已与生产一致。差异仅在 `IRQn_Type` typedef。 |
-| `drivers/spi.h` | 委托桩 | 🟡 低 ROI | 业务逻辑已是真实代码。仅 llspi 函数 stub 需保留（SPI DMA 硬件寄存器）。 |
+| `drivers/uart.h` | 类型桩 | ✅ 已完成 | `uart_ring` 类型移到 `fake_stm.h`（`void*` 替代 `USART_TypeDef*`），`UART_BUFFER` 宏不再需要 `#ifndef E2E_TEST` 守卫。`libpanda.c` 中手动实例定义已删除，实例由 `UART_BUFFER` 宏自动生成。覆盖率 94% (73/77)。 |
+| `drivers/interrupts.h` | 功能桩 | ✅ 已完成 | `IRQn_Type`、`interrupt` 结构体、`REGISTER_INTERRUPT` 宏移到 `fake_stm.h`。`init_interrupts(true)` 在 `jna_panda_init()` 中调用（镜像真实 `main()`）。覆盖率 96% (51/53, 仅 `interrupt_timer_handler` 内日志未覆盖)。 |
+| `drivers/spi.h` | 委托桩 | ✅ 已完成 | 业务逻辑已是真实代码。仅 llspi 函数 stub 需保留（SPI DMA 硬件寄存器）。覆盖率 94.2% (147/156)。 |
 | `drivers/simple_watchdog.h` | 委托桩 | ✅ 已完成 | 纯委托桩 → 真实代码 100%。 |
 
 ### 3.3 已完成去桩化
@@ -176,10 +184,11 @@ libpanda.c (2026-07-29 现状):
 | C1 | e2e 桩 `crc.h` | `board/crc.h` | 100% |
 | C2 | gen 文件内联宏 | `board/stm32h7/llfdcan_declarations.h` (真实宏) | 91.3% |
 | G | e2e 桩 `pwm.h` + `led.h` | `board/drivers/pwm.h` + `board/drivers/led.h` (真实代码) | 82.2% / 96.0% |
+| H | e2e 桩 `timers.h` + `interrupts.h` + `uart.h` + `llfdcan_declarations.h` | `board/drivers/timers.h` + `interrupts.h` + `uart.h` + `llfdcan_declarations.h` (真实代码) | 100% / 96% / 94% / 91.3% |
 
 ### 3.4 生产代码 `#ifdef E2E_TEST` 使用清单
 
-共 6 个文件，16 处使用：
+`drivers/uart.h` 中 `UART_BUFFER` 调用的 `#ifndef E2E_TEST` 守卫已移除（Phase H），其余不变。共 6 个文件，14 处使用（原 16 处，删 2 处）：
 
 **`board/drivers/harness.h` (4 处)**
 
@@ -244,7 +253,7 @@ libpanda.c (2026-07-29 现状):
 | 0xc1 | 硬件类型 | `spi_version_packet.feature` (已合并) |
 | 0xc2 | CAN 健康统计 | `can_health.feature` |
 | 0xc3 | MCU UID | `spi_version_packet.feature` (已合并) |
-| 0xc4 | 中断调用率 | `fdcan_interrupt.feature` (已合并) |
+| 0xc4 | 中断调用率 | `fdcan_interrupt.feature` + `interrupt_rate.feature` ✅ Phase H |
 | 0xc5 | 继电器驱动 | `relay.feature` |
 | 0xc6 | SOM GPIO 读取 | `som_gpio.feature` |
 | 0xd0 | 序列号/Provision | `spi_version_packet.feature` (已合并) |
@@ -333,6 +342,15 @@ libpanda.c (2026-07-29 现状):
 - E.4: `fdcan.h` can_rx() 全路径覆盖, ~85% → ~97% (8 场景)
 - F.5: `spi.h` SPI 全状态机, 13.5% → 94.2% (21 场景)
 
+### 第五阶段: 中断/定时器去桩化 (Phase H)
+- H: `timers.h` + `interrupts.h` + `uart.h` + `llfdcan_declarations.h` 去桩化
+  - `timers.h`: 11% → 100% (27/27), 4/4 函数
+  - `interrupts.h`: 0% → 96.2% (51/53)
+  - `uart.h`: 0% → 94.8% (73/77), UART_BUFFER 直接使用, 无 E2E_TEST 守卫
+  - `llfdcan_declarations.h`: 包装器删除, 直接使用真实代码 (91.3%)
+- 新增 `interrupt_rate.feature` (4 场景, 13 步骤)
+- 场景总数: 230 → 235
+
 ### 覆盖率基线演进
 
 ```
@@ -342,7 +360,8 @@ B2 完成后: 82.2%
 B5 完成后: 90.0%
 Phase D 后: 80.5% (基线重设, +33 行进入覆盖率)
 Phase E 后: ~83.9%
-Phase F 后: 91.1% (1989/2183) ← 当前
+Phase F 后: 91.1% (1989/2183) ← 本次整合前
+Phase H 后: ~91% (~2100/~2300, ~40 files) ← 当前
 ```
 
 ---
@@ -371,7 +390,7 @@ board/crypto/         → 加密库        ❌ bootstub 专用 (4 文件)
 
 ### 9.1 非端到端功能测试合并
 
-从 52 个 feature 合并至 35 个 (净减 17 个)，覆盖率无损。合并类别：
+从 52 个 feature 合并至 36 个 (净减 16 个)，覆盖率无损。合并类别：
 
 | 类别 | 减少 | 目标文件 |
 |------|------|---------|
@@ -380,7 +399,7 @@ board/crypto/         → 加密库        ❌ bootstub 专用 (4 文件)
 | 内部实现细节 | 6 | → `can_comms`, `clock_source`, `tick_paths`, `spi_state_machine`, `safety_mode` |
 | 单一控制写入 | 5 | → `can_fd_data_bitrate`, `system_reset_bootloader` |
 
-保留的 32 个真正端到端 feature（完整多步骤工作流）：CAN 通信协议 (4)、CAN 配置 (3)、安全模式 (1)、心跳超时 (2)、电源管理 (3)、SPI 协议 (2)、故障处理 (2)、CAN 中断 (1)、设备控制 (5)、tick 流程 (2)、硬件检测 (2)、启动流程 (1)、其他 (3)。
+保留的 33 个真正端到端 feature（完整多步骤工作流）：CAN 通信协议 (4)、CAN 配置 (3)、安全模式 (1)、心跳超时 (2)、电源管理 (3)、SPI 协议 (2)、故障处理 (2)、CAN 中断 (1)、中断处理 (1)、设备控制 (5)、tick 流程 (2)、硬件检测 (2)、启动流程 (1)、其他 (3)。
 
 ### 9.2 非端到端 When 步骤
 

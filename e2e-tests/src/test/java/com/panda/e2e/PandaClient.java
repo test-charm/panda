@@ -371,6 +371,12 @@ public class PandaClient {
 
         int jna_get_interrupt_call_rate_max(int irqn);
 
+        void jna_handle_interrupt(int irqn);
+        void jna_interrupt_timer_tick();
+        float jna_get_interrupt_load();
+        int jna_get_interrupt_call_counter(int irqn);
+        int jna_is_unused_handler(int irqn);
+
 
         void jna_set_serial(byte[] hex, int hexLen);
 
@@ -1351,6 +1357,26 @@ public class PandaClient {
 
     public int getInterruptMaxCallRate(int irqn) {
         return lib.jna_get_interrupt_call_rate_max(irqn);
+    }
+
+    public void handleInterrupt(int irqn) {
+        lib.jna_handle_interrupt(irqn);
+    }
+
+    public void interruptTimerTick() {
+        lib.jna_interrupt_timer_tick();
+    }
+
+    public float getInterruptLoad() {
+        return lib.jna_get_interrupt_load();
+    }
+
+    public int getInterruptCallCounter(int irqn) {
+        return lib.jna_get_interrupt_call_counter(irqn);
+    }
+
+    public boolean isUnusedHandler(int irqn) {
+        return lib.jna_is_unused_handler(irqn) != 0;
     }
 
     public void setSerial(byte[] hex) {
