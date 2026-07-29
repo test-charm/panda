@@ -1247,3 +1247,161 @@ Phase D 后基线:   80.5% (1738/2160)
 Phase E 完成后:  ~83.9% (~1814/2160) ✅
 Phase F 完成后:  91.1% (1989/2183) ✅
 ```
+
+---
+
+## 十三、e2e 测试设计审视：非端到端功能测试与合并机会
+
+> 分析时间: 2026-07-29
+> 涵盖: 全部 52 个 feature 文件
+> 目标: 识别被测对象不是完整端到端工作流的测试，评估通过修改其它已有测试来覆盖的可行性
+
+### 评判标准
+
+一个测试被认为是"非端到端"的，当满足以下条件之一：
+1. **单一数据读取 handler**：仅测试一个控制请求返回预设值，无业务流程
+2. **内部实现细节**：测试数据结构内部操作或初始化函数，无用户可见行为流
+3. **单一控制写入 handler**：仅测试一个简单参数写入 + 寄存器变化的控制请求
+4. **纯重复覆盖**：被测功能已被另一个 feature 的完全相同的 scenario 覆盖
+
+### 总览
+
+```
+非端到端 / 可通过其他测试覆盖的：20 个 feature 文件
+──────────────────────────────────────────
+纯重复：           1 个（可安全删除）
+单一数据读取：     8 个（简单 handler，可合并到相关 feature）  
+内部实现细节：     6 个（数据结构/初始化，可合并到相关 feature）
+单一控制写入：     5 个（简单 handler，可合并到相关 feature）
+
+仍为真正端到端功能：32 个（不变）
+```
+
+### 详细清单
+
+#### 类别 A：纯重复 ✅ 可安全删除
+
+| # | Feature 文件 | 被测对象 | 覆盖分析 | 合并目标 | 方案 |
+|---|-------------|---------|---------|---------|------|
+| A1 | `microsecond_timer.feature` | `get_microsecond_timer()` | 与 `timer_fan.feature` 中两个 scenario 完全一致（非零 timer + 零 timer） | `timer_fan.feature` | 直接删除 `microsecond_timer.feature`，无需其他改动 |
+
+#### 类别 B：单一数据读取 handler — 可合并到相关 feature
+
+这些 feature 仅通过 control write 调用一个 USB endpoint，验证 `respBuffer` 返回值。无业务流程、无状态转换、无副作用。
+
+| # | Feature 文件 | 被测 handler | 合并目标 | 合并方式 |
+|---|-------------|-------------|---------|---------|
+| B1 | `hw_type.feature` | `get_hw_type()` (0xc1) | `spi_version_packet.feature` | SPI 版本包中 `bytes[21]` 已是 `hw_type = CUATRO`，可在现有 scenario 中添加 `hwType` 字段校验 |
+| B2 | `get_version.feature` | `get_version()` (0xd6) | `health.feature` | 在 SILENT 模式默认值 scenario 后追加 `get_version()` 调用 + `respBuffer` 校验 |
+| B3 | `mcu_uid.feature` | `get_mcu_uid()` (0xc3) | `spi_version_packet.feature` | SPI 版本包中 `bytes[9-20]` 已是 12 字节 UID，在现有 scenario 中校验一致性即可 |
+| B4 | `packet_versions.feature` | `get_packet_versions()` (0xdd) | `health.feature` | 在 health 默认值 scenario 中添加 `packetVersions` 字段 |
+| B5 | `serial.feature` | serial/provision (0xd0) | `spi_version_packet.feature` | 与 UID 类似，SPI 版本包已包含设备标识信息，可在同一测试中覆盖 |
+| B6 | `interrupt_rate.feature` | `get_interrupt_rate()` (0xc4) | `fdcan_interrupt.feature` | 该 feature 已涉及 FDCAN 中断注册 + 速率校验，可在现有 scenario 中追加 `get_interrupt_rate` 调用 |
+| B7 | `signature.feature` | 签名分块 (0xd3/0xd4) | `health.feature` 或新建启动校验 scenario | 2 个单一 control write → respBuffer 校验，可在一个 scenario 中连续调用两个 endpoint |
+| B8 | `uart_read.feature` | UART 读取 (0xe0) | `endpoint2_write.feature` | endpoint2 ring 4 写入 → UART buffer，写后立即读回，在同一个 scenario 中验证 |
+
+#### 类别 C：内部实现细节 — 可合并到相关 feature
+
+这些 feature 测试的是内部数据结构操作或初始化函数，通过 JNA 直接操控底层状态而非通过固件 USB/SPI 命令。
+
+| # | Feature 文件 | 被测对象 | 问题本质 | 合并目标 | 合并方式 |
+|---|-------------|---------|---------|---------|---------|
+| C1 | `can_queue_wrap.feature` | `can_push`/`can_pop`/`can_slots_empty` 指针回绕 | 通过 JNA 直接设 `w_ptr`/`r_ptr` 测试 `can_common.h` 内部循环缓冲区。是数据结构单元测试 | `can_comms.feature` | 在 `can_comms.feature` 的 overflow buffer 场景中构造满队列/回绕条件可覆盖大部分路径 |
+| C2 | `clock_source_init.feature` | `clock_source_init()` | 测试 TIM1/TIM8 寄存器初始化 + GPIO alternate function。固件启动时的纯初始化函数，从未被用户命令触发 | `clock_source.feature` | 在 `clock_source.feature` 现有 scenario 中添加对 `clockSourceInit` 初始寄存器值的校验 |
+| C3 | `board_init.feature` | `board_xxx_init()` GPIO 配置 | 测试启动时的 GPIO MODER/OTYPER/PUPDR 寄存器写入。按板型分别测试，无用户交互 | 其他按 board 标注的 feature | 在 `power_save.feature`、`can_mode.feature`、`deep_sleep.feature` 等已有 `@cuatro`/`@tres`/`@red` scenario 中添加 `boardInit` 字段校验 |
+| C4 | `register_divergence.feature` | `check_registers()` 内部故障检测 | 通过 JNA 注射 `registerDivergent` 直接触发 fault。是内部自检函数，可通过常规 tick 流程覆盖 | `tick_paths.feature` | 在 `tick_paths.feature` 中添加 register divergent 触发的 scenario（已有 heartbeat counter、safety_mode_cnt 等同类场景） |
+| C5 | `watchdog.feature` | `simple_watchdog_kick()` 心跳看门狗 | 通过 `ControlSetup.timerValue` 直接注入时间差距触发 fault。纯内部故障检测 | `tick_paths.feature` | 在 `tick_paths.feature` 中添加 watchdog 触发的 scenario |
+| C6 | `endpoint2_write.feature` | `comms_endpoint2_write()` | 测试 SPI endpoint 2 数据写入 debug/buffer。SPI 协议内部实现 | `spi_state_machine.feature` | 该 feature 已覆盖 endpoint 2 的 DATA_RX 路径（`DATA_RX endpoint 2 — endpoint2 write → DACK`），在同一 scenario 中增加写入数据的校验 |
+
+#### 类别 D：单一控制写入 handler — 可合并到相关 feature
+
+这些 feature 测试的 handler 逻辑极简（写入一个值 / 翻转一个标志 / 触发一次操作），可与相关的更复杂的 feature 合并。
+
+| # | Feature 文件 | 被测 handler | 合并目标 | 合并方式 |
+|---|-------------|-------------|---------|---------|
+| D1 | `can_fd_non_iso.feature` | `set_can_fd_non_iso()` (0xfc) | `can_fd_data_bitrate.feature` | 在同一个 scenario 中先设置 non-ISO 标志再设置 data bitrate，验证组合行为 + CCCR 寄存器 |
+| D2 | `can_fd_auto.feature` | `set_can_fd_auto()` (0xe8) | `can_fd_data_bitrate.feature` | 在数据速率配置 scenario 中同时设置 auto switching 标志 |
+| D3 | `can_comms_reset.feature` | `reset_can_comms()` (0xc0) | `safety_mode.feature` | `safety_mode.feature` 已有"切换安全模式清空队列"的 scenario（第 7 个），在其中增加 `reset_can_comms` 后状态校验 |
+| D4 | `reset_st.feature` | NVIC 系统复位 (0xd8) | `bootloader.feature` | `bootloader.feature` 两个有效 scenario 已触发 NVIC reset 并验证 `nvicResetCount`。`reset_st.feature` 的唯一 scenario 是 bootloader 测试的子集 |
+| D5 | `bootloader.feature` | `enter_bootloader_mode()` (0xd1) | 扩展后的 `reset_st.feature` | 与 D4 合并为一个「系统复位与引导模式」feature，共 5 个 scenario（reset 1 + bootloader 3 + 组合 1） |
+
+### 仍为真正端到端功能的 32 个测试
+
+以下 feature 测试的是完整的多步骤端到端工作流，**不应合并**：
+
+| 分类 | Feature | 端到端流程 |
+|------|---------|-----------|
+| **CAN 通信协议** | `can_comms` | USB ep3 out → deserialize → process_can → rxQueue → serialize → USB ep1 in（完整编解码管道） |
+| | `can_loopback` | loopback enable → CAN send → echo rxQueue → FDCAN 寄存器验证 |
+| | `can_ring_clear` | 预填充队列 → clear 命令 → 验证队列空 |
+| | `can_health` | preset PSR/ECR → control write → 验证 canHealth 提取逻辑 |
+| **CAN 配置** | `can_bitrate` | set bitrate → can_init → FDCAN 寄存器全量验证 |
+| | `can_fd_data_bitrate` | set FD bitrate → canfd_enabled/brs_enabled + FDCAN dbtp 寄存器 |
+| | `can_mode` | set OBD_CAN2/NORMAL → GPIO MODER/ODR 按板验证 |
+| **安全模式** | `safety_mode` | 多模式切换 → CAN send → rejected/allowed → relay + FDCAN 寄存器 |
+| **心跳超时** | `heartbeat_loss` | 多 tick 累积 → controls_allowed 撤销 → SILENT → siren/IR/fan |
+| | `heartbeat` | 心跳 engaged/disabled 状态转换 + car_safety 禁止 disable |
+| **电源管理** | `power_save` | enable/disable → CAN IRQ/transceiver/IR → 按板 GPIO + 翻转线束 |
+| | `deep_sleep` | deep sleep request → enter_stop_mode → GPIO MODER/EXIT/PWR/SCB 全套寄存器 |
+| | `wfi_idle` | power_save enabled → WFI 空闲路径 → 按板 + SOM GPIO 条件 |
+| **SPI 协议** | `spi_state_machine` | HEADER→DATA_RX→DATA_TX→HEADER 全状态机 |
+| | `spi_version_packet` | VERSION 匹配 → spi_version_packet → CRC-8 + UID + hw_type + PID |
+| **故障处理** | `permanent_fault` | trigger → fault_status PERMANENT → recover 不可清除 → 幂等 |
+| | `relay_malfunction` | tick_handler → relay_malfunction edge → fault 触发/恢复 |
+| **CAN 中断** | `fdcan_interrupt` | can_send → process_can → TXBAR; can_rx → RX FIFO → rxQueue; IRQ 错误 |
+| **设备控制** | `relay` | multi-param → GPIOA ODR → relay A/B/AB/off + 高位忽略 |
+| | `siren` | set_siren → tick → GPIOB ODR bit14 + red no-op |
+| | `ir_power` | set_ir_power → irPwm → red no-op |
+| | `fan_power` | set_fan_power → 钳位 → GPIO D ODR 按板型 + 0 功率 cooldown |
+| | `fan_cooldown` | set_fan_power 0 → 多 tick → cooldown_counter 递减至 0 |
+| **tick 流程** | `tick_paths` | has_fan false 跳过 / heartbeat_counter UINT32_MAX 封顶 / safety_mode_cnt 溢出回绕 / harness reinit |
+| | `ignition_can` | preset ignition_can → 多 tick → 超时后自动清零 |
+| **硬件检测** | `harness_detect` | preset SBU voltage → detect_orientation → NORMAL/FLIPPED/NC + relay_driven 跳过 |
+| | `som_gpio` | preset somGpio → read endpoint → 按板返回 1/0 |
+| **启动流程** | `bootkick` | ignition edge → BOOT_BOOTKICK → 20 tick 等待 → BOOT_RESET → GPIO 按板 |
+| **其他** | `alternative_experience` | set value → car_safety 阻止 → 边界值（0 / 32767） |
+| | `clock_source` | set params → TIM register 分解（ccr1/ccr2/ccr3/arr/ccr4）+ 边界（0 / max） |
+| | `timer_fan` | get_microsecond_timer + get_fan_rpm（两个相关 endpoint 在同一 feature） |
+
+### 合并后的预期效果
+
+```
+当前:  52 个 feature 文件
+合并后: ~37 个 feature 文件（减少 ~15 个）
+
+减少类型:
+  A 纯重复:         1 个
+  B 数据读取合并:   8 个 → 减少 8 个独立文件（内容分散到 5 个目标文件）
+  C 内部实现合并:   6 个 → 减少 6 个独立文件（内容分散到 5 个目标文件）
+  D 控制写入合并:   5 个 → 减少 5 个独立文件（内容分散到 3 个目标文件）
+                     ↑ 有重叠合并目标，实际减少可能略少
+
+场景总数保持: 所有被合并的 scenario 内容变为目标文件的新 scenario，
+              测试覆盖不丢失，仅组织方式变化。
+```
+
+### 优先级建议
+
+```
+🟢 第 1 梯队 (立即执行，无风险):
+   A1: microsecond_timer.feature → 直接删除
+
+🟡 第 2 梯队 (低风险，高收益):
+   D4+D5: reset_st + bootloader → 合并为一个 feature
+   D1+D2: can_fd_non_iso + can_fd_auto → 合并到 can_fd_data_bitrate
+   B1+B3+B5: hw_type + mcu_uid + serial → 合并到 spi_version_packet
+   B2+B4: get_version + packet_versions → 合并到 health
+
+🟠 第 3 梯队 (中等风险，需设计 scenario):
+   C1: can_queue_wrap → 合并到 can_comms（需设计边界 scenario）
+   C4+C5: register_divergence + watchdog → 合并到 tick_paths
+   C2: clock_source_init → 合并到 clock_source
+   C6: endpoint2_write → 合并到 spi_state_machine
+   D3: can_comms_reset → 合并到 safety_mode
+   B7: signature → 合并到 health
+   B6: interrupt_rate → 合并到 fdcan_interrupt
+
+🔴 第 4 梯队 (高风险/争议大，暂缓):
+   C3: board_init → 分散到其他按板 feature
+   B8: uart_read → 合并到 endpoint2_write（但 endpoint2_write 自身也可能被合并）
+```
