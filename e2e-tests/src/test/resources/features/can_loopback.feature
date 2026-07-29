@@ -14,7 +14,6 @@ Feature: CAN Loopback Mode
       """
       : {
         rxQueue: []
-        txQueue[0]: []
         fdcanRegs<<0,1,2>>: {
           cccr: [ -96y, 0b0101_0011y ]
           ie: [ 0b0000_1001y, 0b0000_1000y, -128y, 0b0001_1010y ]        # -128y 不能写成 0b1000_0000y
