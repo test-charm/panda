@@ -835,7 +835,8 @@ uint32_t jna_get_safety_tx_blocked(void) {
 // Pop from can_rx_q (blocked/rejected messages end up here).
 // Returns true if a message was popped.
 bool jna_can_pop_rx(uint32_t *out_addr, uint8_t *out_bus, uint8_t *out_rejected,
-                     uint8_t *out_returned, uint8_t *out_data, uint8_t *out_len) {
+                     uint8_t *out_returned, uint8_t *out_data, uint8_t *out_len,
+                     uint8_t *out_extended, uint8_t *out_fd) {
     CANPacket_t pkt;
     if (can_pop(&can_rx_q, &pkt)) {
         *out_addr = pkt.addr;
@@ -843,6 +844,8 @@ bool jna_can_pop_rx(uint32_t *out_addr, uint8_t *out_bus, uint8_t *out_rejected,
         *out_rejected = pkt.rejected;
         *out_returned = pkt.returned;
         *out_len = pkt.data_len_code;
+        *out_extended = pkt.extended;
+        *out_fd = pkt.fd;
         if (pkt.data_len_code > 0U) {
             (void)memcpy(out_data, pkt.data, pkt.data_len_code);
         }
@@ -853,7 +856,8 @@ bool jna_can_pop_rx(uint32_t *out_addr, uint8_t *out_bus, uint8_t *out_rejected,
 
 // Pop from can_tx{1,2,3}_q (allowed messages end up here).
 // queue_idx: 0=tx1_q (bus 0), 1=tx2_q (bus 1), 2=tx3_q (bus 2)
-bool jna_can_pop_tx(int queue_idx, uint32_t *out_addr, uint8_t *out_returned, uint8_t *out_data, uint8_t *out_len) {
+bool jna_can_pop_tx(int queue_idx, uint32_t *out_addr, uint8_t *out_returned, uint8_t *out_data, uint8_t *out_len,
+                    uint8_t *out_extended, uint8_t *out_fd) {
     if ((queue_idx < 0) || (queue_idx >= PANDA_CAN_CNT)) {
         return false;
     }
@@ -863,6 +867,8 @@ bool jna_can_pop_tx(int queue_idx, uint32_t *out_addr, uint8_t *out_returned, ui
         *out_addr = pkt.addr;
         *out_returned = pkt.returned;
         *out_len = pkt.data_len_code;
+        *out_extended = pkt.extended;
+        *out_fd = pkt.fd;
         if (pkt.data_len_code > 0U) {
             (void)memcpy(out_data, pkt.data, pkt.data_len_code);
         }
@@ -966,6 +972,99 @@ void jna_process_can(int can_number) {
 // Call can_rx to simulate RX interrupt: reads FDCAN FIFO → can_rx_q
 void jna_can_rx(int can_number) {
     if ((can_number >= 0) && (can_number < 3)) can_rx((uint8_t)can_number);
+}
+
+// ---- JNA API: FDCAN RX FIFO injection for can_rx() path coverage ----
+
+// Write a CAN frame into the fake FDCAN RX FIFO SRAM at a given element index.
+// This allows e2e tests to pre-fill the RX FIFO before calling jna_can_rx().
+void jna_fdcan_write_rx_fifo(int can_number, uint32_t element_index,
+                              int extended, uint32_t addr,
+                              int canfd_frame, int brs_frame,
+                              uint8_t data_len_code, const uint8_t *data) {
+    if ((can_number < 0) || (can_number >= 3)) return;
+    if (element_index >= FDCAN_RX_FIFO_0_EL_CNT) return;
+
+    uint8_t *rx_ram = fake_fdcan_sram + (can_number * FDCAN_OFFSET);
+    canfd_fifo *fifo = (canfd_fifo *)(rx_ram + (element_index * FDCAN_RX_FIFO_0_EL_SIZE));
+
+    fifo->header[0] = (extended ? (1UL << 30) : 0UL)
+                     | (extended ? (addr & 0x1FFFFFFFUL) : ((addr & 0x7FFUL) << 18));
+    fifo->header[1] = ((canfd_frame ? 1UL : 0UL) << 21)
+                     | ((brs_frame ? 1UL : 0UL) << 20)
+                     | ((uint32_t)(data_len_code & 0xFU) << 16);
+
+    if (data != ((void *)0)) {
+        uint8_t data_len = dlc_to_len[data_len_code & 0xFU];
+        uint8_t data_len_w = (data_len / 4U) + ((data_len % 4U) > 0U ? 1U : 0U);
+        for (unsigned int i = 0; i < data_len_w; i++) {
+            BYTE_ARRAY_TO_WORD(fifo->data_word[i], &data[i*4U]);
+        }
+    }
+}
+
+void jna_set_fdcan_rxf0s(int can_number, uint32_t val) {
+    if ((can_number >= 0) && (can_number < 3)) fake_fdcan[can_number].RXF0S = val;
+}
+
+uint32_t jna_get_fdcan_rxf0s(int can_number) {
+    if ((can_number < 0) || (can_number >= 3)) return 0U;
+    return fake_fdcan[can_number].RXF0S;
+}
+
+void jna_set_fdcan_ir(int can_number, uint32_t val) {
+    if ((can_number >= 0) && (can_number < 3)) fake_fdcan[can_number].IR = val;
+}
+
+uint32_t jna_get_fdcan_rxf0a(int can_number) {
+    if ((can_number < 0) || (can_number >= 3)) return 0U;
+    return fake_fdcan[can_number].RXF0A;
+}
+
+// Get can_health counters used directly by can_rx()
+uint32_t jna_get_can_health_total_rx_cnt(int bus) {
+    if ((bus < 0) || (bus >= 3)) return 0U;
+    return can_health[bus].total_rx_cnt;
+}
+
+uint32_t jna_get_can_health_total_fwd_cnt(int bus) {
+    if ((bus < 0) || (bus >= 3)) return 0U;
+    return can_health[bus].total_fwd_cnt;
+}
+
+// Get safety_rx_invalid (direct, not via health pkt)
+int jna_get_direct_safety_rx_invalid(void) {
+    return (int)safety_rx_invalid;
+}
+
+// Get rx_buffer_overflow counter
+int jna_get_direct_rx_buffer_overflow(void) {
+    return (int)rx_buffer_overflow;
+}
+
+// bus_config manipulation for can_rx() path testing
+void jna_set_bus_forwarding_bus(int bus, int fwd_bus) {
+    if ((bus >= 0) && (bus < PANDA_CAN_CNT)) {
+        bus_config[bus].forwarding_bus = (int8_t)fwd_bus;
+    }
+}
+
+void jna_reset_bus_config(void) {
+    for (int i = 0; i < PANDA_CAN_CNT; i++) {
+        bus_config[i].canfd_enabled = false;
+        bus_config[i].brs_enabled = false;
+        bus_config[i].forwarding_bus = -1;
+    }
+}
+
+int jna_get_bus_config_canfd_enabled(int bus) {
+    if ((bus < 0) || (bus >= PANDA_CAN_CNT)) return 0;
+    return bus_config[bus].canfd_enabled ? 1 : 0;
+}
+
+int jna_get_bus_config_brs_enabled(int bus) {
+    if ((bus < 0) || (bus >= PANDA_CAN_CNT)) return 0;
+    return bus_config[bus].brs_enabled ? 1 : 0;
 }
 
 // ---- JNA API: Heartbeat state inspection ----

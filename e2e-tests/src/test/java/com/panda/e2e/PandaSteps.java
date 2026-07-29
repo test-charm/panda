@@ -1,5 +1,6 @@
 package com.panda.e2e;
 
+import com.panda.e2e.spec.CanRxSendRequests;
 import com.panda.e2e.spec.CanSendRequests;
 import com.panda.e2e.spec.UsbControlRequests;
 import io.cucumber.java.en.Then;
@@ -81,6 +82,21 @@ public class PandaSteps {
     @Then("FDCAN interrupt handlers:")
     public void fdcanInterruptHandlers(String expression) {
         expect(client).should(expression);
+    }
+
+    @When("can rx send:")
+    public void canRxSend(String expression) {
+        var jFactory = createJFactoryWithSpec(CanRxSendRequests.CanRxSendRequest.class);
+        jFactory.useDAL().createAll(expression);
+        var request = jFactory.type(CanRxSendRequest.class).query();
+        int val = ((request.f0gi & 0x3F) << 16) | (request.full << 8) | (request.f0fl & 0x7F);
+        client.setFdcanRxf0s(request.rxf0sBus, val);
+        client.setFdcanIr(request.irBus, request.rf0n != 0 ? 1 : 0);
+        client.canRx(request.canNumber);
+    }
+
+    public static class CanRxSendRequest {
+        public int rxf0sBus, f0gi, f0fl, full, irBus, rf0n, canNumber;
     }
 
     public static class UsbControlRequest {
@@ -176,6 +192,40 @@ public class PandaSteps {
     @When("process can {int}")
     public void processCan(int canNumber) {
         client.processCan(canNumber);
+    }
+
+    @When("can rx {int}")
+    public void canRx(int canNumber) {
+        client.canRx(canNumber);
+    }
+
+    // ---- can_rx() RX FIFO injection steps ----
+
+    public static class CanRxInjectRequest {
+        public int address;
+        public String data;
+        public int bus;
+        public boolean extended;
+        public boolean canfdFrame;
+        public boolean brsFrame;
+        public int dataLenCode;
+        public int elementIndex;
+    }
+
+    @When("set fdcan ir bus {int} errors ped {int} pea {int} ep {int} bo {int} rf0l {int}")
+    public void setFdcanIrErrors(int bus, int ped, int pea, int ep, int bo, int rf0l) {
+        int val = 0;
+        if (ped != 0) val |= (1 << 8);
+        if (pea != 0) val |= (1 << 9);
+        if (ep != 0) val |= (1 << 6);
+        if (bo != 0) val |= (1 << 7);
+        if (rf0l != 0) val |= (1 << 4);
+        client.setFdcanIr(bus, val);
+    }
+
+    @When("set forwarding bus {int} to bus {int}")
+    public void setForwardingBus(int bus, int fwdBus) {
+        client.setBusForwardingBus(bus, fwdBus);
     }
 
     public static class ControlSetup {

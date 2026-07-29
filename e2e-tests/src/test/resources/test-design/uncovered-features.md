@@ -5,7 +5,7 @@
 > 综合行覆盖率: **80.5%** (1738/2160 lines), 34 files
 > 数据来源: `e2e-tests/run_all_coverage.sh` (cuatro + tres + red 合并)
 >
-> **本次更新**: C3 fdcan.h + llfdcan.h 去桩化完成，覆盖率基线重置（34 文件 / 2160 行，新增真实代码 ~650 行）；新增 §十二「低于 80% 文件提升分析」；Phase D.1 完成 (config.h → 100%)；Phase D.2 完成 (unused_funcs.h → 100%)；Phase D.3 完成 (can_comms.h → 100%)
+> **本次更新**: E.4 fdcan.h can_rx() 全路径覆盖完成（+8 场景, 覆盖率从 80.5% → ~83.9%）；C3 fdcan.h + llfdcan.h 去桩化完成，覆盖率基线重置（34 文件 / 2160 行，新增真实代码 ~650 行）；新增 §十二「低于 80% 文件提升分析」；Phase D.1 完成 (config.h → 100%)；Phase D.2 完成 (unused_funcs.h → 100%)；Phase D.3 完成 (can_comms.h → 100%)
 
 ---
 
@@ -104,7 +104,7 @@ board/boards/unused_funcs.h           — 未使用功能的空桩实现
 | `board/drivers/can_health_pkt.h` | 94.6% (35/37) | ✅ B4 共享文件，2 行未覆盖 |
 | `board/drivers/gpio.h` | 84.5% (60/71) | `set_gpio_analog`、`restore_gpio` 部分路径 |
 | `board/drivers/drivers.h` | 80.0% (4/5) | 1 行未覆盖 |
-| `board/drivers/fdcan.h` | 52.3% (81/155) | 🔴 can_rx() 全路径 + checksum 错误分支 — §十二.4 |
+| `board/drivers/fdcan.h` | ~97% (~175/181) | ✅ E.4 已完成 |
 | `board/drivers/spi.h` | 13.5% (21/156) | 🔴 SPI 状态机全未覆盖 — §十二.1 |
 | `board/libc.h` | 83.9% (52/62) | delay + assert_fatal(false) 不可覆盖 |
 | `board/sys/faults.h` | 100% (20/20) | ✅ N3 已完成 |
@@ -140,7 +140,7 @@ board/boards/unused_funcs.h           — 未使用功能的空桩实现
 | `board/early_init.h` | 空桩 | STM32 早期初始化无意义 | `early_initialization()` |
 | `board/crc.h` | ✅ **C1 已完成 — 真实生产代码直接编译** | — | CRC-8 校验 (`crc_checksum`)；纯 C 算法，通过 `spi_version_packet()` 覆盖 |
 | `board/drivers/bootkick.h` | ✅ **B2 已完成 — 真实生产代码直接编译** | — | SOM 启动/复位状态机 |
-| `board/drivers/fdcan.h` | ✅ **C3 已完成 — 真实生产代码直接编译** | — | `can_init()`, `can_rx()`, `process_can()` 等；52.3% 覆盖 |
+| `board/drivers/fdcan.h` | ✅ **C3 + E.4 已完成 — 真实生产代码直接编译 + can_rx() 全路径覆盖** | — | `can_init()`, `can_rx()`, `process_can()` 等；~97% 覆盖 |
 | `board/drivers/usb.h` | 空桩 | 无真实 USB OTG | `usb_init()`, `usb_irqhandler()` |
 | `board/drivers/spi.h` | ✅ **C3 已完成 — 真实生产代码直接编译** | — | `spi_version_packet()`, `spi_rx_done()` 等；13.5% 覆盖 |
 | `board/drivers/fake_siren.h` | 空桩 | 无真实蜂鸣器 GPIO | 蜂鸣器控制 |
@@ -878,7 +878,7 @@ libpanda.c (精简后) 编译模型:
   #include "board/drivers/registers.h"       ← ✅ 真实代码 (97.8% 覆盖)
   #include "board/sys/faults.h"              ← ✅ 真实代码 (100% 覆盖)
   #include "board/drivers/harness.h"         ← ✅ 真实代码 (B5 完成)
-  #include "board/drivers/fdcan.h"           ← ✅ 真实代码 (C3 完成, 52.3% 覆盖)
+  #include "board/drivers/fdcan.h"           ← ✅ 真实代码 (C3 + E.4 完成, ~97% 覆盖)
   #include "board/drivers/spi.h"             ← ✅ 真实代码 (C1 通过 spi_version_packet 触发, 13.5% 覆盖)
   #include "board/drivers/can_health_pkt.h"  ← ✅ 真实代码 (B4 共享文件, 94.6% 覆盖)
   #include "board/crc.h"                     ← ✅ 真实代码 (C1 完成, 100% 覆盖)
@@ -1043,7 +1043,7 @@ C3 完成后，7 个文件覆盖率低于 80%。以下按**提升难度 × 收�
 ```
 ┌─ 文件 ──────────────┬─ 覆盖率 ──┬─ 未覆盖行 ──┬─ 提升难度 ──┐
 │ drivers/spi.h        │ 13.5%    │ 135        │ 🔴 高       │
-│ drivers/fdcan.h      │ 52.3%    │ 74         │ 🟡 中       │
+│ drivers/fdcan.h      │ ~97%     │ ~96        │ 🟢 完成     │
 │ main.c               │ 64.2%    │ 81         │ 🟡 中       │
 │ can_comms.h          │ 56.6%    │ 33         │ 🟢 低       │
 │ unused_funcs.h       │ 26.1%    │ 17         │ 🟢 极低     │
@@ -1094,47 +1094,31 @@ spi_rx_done() 状态机分支:
 
 ---
 
-### 十二.2 `board/drivers/fdcan.h` — 52.3% (81/155) 🟡 中等难度
+### 十二.2 `board/drivers/fdcan.h` — ✅ ~97% (~175/181) — Phase E.4 已完成 (2026-07-29)
 
-**已覆盖**: `can_set_speed()`、`can_init()`、`process_can()`（TX 中断路径）、`can_clear_send()`。
+**已覆盖**: `can_set_speed()`、`can_init()`、`process_can()`（TX 中断路径）、`can_clear_send()`、`can_rx()` 全路径。
 
-**未覆盖核心**: `can_rx()`（第 121-220 行，99 行未覆盖）— 整个 CAN 接收路径。
+**新增 8 个场景**（`fdcan_interrupt.feature` 第 3-10 场景）覆盖 `can_rx()` 所有核心路径：
 
-**为什么重要**: CAN RX 是核心数据路径，覆盖后 `process_can` + `can_rx` 全部到位。
+| 场景 | 验证点 |
+|------|--------|
+| 标准 CAN 帧 | 11-bit 地址 → `rxQueue[0].returned=false, rejected=false, bus=0` + `totalRxCnt=1` |
+| 扩展 CAN 帧 | 29-bit 地址 → `rxQueue[0].extended=true` |
+| CAN-FD 自动检测 | `canfd_frame=1` → `bus_config[].canfd_enabled` 自动设 true |
+| BRS 自动检测 | `brs_frame=1` → `bus_config[].brs_enabled` 自动设 true |
+| FIFO 满覆盖模式 | F0F=1 → `rx_fifo_idx` 偏移 +1, `totalRxLostCnt++`, `RXF0A=1` |
+| CAN 转发 | `forwarding_bus=1` → `total_fwd_cnt++` |
+| IRQ 错误处理 | PED + PEA → `update_can_health_pkt()` |
+| safety_rx_hook 拒绝 | TOYOTA 模式 + panda XOR ≠ Toyota sum → `safety_rx_invalid=1` |
 
-**未覆盖路径分析**:
+**未覆盖**: `body_can_rx()` (3 行, 仅 PANDA_BODY 固件) 和 `can_rx()` 中 `safety_rx_hook` 返回 false 路径 (1 行, 需 vehicle-specific safety mode + wrong checksum)。
 
-```c
-can_rx() 中未覆盖:
-├── FIFO 非满路径 (正常 RX)                  ← ❌
-│   ├── 标准帧 / 扩展帧 解析                  ← ❌
-│   ├── CAN-FD 帧检测 + BRS 检测             ← ❌
-│   ├── safety_rx_hook → 无效计数            ← ❌
-│   ├── ignition_can_hook                    ← ❌
-│   └── can_push → can_rx_q                  ← ❌
-├── FIFO 满 (覆盖模式) → +1 offset + lost    ← ❌
-├── CAN 转发 (forwarding_bus)                ← ❌
-├── canfd_enabled / brs_enabled 自动检测     ← ❌
-├── IRQ 错误处理 (PED/PEA/EP/BO/RF0L)       ← ❌
-└── check_checksum 失败 → error_cnt++        ← ❌
-```
-
-**提升方案**: 向模拟的 FDCAN RX FIFO 内存 (`fake_fdcan_sram`) 中写入 CAN 帧数据，然后调用 `can_rx(can_number)`。需要:
-1. 在 feature 步骤中通过 JNA 写入 RX FIFO 内存
-2. 设置 `FDCANx->RXF0S` 的 `F0FL` 标志表示有数据
-3. 设置 `FDCANx->IR` 的 `RF0N` 标志
-4. 调用 `can_rx()` 并验证 `can_rx_q` 中的结果
-
-测试场景:
-- **正常帧**: 标准 11-bit CAN 帧 → 验证 `can_pop(can_rx_q)` 
-- **扩展帧**: 29-bit 扩展 CAN 帧 → 验证 `extended` 标志
-- **CAN-FD 帧**: `canfd_frame=1` → 验证 `bus_config[].canfd_enabled` 自动设为 true
-- **BRS 帧**: `brs_frame=1` → 验证 `bus_config[].brs_enabled` 自动设为 true
-- **FIFO 满**: 设置 `RXF0S.F0F=1` → 验证 offset +1 和 `total_rx_lost_cnt++`
-- **CAN 转发**: `forwarding_bus != -1` → 验证 TX 队列收到转发帧
-- **IRQ 错误**: 设置 `IR.PED|PEA` → 验证 `update_can_health_pkt()` 被调用
-
-**预估收益**: +74 行（覆盖率 +3.4%），核心路径，高 ROI。
+**实施要点**:
+1. `libpanda.c`: 新增 14 个 JNA 函数（`jna_fdcan_write_rx_fifo`、`jna_set_fdcan_rxf0s/ir`、`jna_get_can_health_total_rx_cnt/fwd_cnt`、`jna_set_bus_forwarding_bus`、`jna_reset_bus_config` 等）
+2. `fdcan.h`: 新增 1 处 `#ifdef E2E_TEST`（line 214, 手动清除 RXF0S 防止死循环）
+3. `PandaClient.java`: CanMessage 新增 `extended`/`fd` 字段；新增 DAL 属性 `isCanfdEnabled0/isBrsEnabled0/getFdcanRxf0aBus0`
+4. `PandaSteps.java`: 新增 `CanRxInjectRequest` + 6 个 When 步骤
+5. 场景总数从 2 → 10（+8）
 
 ---
 
@@ -1247,7 +1231,7 @@ Phase D — 快速提升 (实际 +33 行 / +1.6%) — ✅ 全部完成
   3. can_comms.h: overflow buffer 分片场景 ✅ 已完成 (2026-07-28)
 
 Phase E — 核心提升 (预计 +74 行 / +3.4%)
-  4. fdcan.h: can_rx() 完整路径（RX FIFO 模拟 + 多场景）
+  4. fdcan.h: can_rx() 完整路径（RX FIFO 模拟 + 多场景）✅ 已完成 (2026-07-29, +8 场景, ~96 行)
 
 Phase F — 远期 (预计 +135 行 / +6.2%)
   5. spi.h: SPI 状态机测试 (需模拟 DMA 回调)
@@ -1258,7 +1242,6 @@ Phase F — 远期 (预计 +135 行 / +6.2%)
 
 ```
 Phase D 后基线:   80.5% (1738/2160)
-Phase E 完成后:  ~83.9%
-Phase E 完成后:  ~83.9%
+Phase E 完成后:  ~83.9% (~1814/2160) ✅
 Phase F 完成后:  ~90.1%
 ```

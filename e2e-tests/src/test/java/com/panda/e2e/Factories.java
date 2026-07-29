@@ -9,6 +9,8 @@ import org.testcharm.jfactory.MemoryDataRepository;
 import org.testcharm.jfactory.Spec;
 import org.testcharm.util.Classes;
 
+import java.nio.charset.StandardCharsets;
+
 @Configuration
 public class Factories {
 
@@ -19,6 +21,7 @@ public class Factories {
                 .registerByType(PandaSteps.CanSendRequest.class, new CanSendRequestDataRepository(client))
                 .registerByType(PandaSteps.ControlSetup.class, new ControlSetupDataRepository(client))
                 .registerByType(CanQueues.CanQueueData.class, new CanQueueDataRepository(client))
+                .registerByType(PandaSteps.CanRxInjectRequest.class, new CanRxInjectRequestDataRepository(client))
         );
         Classes.subTypesOf(Spec.class, "com.panda.e2e.spec")
                 .forEach(spec -> jFactory.register((Class) spec));
@@ -189,6 +192,27 @@ public class Factories {
             super.save(object);
             var queue = (CanQueues.CanQueueData) object;
             client.setCanQueueState(queue.getQueueNum(), queue.getW_ptr(), queue.getR_ptr());
+        }
+    }
+
+    public static class CanRxInjectRequestDataRepository extends MemoryDataRepository {
+        private final PandaClient client;
+
+        public CanRxInjectRequestDataRepository(PandaClient client) {
+            this.client = client;
+        }
+
+        @Override
+        public void save(Object object) {
+            super.save(object);
+            var request = (PandaSteps.CanRxInjectRequest) object;
+            byte[] data = request.data != null
+                    ? request.data.getBytes(StandardCharsets.UTF_8)
+                    : new byte[0];
+            client.writeRxFifo(request.bus, request.elementIndex,
+                    request.extended, request.address,
+                    request.canfdFrame, request.brsFrame,
+                    request.dataLenCode, data);
         }
     }
 }

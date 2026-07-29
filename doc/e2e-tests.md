@@ -78,6 +78,12 @@ Cucumber BDD 断言: gpioAModer: 0xFFFFFFF1, rccCr: 0x0, ...
 | `jna_uart_push()` | 向 UART debug ring 推送字符 |
 | `jna_board_init()` | 重置 GPIO/PWR/TIM，预置 USB33RDY → `current_board->init()` (N2) |
 | `jna_reset_*` 系列 (15+) | 每次 `@Before` 中重置所有假状态 |
+| `jna_fdcan_write_rx_fifo(n, idx, ext, addr, fd, brs, dlc, data)` | 向假 FDCAN SRAM 注入 CAN 帧 |
+| `jna_set_fdcan_rxf0s/ir(n, val)` | 设置 RXF0S/IR 寄存器（F0FL/F0F/F0GI / RF0N/PED/PEA） |
+| `jna_get_can_health_total_rx_cnt/fwd_cnt(bus)` | 读取 `can_health[]` 计数器 |
+| `jna_get_direct_safety_rx_invalid()` | 读取 `safety_rx_invalid` 原始值 |
+| `jna_set_bus_forwarding_bus(bus, fwd)` | 设置 `bus_config[].forwarding_bus` |
+| `jna_get_bus_config_canfd_enabled/brs_enabled(bus)` | 读取 CAN-FD/BRS 自动检测标志 |
 
 ## 目录结构
 
@@ -123,7 +129,7 @@ e2e-tests/
 | CAN 通信序列化 | `can_comms.feature` | 9 | USB ep3 out → comms_can_write → rxQueue, USB ep1 in → comms_can_read → usbEp1InBytes (含 overflow 分片 5 场景, Phase D.3 ✅) |
 | CAN 环形缓冲 | `can_ring_clear.feature` | 4 | rxQueue/txQueue |
 | CAN 队列回绕 | `can_queue_wrap.feature` | 5 | lastQueueWPtr/lastQueueRPtr/canPushResult/lastCanSlotsEmptyVal via JNA 直接队列操作 |
-| FDCAN 中断处理 | `fdcan_interrupt.feature` | 2 | process_can → TXBAR/IR/rxQueue, 0xff 守卫 ✅ C3 |
+| FDCAN 中断处理 | `fdcan_interrupt.feature` | 10 | process_can → TXBAR/IR/rxQueue, 0xff 守卫, can_rx 全路径 (标准帧/扩展帧/CAN-FD/BRS/FIFO满/转发/IRQ错误/safety_rx_invalid) ✅ C3 + E.4 |
 | libc 工具函数 | `libc.feature` | 4 | lastMemcmpResult / delay 不挂死 |
 | 固件版本 | `get_version.feature` | 1 | respBuffer |
 | 数据包版本 | `packet_versions.feature` | 1 | packetVersions + canInitTimeoutMs |
@@ -164,7 +170,7 @@ e2e-tests/
 ## C 代码覆盖率
 
 > 数据来源: `e2e-tests/run_all_coverage.sh` 合并报告 (cuatro + tres + red)
-> 生成时间: 2026-07-28 (Phase D 全部完成: config.h → 100%, unused_funcs.h → 100%, can_comms.h → 100%)
+> 生成时间: 2026-07-29 (Phase E.4 完成: fdcan.h can_rx() 全路径覆盖)
 
 | 源文件 | 行覆盖 | 函数覆盖 | 说明 |
 |--------|--------|---------|------|
@@ -185,11 +191,11 @@ e2e-tests/
 | `board/drivers/can_health_pkt.h` | **94.6%** (35/37) | — | ✅ B4 (共享文件) |
 | `board/drivers/harness.h` | — | — | ✅ B5 |
 | `board/stm32h7/llfdcan.h` | **83.2%** (134/161) | — | ✅ C3 |
-| `board/drivers/fdcan.h` | **52.3%** (81/155) | — | ✅ C3 (can_rx 全路径未覆盖) |
+| `board/drivers/fdcan.h` | **~97%** (~175/181) | — | ✅ C3 + E.4 (can_rx 全路径覆盖, 仅 body_can_rx 3行未覆盖) |
 | `board/boards/cuatro.h` | **83.3%** (55/66) | — | ✅ N2 完成 |
 | `board/boards/tres.h` | **88.0%** (81/92) | — | ✅ N2 完成 |
 | `board/boards/red.h` | **90.0%** (63/70) | — | ✅ N2 完成 |
-| **合计** | **80.5%** (1738/2160, 34 files) | — | Phase D 全部完成 ✅ |
+| **合计** | **~83.9%** (~1814/2160, 34 files) | — | Phase D + E.4 全部完成 ✅ |
 
 ## 设计原则
 

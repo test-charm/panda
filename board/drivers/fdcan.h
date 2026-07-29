@@ -211,6 +211,11 @@ void can_rx(uint8_t can_number) {
 
     // update read index
     FDCANx->RXF0A = rx_fifo_idx;
+#ifdef E2E_TEST
+    // Real FDCAN hardware auto-decrements F0FL when RXF0A is written.
+    // Fake registers require manual clearing to prevent infinite loop.
+    FDCANx->RXF0S = 0U;
+#endif
   }
 
   // Error handling

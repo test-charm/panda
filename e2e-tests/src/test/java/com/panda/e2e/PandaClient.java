@@ -30,6 +30,8 @@ public class PandaClient {
         private final byte[] data;
         private final boolean rejected;
         private final boolean returned;
+        private final boolean extended;
+        private final boolean fd;
     }
 
     public interface PandaLib extends Library {
@@ -43,9 +45,9 @@ public class PandaClient {
 
         int jna_get_safety_tx_blocked();
 
-        boolean jna_can_pop_rx(int[] outAddr, byte[] outBus, byte[] outRejected, byte[] outReturned, byte[] outData, byte[] outLen);
+        boolean jna_can_pop_rx(int[] outAddr, byte[] outBus, byte[] outRejected, byte[] outReturned, byte[] outData, byte[] outLen, byte[] outExtended, byte[] outFd);
 
-        boolean jna_can_pop_tx(int queueIdx, int[] outAddr, byte[] outReturned, byte[] outData, byte[] outLen);
+        boolean jna_can_pop_tx(int queueIdx, int[] outAddr, byte[] outReturned, byte[] outData, byte[] outLen, byte[] outExtended, byte[] outFd);
 
         void jna_can_clear_all();
 
@@ -91,6 +93,36 @@ public class PandaClient {
         void jna_process_can(int canNumber);
 
         void jna_can_rx(int canNumber);
+
+        // FDCAN RX FIFO injection for can_rx() path coverage (E.4)
+        void jna_fdcan_write_rx_fifo(int canNumber, int elementIndex,
+                                      int extended, int addr,
+                                      int canfdFrame, int brsFrame,
+                                      byte dataLenCode, byte[] data);
+
+        void jna_set_fdcan_rxf0s(int canNumber, int val);
+
+        int jna_get_fdcan_rxf0s(int canNumber);
+
+        void jna_set_fdcan_ir(int canNumber, int val);
+
+        int jna_get_fdcan_rxf0a(int canNumber);
+
+        int jna_get_can_health_total_rx_cnt(int bus);
+
+        int jna_get_can_health_total_fwd_cnt(int bus);
+
+        int jna_get_direct_safety_rx_invalid();
+
+        int jna_get_direct_rx_buffer_overflow();
+
+        void jna_set_bus_forwarding_bus(int bus, int fwdBus);
+
+        void jna_reset_bus_config();
+
+        int jna_get_bus_config_canfd_enabled(int bus);
+
+        int jna_get_bus_config_brs_enabled(int bus);
 
         // Heartbeat state inspection
         int jna_get_heartbeat_counter();
@@ -603,13 +635,17 @@ public class PandaClient {
         byte[] outReturned = new byte[1];
         byte[] outData = new byte[64];
         byte[] outLen = new byte[1];
+        byte[] outExtended = new byte[1];
+        byte[] outFd = new byte[1];
 
         var canMessages = new ArrayList<CanMessage>();
-        if (lib.jna_can_pop_rx(outAddr, outBus, outRejected, outReturned, outData, outLen)) {
+        if (lib.jna_can_pop_rx(outAddr, outBus, outRejected, outReturned, outData, outLen, outExtended, outFd)) {
             int len = Byte.toUnsignedInt(outLen[0]);
             byte[] data = new byte[len];
             System.arraycopy(outData, 0, data, 0, len);
-            canMessages.add(new CanMessage(outAddr[0], Byte.toUnsignedInt(outBus[0]), data, outRejected[0] != 0, outReturned[0] != 0));
+            canMessages.add(new CanMessage(outAddr[0], Byte.toUnsignedInt(outBus[0]), data,
+                    outRejected[0] != 0, outReturned[0] != 0,
+                    outExtended[0] != 0, outFd[0] != 0));
         }
         return AdaptiveList.staticList(canMessages);
     }
@@ -619,13 +655,16 @@ public class PandaClient {
         byte[] outReturned = new byte[1];
         byte[] outData = new byte[64];
         byte[] outLen = new byte[1];
+        byte[] outExtended = new byte[1];
+        byte[] outFd = new byte[1];
 
         var canMessages = new ArrayList<CanMessage>();
-        if (lib.jna_can_pop_tx(bus, outAddr, outReturned, outData, outLen)) {
+        if (lib.jna_can_pop_tx(bus, outAddr, outReturned, outData, outLen, outExtended, outFd)) {
             int len = Byte.toUnsignedInt(outLen[0]);
             byte[] data = new byte[len];
             System.arraycopy(outData, 0, data, 0, len);
-            canMessages.add(new CanMessage(outAddr[0], bus, data, false, outReturned[0] != 0));
+            canMessages.add(new CanMessage(outAddr[0], bus, data, false, outReturned[0] != 0,
+                    outExtended[0] != 0, outFd[0] != 0));
         }
         return AdaptiveList.staticList(canMessages);
     }
@@ -671,7 +710,7 @@ public class PandaClient {
             int len = Byte.toUnsignedInt(outLen[0]);
             byte[] data = new byte[len];
             System.arraycopy(outData, 0, data, 0, len);
-            canMessages.add(new CanMessage(outAddr[0], Byte.toUnsignedInt(outBus[0]), data, false, false));
+            canMessages.add(new CanMessage(outAddr[0], Byte.toUnsignedInt(outBus[0]), data, false, false, false, false));
         }
         return AdaptiveList.staticList(canMessages);
     }
@@ -1503,6 +1542,8 @@ public class PandaClient {
         private final int totalErrorCnt;
         private final int totalRxLostCnt;
         private final int canCoreResetCnt;
+        private final int totalRxCnt;
+        private final int totalFwdCnt;
     }
 
     public CanHealth getCanHealth(int bus) {
@@ -1521,7 +1562,9 @@ public class PandaClient {
                 lib.jna_get_can_health_bus_off_cnt(bus),
                 lib.jna_get_can_health_total_error_cnt(bus),
                 lib.jna_get_can_health_total_rx_lost_cnt(bus),
-                lib.jna_get_can_health_can_core_reset_cnt(bus)
+                lib.jna_get_can_health_can_core_reset_cnt(bus),
+                lib.jna_get_can_health_total_rx_cnt(bus),
+                lib.jna_get_can_health_total_fwd_cnt(bus)
         );
     }
 
@@ -1548,6 +1591,86 @@ public class PandaClient {
 
     public void canRx(int canNumber) {
         lib.jna_can_rx(canNumber);
+    }
+
+    // ---- FDCAN RX FIFO injection for can_rx() path coverage (E.4) ----
+
+    public void writeRxFifo(int canNumber, int elementIndex, boolean extended, int addr,
+                            boolean canfdFrame, boolean brsFrame, int dataLenCode, byte[] data) {
+        lib.jna_fdcan_write_rx_fifo(canNumber, elementIndex,
+                extended ? 1 : 0, addr,
+                canfdFrame ? 1 : 0, brsFrame ? 1 : 0,
+                (byte) dataLenCode, data);
+    }
+
+    public void setFdcanRxf0s(int canNumber, int val) {
+        lib.jna_set_fdcan_rxf0s(canNumber, val);
+    }
+
+    public int getFdcanRxf0s(int canNumber) {
+        return lib.jna_get_fdcan_rxf0s(canNumber);
+    }
+
+    public void setFdcanIr(int canNumber, int val) {
+        lib.jna_set_fdcan_ir(canNumber, val);
+    }
+
+    public int getFdcanRxf0a(int canNumber) {
+        return lib.jna_get_fdcan_rxf0a(canNumber);
+    }
+
+    public int getCanHealthTotalRxCnt(int bus) {
+        return lib.jna_get_can_health_total_rx_cnt(bus);
+    }
+
+    public int getCanHealthTotalFwdCnt(int bus) {
+        return lib.jna_get_can_health_total_fwd_cnt(bus);
+    }
+
+    public int getDirectSafetyRxInvalid() {
+        return lib.jna_get_direct_safety_rx_invalid();
+    }
+
+    public int getDirectRxBufferOverflow() {
+        return lib.jna_get_direct_rx_buffer_overflow();
+    }
+
+    public void setBusForwardingBus(int bus, int fwdBus) {
+        lib.jna_set_bus_forwarding_bus(bus, fwdBus);
+    }
+
+    public void resetBusConfig() {
+        lib.jna_reset_bus_config();
+    }
+
+    public boolean getBusConfigCanfdEnabled(int bus) {
+        return lib.jna_get_bus_config_canfd_enabled(bus) != 0;
+    }
+
+    public boolean getBusConfigBrsEnabled(int bus) {
+        return lib.jna_get_bus_config_brs_enabled(bus) != 0;
+    }
+
+    // ---- DAL-accessible properties for Then verification ----
+    public int directSafetyRxInvalid() {
+        return getDirectSafetyRxInvalid();
+    }
+
+    public int directRxBufferOverflow() {
+        return getDirectRxBufferOverflow();
+    }
+
+    // Must use "is" prefix for boolean: DAL's isGetter() requires startsWith("is") for boolean return
+    public boolean isCanfdEnabled0() {
+        return getBusConfigCanfdEnabled(0);
+    }
+
+    public boolean isBrsEnabled0() {
+        return getBusConfigBrsEnabled(0);
+    }
+
+    public int getFdcanRxf0aBus0() {
+        return getFdcanRxf0a(0);
     }
 
     @AllArgsConstructor
