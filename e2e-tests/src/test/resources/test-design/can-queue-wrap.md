@@ -1,5 +1,7 @@
 # CAN 队列指针回绕 — 测试设计文档
 
+> ⚠️ **已合并** (2026-07-29, C1): 本 feature 已合并到 `can_comms.feature:293-379`。场景内容不变，仅文件归属变更。此文档保留作为设计参考。
+> 
 > 功能: `can_pop()` / `can_push()` / `can_slots_empty()` in `board/drivers/can_common.h`
 > 被测路径: 环形队列满时 w_ptr/r_ptr 回绕到 0、push 失败返回 false、w_ptr < r_ptr 时 slots_empty 计算
 > 调用: 直接 JNA 操作队列状态 (`jna_set_can_queue_state` / `jna_can_push_direct` / `jna_can_pop_direct` / `jna_can_slots_empty`)
@@ -121,7 +123,7 @@ Given exists data:
 - 步骤: `can_push_direct` → `can_pop_direct`
 - 验证: lastQueueWPtr=2, lastQueueRPtr=0 (r_ptr 从 415 回绕到 0)
 - 路径: `can_pop` → `w_ptr != r_ptr` → `r_ptr+1 == fifo_size` → `r_ptr = 0`
-- 场景: `can_queue_wrap.feature:19`
+- 场景: `can_comms.feature:295`
 - 覆盖行: 47
 
 ### TC2: w_ptr wraps to 0 (next_w_ptr) when can_push at end of queue
@@ -129,7 +131,7 @@ Given exists data:
 - 步骤: `can_push_direct`
 - 验证: lastQueueWPtr=0, lastQueueRPtr=1 (w_ptr 从 415 回绕到 0)
 - 路径: `can_push` → `w_ptr+1 == fifo_size` → `next_w_ptr = 0` → `next_w_ptr != r_ptr` → push 成功
-- 场景: `can_queue_wrap.feature:35`
+- 场景: `can_comms.feature:313`
 - 覆盖行: 64
 
 ### TC3: can_push fails when queue is full (w_ptr at end, r_ptr at 0)
@@ -137,7 +139,7 @@ Given exists data:
 - 步骤: `can_push_direct`
 - 验证: lastQueueWPtr=415, lastQueueRPtr=0 (不变), canPushResult=false
 - 路径: `can_push` → `next_w_ptr = 0` → `next_w_ptr == r_ptr` → push 失败 → `!ret` 闭合
-- 场景: `can_queue_wrap.feature:50`
+- 场景: `can_comms.feature:330`
 - 覆盖行: 90
 
 ### TC4: can_slots_empty returns correct count when w_ptr < r_ptr (wrap)
@@ -145,7 +147,7 @@ Given exists data:
 - 步骤: `jna_can_slots_empty(1)`
 - 验证: lastCanSlotsEmptyVal=99 (= 200 - 100 - 1)
 - 路径: `can_slots_empty` → `w_ptr < r_ptr` (else 分支) → `ret = r_ptr - w_ptr - 1`
-- 场景: `can_queue_wrap.feature:66`
+- 场景: `can_comms.feature:349`
 - 覆盖行: 101, 102
 
 ### TC5: can_slots_empty with w_ptr >= r_ptr (non-wrap) for regression
@@ -153,7 +155,7 @@ Given exists data:
 - 步骤: `jna_can_slots_empty(1)`
 - 验证: lastCanSlotsEmptyVal=315 (= 416 - 1 - 200 + 100)
 - 路径: `can_slots_empty` → `w_ptr >= r_ptr` (if 分支)
-- 场景: `can_queue_wrap.feature:80`
+- 场景: `can_comms.feature:366`
 
 ## 7. 覆盖检查
 
@@ -172,7 +174,7 @@ Given exists data:
 
 ## 8. 与其他测试的关系
 
-| 路径 | can_comms | can_mode | can_ring_clear | can_queue_wrap (本次) |
+| 路径 | can_comms | can_mode | can_ring_clear | can_comms (wrap) |
 |------|:--:|:--:|:--:|:--:|
 | can_pop 正常 r_ptr++ | ✅ | ✅ | — | — |
 | can_pop r_ptr 回绕 | — | — | — | ✅ |

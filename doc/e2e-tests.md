@@ -107,7 +107,7 @@ e2e-tests/
 │   │       ├── UsbControlRequests.java  # 33 个 USB 控制请求 spec
 │   │       └── ControlSetups.java       # 前置数据 spec
 │   └── resources/
-│       ├── features/                # 43 个 feature 文件（第十三节合并后减少 9 个）
+│       ├── features/                # 42 个 feature 文件（第十三节合并后减少 10 个）
 │       └── test-design/             # 测试设计文档
 ```
 
@@ -126,9 +126,8 @@ e2e-tests/
 | 替代体验 | `alternative_experience.feature` | 5 | alternativeExperience |
 | 警笛 | `siren.feature` | 4 | stopModeRegs.gpioBOdr (PB14) via jna_tick_siren + @red unused 验证 ✅ D.2 |
 | CAN 通信重置 | `can_comms_reset.feature` | 2 | safetyTxBlocked + stopModeRegs.gpioAOdr |
-| CAN 通信序列化 | `can_comms.feature` | 9 | USB ep3 out → comms_can_write → rxQueue, USB ep1 in → comms_can_read → usbEp1InBytes (含 overflow 分片 5 场景, Phase D.3 ✅) |
+| CAN 通信序列化 | `can_comms.feature` | 14 | USB ep3 out → comms_can_write → rxQueue, USB ep1 in → comms_can_read → usbEp1InBytes (含 overflow 分片 5 场景 + 队列指针回绕 5 场景, Phase D.3 + C1 ✅) |
 | CAN 环形缓冲 | `can_ring_clear.feature` | 4 | rxQueue/txQueue |
-| CAN 队列回绕 | `can_queue_wrap.feature` | 5 | lastQueueWPtr/lastQueueRPtr/canPushResult/lastCanSlotsEmptyVal via JNA 直接队列操作 |
 | FDCAN 中断处理 | `fdcan_interrupt.feature` | 10 | process_can → TXBAR/IR/rxQueue, 0xff 守卫, can_rx 全路径 (标准帧/扩展帧/CAN-FD/BRS/FIFO满/转发/IRQ错误/safety_rx_invalid) ✅ C3 + E.4 |
 | libc 工具函数 | `libc.feature` | 4 | lastMemcmpResult / delay 不挂死 |
 | IR 功率 | `ir_power.feature` | 4 | irPwm (TIM1 CCR1) + @red unused 验证 ✅ D.2 |

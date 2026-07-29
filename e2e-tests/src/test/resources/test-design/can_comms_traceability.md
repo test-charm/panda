@@ -1,6 +1,6 @@
 # `board/can_comms.h` 行级测试覆盖矩阵
 
-> 生成时间: 2026-07-28 (Phase D.3 完成)  
+> 生成时间: 2026-07-29 (C1 完成: `can_queue_wrap.feature` 合并到 `can_comms.feature`)  
 > 数据来源: `e2e-tests/build/coverage/merged.lcov` (cuatro+tres+red 合并)  
 > 综合行覆盖率: **100%** (76/76), 函数覆盖率: **100%** (4/4)
 
@@ -17,10 +17,15 @@
 | S7 | Write overflow — 分片完成 (5 + 9 bytes) | `can_comms.feature:155` |
 | S8 | Write overflow — 两段补充 (5 + 3 + 6 bytes) | `can_comms.feature:194` |
 | S9 | Write overflow — 多帧尾部 (14+14 + 5 / 9 bytes) | `can_comms.feature:245` |
+| W1 | CAN queue — r_ptr wraps to 0 when can_pop reads last element | `can_comms.feature:295` |
+| W2 | CAN queue — w_ptr wraps to 0 when can_push at end of queue | `can_comms.feature:313` |
+| W3 | CAN queue — can_push fails when queue is full | `can_comms.feature:330` |
+| W4 | CAN queue — can_slots_empty with w_ptr < r_ptr (wrap) | `can_comms.feature:349` |
+| W5 | CAN queue — can_slots_empty with w_ptr >= r_ptr (non-wrap) | `can_comms.feature:366` |
 
-测试步骤统一使用 USB endpoint 语义:
-- `When USB ep3 out with hex:` → `usb_sim_ep3_out()` → `comms_can_write()`
-- `When USB ep1 in with max len {int}` → `usb_sim_ep1_in()` → `comms_can_read()`
+测试步骤:
+- USB endpoint 语义: `When USB ep3 out with hex:` → `usb_sim_ep3_out()` → `comms_can_write()`; `When USB ep1 in with max len {int}` → `usb_sim_ep1_in()` → `comms_can_read()`
+- CAN 队列语义 (W1-W5): `CanQueue` JNA 数据注入 → `can_push_direct` / `can_pop_direct` / `refresh_can_slots_empty` → `lastQueueWPtr` / `lastQueueRPtr` / `canPushResult` / `lastCanSlotsEmptyVal` 验证
 
 ## `comms_can_read()` — lines 45-76
 

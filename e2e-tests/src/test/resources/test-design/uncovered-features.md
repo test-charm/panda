@@ -1266,18 +1266,18 @@ Phase F 完成后:  91.1% (1989/2183) ✅
 
 ### 总览
 
-> ✅ **更新 (2026-07-29):** 第 1+2 梯队已完成合并。以下 10 个文件已删除/合并，剩余 10 个待处理（第 3+4 梯队）。
+> ✅ **更新 (2026-07-29):** 第 1+2 梯队已完成合并，C1 已完成合并。以下 11 个文件已删除/合并，剩余 9 个待处理（第 3+4 梯队）。
 
 ```
-非端到端 / 可通过其他测试覆盖的：20 个 feature 文件 → 10 个已合并 ✅
+非端到端 / 可通过其他测试覆盖的：20 个 feature 文件 → 11 个已合并 ✅
 ──────────────────────────────────────────
 纯重复：           1 个 → ✅ 已删除 (microsecond_timer)
 单一数据读取：     8 个 → ✅ B1-B5 已合并 (5), B6-B8 待处理 (3)
-内部实现细节：     6 个 → 待处理 (6)
+内部实现细节：     6 个 → ✅ C1 已合并 (1), C2-C6 待处理 (5)
 单一控制写入：     5 个 → ✅ D1-D2, D4-D5 已合并 (4), D3 待处理 (1)
 
 仍为真正端到端功能：32 个（不变）
-当前 feature 总数: 43 个 (52 → 43, 净减 9)
+当前 feature 总数: 42 个 (52 → 42, 净减 10)
 ```
 
 ### 详细清单
@@ -1309,7 +1309,7 @@ Phase F 完成后:  91.1% (1989/2183) ✅
 
 | # | Feature 文件 | 被测对象 | 问题本质 | 合并目标 | 合并方式 |
 |---|-------------|---------|---------|---------|---------|
-| C1 | `can_queue_wrap.feature` | `can_push`/`can_pop`/`can_slots_empty` 指针回绕 | 通过 JNA 直接设 `w_ptr`/`r_ptr` 测试 `can_common.h` 内部循环缓冲区。是数据结构单元测试 | `can_comms.feature` | 在 `can_comms.feature` 的 overflow buffer 场景中构造满队列/回绕条件可覆盖大部分路径 |
+| C1 | `can_queue_wrap.feature` | `can_push`/`can_pop`/`can_slots_empty` 指针回绕 | 通过 JNA 直接设 `w_ptr`/`r_ptr` 测试 `can_common.h` 内部循环缓冲区。是数据结构单元测试 | `can_comms.feature` | ✅ 已合并。5 个 wrap-around scenario 已追加到 `can_comms.feature:293-379`，`can_queue_wrap.feature` 已删除。`can_common.h` 保持 100%（107/107）覆盖 |
 | C2 | `clock_source_init.feature` | `clock_source_init()` | 测试 TIM1/TIM8 寄存器初始化 + GPIO alternate function。固件启动时的纯初始化函数，从未被用户命令触发 | `clock_source.feature` | 在 `clock_source.feature` 现有 scenario 中添加对 `clockSourceInit` 初始寄存器值的校验 |
 | C3 | `board_init.feature` | `board_xxx_init()` GPIO 配置 | 测试启动时的 GPIO MODER/OTYPER/PUPDR 寄存器写入。按板型分别测试，无用户交互 | 其他按 board 标注的 feature | 在 `power_save.feature`、`can_mode.feature`、`deep_sleep.feature` 等已有 `@cuatro`/`@tres`/`@red` scenario 中添加 `boardInit` 字段校验 |
 | C4 | `register_divergence.feature` | `check_registers()` 内部故障检测 | 通过 JNA 注射 `registerDivergent` 直接触发 fault。是内部自检函数，可通过常规 tick 流程覆盖 | `tick_paths.feature` | 在 `tick_paths.feature` 中添加 register divergent 触发的 scenario（已有 heartbeat counter、safety_mode_cnt 等同类场景） |
@@ -1398,7 +1398,7 @@ Phase F 完成后:  91.1% (1989/2183) ✅
    B2+B4: get_version + packet_versions → 已合并到 health.feature
 
 🟠 第 3 梯队 (中等风险，需设计 scenario):
-   C1: can_queue_wrap → 合并到 can_comms（需设计边界 scenario）
+   ✅ C1: can_queue_wrap → 已合并到 can_comms (5 scenarios, can_common.h 100% 覆盖)
    C4+C5: register_divergence + watchdog → 合并到 tick_paths
    C2: clock_source_init → 合并到 clock_source
    C6: endpoint2_write → 合并到 spi_state_machine
