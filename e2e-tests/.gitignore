@@ -32,13 +32,5 @@ out
 # mac
 .DS_Store
 
-# Generated e2e stubs
-src/test/c/fdcan_e2e.gen.c
-src/test/c/power_save_e2e.gen.c
-src/test/c/clock_source_e2e.gen.c
-src/test/c/can_health_e2e.gen.c
-src/test/c/fan_e2e.gen.c
-src/test/c/enter_stop_mode_e2e.gen.c
+# Generated e2e build artifacts
 src/test/c/libpanda*.dylib
-src/test/c/enter_stop_mode_e2e.gen.c
-src/test/c/board_stubs_e2e.gen.c

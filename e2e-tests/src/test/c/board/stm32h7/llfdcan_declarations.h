@@ -1,6 +1,5 @@
 // Stub: mirrors board/stm32h7/llfdcan_declarations.h macros.
-// Function declarations and extern arrays removed — those are replaced by
-// fdcan_e2e.gen.c and libpanda.c respectively.
+// Function declarations come from real board/stm32h7/llfdcan.h (C3).
 #pragma once
 
 // SAE J2284-4 document specifies a bus-line network running at 2 Mbit/s
