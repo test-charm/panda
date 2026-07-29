@@ -1413,3 +1413,71 @@ Phase F 完成后:  91.1% (1989/2183) ✅
    C3: board_init → 分散到其他按板 feature
    B8: uart_read → 合并到 endpoint2_write（但 endpoint2_write 自身也可能被合并）
 ```
+
+---
+
+## 第十四节：非端到端 When 步骤分析
+
+> 分析时间: 2026-07-29
+> 范围: `e2e-tests/src/test/resources/features/` 下 35 个 feature 文件
+
+### 分析标准
+
+**端到端 (E2E)**: When 步骤通过固件的公开 API 执行 — USB 控制/批量传输、CAN 发送/接收、tick_handler 调用、SPI 协议交互
+
+**非端到端 (非 E2E)**: When 步骤直接调用内部 C 函数 (JNA)、操作内部数据结构、操作模拟硬件寄存器
+
+### 🔴 完全非端到端 feature (4 个)
+
+| Feature | When 步骤 | 内部机制 | 场景数 | 可被哪些 E2E 覆盖 |
+|---------|----------|---------|--------|------------------|
+| `board_init.feature` | `When board init` | JNA 直接调用 `current_board->init()` | 7 | `panda_init()` 在 dylib 加载时自动调用，所有 feature 的 Background 即触发。GPIO 副作用被 `power_save`、`can_mode` 等验证，但寄存器初始值无独立 E2E 场景 |
+| `harness_detect.feature` | `When detect harness orientation` | JNA 直接调用 `harness_detect_orientation()` | 8 | `tick_handler()` 8Hz 中调用 `harness_detect_orientation()`，`tick_paths.feature` 的 harness reinit 场景 + `heartbeat_loss.feature` 的 `When call tick handler N times` 覆盖同一代码路径 |
+| `permanent_fault.feature` | `When trigger fault N`<br>`When recover fault N` | JNA 直接调用 `fault_occurred()` / `fault_recovered()` | 2 | `trigger fault`: `relay_malfunction.feature` (tick→relay edge)、`tick_paths.feature` C4 (check_registers)、C5 (watchdog) 均通过 tick_handler 触发 `fault_occurred()`<br>`recover fault`: **无法被 E2E 覆盖** — `fault_recovered()` 无公开 API |
+| `wfi_idle.feature` | `When process wfi idle` | JNA 直接调用 WFI 空闲路径 | 3 | 主循环中 `power_save_enabled && !cuatro_deep_sleep` → `__WFI()`。`power_save.feature` + tick_handler 可触发条件，但 e2e 无主循环运行，**无法被 E2E 等价覆盖** |
+
+### 🟡 部分非端到端 When 步骤
+
+| # | 非 E2E When 步骤 | 所在 Feature | 内部机制 | 场景数 | 可被哪些 E2E 覆盖 |
+|---|-----------------|-------------|---------|--------|------------------|
+| 1 | `When can push direct to queue N` | `can_comms.feature` | JNA 直接操作 CAN 队列 w_ptr/r_ptr | 5 (C1 合并) | USB ep3 out → `comms_can_write` → `can_send` → `process_can` → `can_push` (同一代码路径)。`fdcan_interrupt.feature` 的 `can_rx` 也调用 `can_push` |
+| 2 | `When can pop direct from queue N` | `can_comms.feature` | JNA 直接操作 CAN 队列 | 同上 | USB ep1 in → `comms_can_read` → `can_pop` (同一代码路径) |
+| 3 | `When refresh can slots empty for queue N` | `can_comms.feature` | JNA 直接调用 `can_slots_empty()` | 同上 | `can_push` 内部调用 `can_slots_empty`，满队列场景即覆盖 |
+| 4 | `When clock source init` | `clock_source.feature` | JNA 直接调用 `clock_source_init()` | 6 (C2 合并) | `board_init.feature`: `cuatro_init()` / `tres_init()` 内部调用 `clock_source_init()`，GPIO/TIM 副作用可验证 |
+| 5 | `When process stop mode` | `deep_sleep.feature` | JNA 直接调用 `enter_stop_mode()` | ~6 | `deep_sleep.feature` 的 USB `RequestDeepSleep` 场景设置 `stop_mode_requested`，主循环下一次迭代调用 `enter_stop_mode()`，但 e2e **无主循环运行** |
+| 6 | `And set fan enabled through board 1` | `fan_power.feature` | JNA 指针调用 `set_fan_enabled()` | 1 | cuatro/tres: `SetFanPower` → tick_handler → `fan_tick` → `set_fan_enabled` (已由同一 feature 覆盖)<br>red: `unused_set_fan_enabled` **无法被 E2E 覆盖** (`has_fan=false` 跳过 `fan_tick`) |
+| 7 | `When process can 255` | `fdcan_interrupt.feature` | JNA 直接调用 `process_can()` | 1 | `can_send` (USB ep3 / can_comms) → `process_can`，正常 CAN 发送即触发 |
+| 8 | `When can rx send:`<br>`When can rx N` | `fdcan_interrupt.feature` | JNA 直接调用 `can_rx()`，注入假 FDCAN SRAM | 5 (E.4) | `can_loopback.feature`: loopback enable → CAN send → 硬件回环 → FDCAN RX 中断 → `can_rx()` |
+| 9 | `When set forwarding bus N to bus M` | `fdcan_interrupt.feature` | JNA 直接操作 `bus_config[].forwarding_bus` | 1 | **无法被 E2E 覆盖** — 无 USB 控制接口设置转发总线 |
+| 10 | `When set fdcan ir bus N errors ...` | `fdcan_interrupt.feature` | JNA 直接操作 FDCAN IR 寄存器 | 2 | **无法被 E2E 覆盖** — PED/PEA/EP/BO 是硬件错误标志，软件无法主动触发 |
+| 11 | `When tick siren` | `siren.feature` | JNA 直接调用 `set_siren()` | 3 | `tick_handler()` 8Hz 中调用 `set_siren()`，`When call tick handler N times` (如 `heartbeat_loss.feature`) 即触发同一代码路径 |
+| 12 | `When spi tx done`<br>`When spi tx done with reset` | `spi_state_machine.feature` | DMA 完成模拟 | 5 | `SpiProcessData` → `spi_rx_done` 已设置 `next_state`，状态转换在 `spi_rx_done` 中完成。`spi_tx_done` 只是让 DMA 模拟"发送完毕"，**实际状态转换逻辑相同** |
+| 13 | `When spi set state N` | `spi_state_machine.feature` | 直接写入 `spi_state` | 1 | 所有合法状态由 SPI 协议自然驱动，不需要手动设状态 |
+| 14 | `When endpoint2 write with hex:` | `spi_state_machine.feature` | JNA 直接调用 `comms_endpoint2_write()` | 5 (C6 合并) | SPI DATA_RX endpoint 2 → `comms_endpoint2_write()` (B4 场景)，同一代码路径 |
+| 15 | `When SPI version packet` | `spi_version_packet.feature` | JNA 直接调用 `spi_version_packet()` | 2 | SPI HEADER 收到 "VERSION" → `spi_rx_done()` 调用 `spi_version_packet()`，`spi_state_machine.feature` 已覆盖 |
+| 16 | `And detect harness orientation` (非 1Hz 路径) | `tick_paths.feature` | JNA 直接调用 `harness_detect_orientation()` | 2 | 同 `harness_detect.feature`，`tick_handler()` 8Hz 内部调用 |
+
+### 分类总结
+
+```
+非 E2E When 步骤总计: 20 个 (分布在 14 个 feature 中)
+
+覆盖情况:
+  ✅ 已被 E2E 路径等价覆盖:     12 个  (60%)  — 同一 C 代码路径，触发方式不同
+  ⚠️ 部分等效/路径不同:          6 个  (30%)  — board_init/wfi_idle/stop_mode/tx_done/set_state/version_packet
+  ❌ 无法被 E2E 覆盖:            4 个  (20%)  — recover_fault/set_forwarding/set_fdcan_ir/red_set_fan_enabled
+```
+
+### 结论
+
+1. **60% 的非 E2E When 步骤有对应的 E2E 等价路径**——同一段 C 代码被 USB 命令、CAN 传输、tick_handler 或 SPI 协议自然触发。这些非 E2E 步骤主要是为了测试边界条件（队列回绕、满队列等）时更精确地控制内部状态。
+
+2. **30% 是硬件初始化/主循环路径**——`board_init`、`wfi_idle`、`enter_stop_mode` 在真实硬件上由 `main()` 启动流程或主循环触发，e2e 环境无主循环，必须直接 JNA 调用。这些属于环境限制，非设计问题。
+
+3. **20% 完全无法被 E2E 覆盖**:
+   - `fault_recovered()` — 无公开 API，只在 relay_malfunction 边沿检测中由 tick_handler 内部调用
+   - `bus_config[].forwarding_bus` — 无 USB 控制接口
+   - FDCAN IR 错误标志 (PED/PEA/EP/BO) — 纯硬件标志，软件无法主动写入
+   - red `unused_set_fan_enabled` — `has_fan=false` 导致 `fan_tick()` 体被完全跳过
+
+这些是固件内部实现细节或硬件寄存器操作，**保留直接 JNA 测试是合理的**。
