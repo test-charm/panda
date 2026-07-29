@@ -46,6 +46,10 @@ extern board *current_board;
 void pwm_init(TIM_TypeDef *TIM, uint8_t channel);
 void pwm_set(TIM_TypeDef *TIM, uint8_t channel, uint8_t percentage);
 
+// led_init/led_set — forward declarations (real from board/drivers/led.h)
+void led_init(void);
+void led_set(uint8_t color, bool enabled);
+
 #include "board/boards/board_declarations.h"
 #include "board/boards/unused_funcs.h"
 

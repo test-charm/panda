@@ -63,17 +63,8 @@ TIM_TypeDef tick_timer_inst;
 TIM_TypeDef *TICK_TIMER = &tick_timer_inst;
 
 // ---- Fake TIM instances for clock_source_set_timer_params ----
-// Expand TIM_TypeDef with fields needed by clock_source.h
-#undef TIM_TypeDef
-typedef struct {
-    uint32_t CR1, CR2, SMCR, DIER, SR, EGR, CCMR1, CCMR2, CCER, CNT, PSC, ARR;
-    uint32_t _pad1;
-    uint32_t CCR1, CCR2, CCR3, CCR4;
-    uint32_t _pad2[3];
-    uint32_t BDTR;
-} e2e_TIM_TypeDef;
-
-static e2e_TIM_TypeDef fake_TIM1, fake_TIM8;
+// TIM_TypeDef now expanded in fake_stm.h with all fields needed by clock_source.h, pwm.h
+static TIM_TypeDef fake_TIM1, fake_TIM8;
 
 // ---- Globals used by set_safety_mode() ----
 // can_silent is defined by can_common.h (initialized to true), so we DON'T redefine
@@ -394,10 +385,7 @@ void jna_detect_harness_orientation(void) {
 void fake_siren_set(bool en) { siren_enabled = en; }
 void fake_i2c_siren_set(bool en) { siren_enabled = en; }
 // can_init, can_rx, and process_can now come from real board/drivers/fdcan.h (C3)
-void led_init(void) {}
-void led_set(uint8_t led, bool en) { (void)led; (void)en; }
-void pwm_init(TIM_TypeDef *TIM, uint8_t channel) { (void)TIM; (void)channel; }
-void pwm_set(TIM_TypeDef *TIM, uint8_t channel, uint8_t percentage) { (void)TIM; (void)channel; (void)percentage; }
+// led_init, led_set, pwm_init, pwm_set — now from real board/drivers/led.h and board/drivers/pwm.h
 void usb_irqhandler(void) {}
 void usb_init(void) {}
 // spi_init() now comes from real board/drivers/spi.h (llspi stubs in e2e wrapper)
@@ -771,8 +759,8 @@ void jna_tick_siren(void) {
 // Override TIM1/TIM8 with fake instances for register-level verification
 #undef TIM1
 #undef TIM8
-#define TIM1 ((e2e_TIM_TypeDef *)&fake_TIM1)
-#define TIM8 ((e2e_TIM_TypeDef *)&fake_TIM8)
+#define TIM1 ((TIM_TypeDef *)&fake_TIM1)
+#define TIM8 ((TIM_TypeDef *)&fake_TIM8)
 
 // ---- clock_source_set_timer_params from board/drivers/clock_source.h ----
 // Uses fake TIM1/TIM8 instances defined above.
@@ -1376,6 +1364,17 @@ uint32_t jna_get_TIM8_CR1(void)   { return fake_TIM8.CR1; }
 uint32_t jna_get_TIM8_CCMR2(void) { return fake_TIM8.CCMR2; }
 uint32_t jna_get_TIM8_CCER(void)  { return fake_TIM8.CCER; }
 
+// TIM3 register getters (LED PWM timer, configured by led_init / tres_init)
+uint32_t jna_get_TIM3_CR1(void)   { return fake_TIM3.CR1; }
+uint32_t jna_get_TIM3_ARR(void)   { return fake_TIM3.ARR; }
+uint32_t jna_get_TIM3_CCMR1(void) { return fake_TIM3.CCMR1; }
+uint32_t jna_get_TIM3_CCMR2(void) { return fake_TIM3.CCMR2; }
+uint32_t jna_get_TIM3_CCER(void)  { return fake_TIM3.CCER; }
+uint32_t jna_get_TIM3_CCR1(void)  { return fake_TIM3.CCR1; }
+uint32_t jna_get_TIM3_CCR2(void)  { return fake_TIM3.CCR2; }
+uint32_t jna_get_TIM3_CCR3(void)  { return fake_TIM3.CCR3; }
+uint32_t jna_get_TIM3_CCR4(void)  { return fake_TIM3.CCR4; }
+
 // GPIO AFR register getters
 uint32_t jna_get_reg_GPIOA_AFR0(void) { return e2e_GPIOA.AFR[0]; }
 uint32_t jna_get_reg_GPIOA_AFR1(void) { return e2e_GPIOA.AFR[1]; }
@@ -1394,8 +1393,8 @@ void jna_clock_source_init(int enable_channel1) {
 }
 
 void jna_reset_TIM_regs(void) {
-    fake_TIM1 = (e2e_TIM_TypeDef){0};
-    fake_TIM8 = (e2e_TIM_TypeDef){0};
+    fake_TIM1 = (TIM_TypeDef){0};
+    fake_TIM8 = (TIM_TypeDef){0};
 }
 
 // ---- JNA API: board_init() ----
@@ -1656,6 +1655,7 @@ uint16_t jna_spi_version_packet(uint8_t *buf) {
 // All other state is handled by BSS zeroing + data-segment init on fresh dlopen.
 void jna_panda_init(void) {
     detect_board_type();
+    led_init();   // mirrors real main() — initializes LED GPIO/PWM after board detection
     can_init(0);
     can_init(1);
     can_init(2);

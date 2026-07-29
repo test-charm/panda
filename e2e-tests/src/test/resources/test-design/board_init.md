@@ -65,7 +65,7 @@ _init   _init  _init
         │     │     │
         │     │     ├── uart_init()            ❌ 桩切断 (无 GPIO 副作用)
         │     │     ├── sound_init()           ❌ 桩切断 (DAC + SAI)
-        │     │     └── pwm_init()             ❌ 桩切断 (TIM PWM)
+        │     │     └── pwm_init()            ✅ 已去桩 (TIM3 通道4 PWM) — Phase G
         │     │
         │     ├── 板级 GPIO 设置
         │     │   ├── MODER: PA0/6(bootkick/analog), PB0/7/14(amp/CAN),
@@ -215,11 +215,11 @@ _init   _init  _init
 | 122 | `gpio_uart7_init()` | ✅ | 已去桩 |
 | 123 | `uart_init()` | — | ❌ 桩 |
 | 126 | PC8 AF2 (fan) | ✅ | MODER |
-| 129-131 | PC9 AF2 + pwm_init + ir_power | ✅ | MODER (pwm_init 桩) |
+| 129-131 | PC9 AF2 + pwm_init + ir_power | ✅ | MODER (pwm_init 已去桩) |
 | 134-136 | PC10/PC11 I2C5 + open drain | ✅ | MODER+OTYPER |
 | 139 | `clock_source_init(false)` | ✅ | MODER (GPIOB) |
 
-> tres 覆盖率: **17/19 (89.5%)** — uart_init + pwm_init 保持桩切断
+> tres 覆盖率: **17/19 (89.5%)** — uart_init 保持桩切断 (pwm_init 已去桩 ✅ Phase G)
 
 ### 5.3 `red_init()` — 17 行
 
@@ -286,9 +286,9 @@ _init   _init  _init
 | 板型 | 总行数 | 已覆盖 | 桩切断 | 有效覆盖率 |
 |------|--------|--------|--------|-----------|
 | `cuatro_init()` | 24 | 23 | 1 (uart_init) | **95.8%** |
-| `tres_init()` | 19 | 17 | 2 (uart_init, pwm_init) | **89.5%** |
+| `tres_init()` | 19 | 17 | 1 (uart_init) | **89.5%** |
 | `red_init()` | 17 | 17 | 0 | **100%** |
-| **合计** | **60** | **57** | **3** | **95.0%** |
+| **合计** | **60** | **57** | **2** | **95.0%** |
 
 | 测试指标 | 数值 |
 |----------|------|

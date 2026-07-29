@@ -279,6 +279,17 @@ public class PandaClient {
 
         int jna_get_TIM8_CCER();
 
+        // ---- TIM3 (LED PWM) ----
+        int jna_get_TIM3_CR1();
+        int jna_get_TIM3_ARR();
+        int jna_get_TIM3_CCMR1();
+        int jna_get_TIM3_CCMR2();
+        int jna_get_TIM3_CCER();
+        int jna_get_TIM3_CCR1();
+        int jna_get_TIM3_CCR2();
+        int jna_get_TIM3_CCR3();
+        int jna_get_TIM3_CCR4();
+
         // GPIO AFR register getters
         long jna_get_reg_GPIOA_AFR0();
 
@@ -1182,6 +1193,35 @@ public class PandaClient {
                 lib.jna_get_nvic_disable_irq_count(),
                 lib.jna_get_nvic_disable_irq_at(0),
                 lib.jna_get_nvic_disable_irq_at(1)
+        );
+    }
+
+    // ---- LED PWM state (TIM3 registers configured by led_init / tres_init) ----
+    @AllArgsConstructor
+    @Getter
+    public static class LedPwmState {
+        private final int tim3Cr1;
+        private final int tim3Arr;
+        private final int tim3Ccmr1;
+        private final int tim3Ccmr2;
+        private final int tim3Ccer;
+        private final int tim3Ccr1;
+        private final int tim3Ccr2;
+        private final int tim3Ccr3;
+        private final int tim3Ccr4;
+    }
+
+    public LedPwmState getLedPwmState() {
+        return new LedPwmState(
+                lib.jna_get_TIM3_CR1(),
+                lib.jna_get_TIM3_ARR(),
+                lib.jna_get_TIM3_CCMR1(),
+                lib.jna_get_TIM3_CCMR2(),
+                lib.jna_get_TIM3_CCER(),
+                lib.jna_get_TIM3_CCR1(),
+                lib.jna_get_TIM3_CCR2(),
+                lib.jna_get_TIM3_CCR3(),
+                lib.jna_get_TIM3_CCR4()
         );
     }
 

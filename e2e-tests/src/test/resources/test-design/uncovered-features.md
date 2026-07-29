@@ -1,8 +1,8 @@
 # 端到端测试覆盖分析
 
 > 最后更新: 2026-07-29
-> Feature 文件: 35 个, 场景总数: 224 (cuatro/tres/red 合并)
-> 综合行覆盖率: **91.1%** (1989/2183 lines), 35 files
+> Feature 文件: 35 个, 场景总数: 230 (cuatro/tres/red 合并)
+> 综合行覆盖率: **90.8%** (2046/2253 lines), 37 files
 > 数据来源: `e2e-tests/run_all_coverage.sh`
 
 ---
@@ -80,6 +80,8 @@ board/provision.h                     — 设备 Provision 读取
 | `board/sys/sys.h` | 100% (6/6) | ✅ |
 | `board/drivers/can_common.h` | 100% (107/107) | ✅ |
 | `board/drivers/fan.h` | 100% (27/27) | ✅ |
+| `board/drivers/pwm.h` | 82.2% (37/45) | ✅ 去桩化 (仅 default 分支 + ch3 llfan 路径未覆盖) |
+| `board/drivers/led.h` | 96.0% (24/25) | ✅ 去桩化 (仅 LED_RED define 行未覆盖) |
 | `board/drivers/simple_watchdog.h` | 100% (14/14) | ✅ |
 | `board/drivers/clock_source.h` | 100% (40/40) | ✅ |
 | `board/drivers/registers.h` | 97.8% (44/45) | 仅 hash collision fallback 未覆盖 |
@@ -135,8 +137,8 @@ libpanda.c (2026-07-29 现状):
   #include "board/stm32h7/llfdcan_declarations.h" ← ⚠️ e2e 桩 (宏定义 + FDCAN_START_ADDRESS=0)
   #include "board/drivers/uart.h"            ← ⚠️ e2e 桩 (uart_ring 类型)
   #include "board/drivers/interrupts.h"      ← ⚠️ e2e 桩 (REGISTER_INTERRUPT)
-  #include "board/drivers/pwm.h"             ← ⚠️ e2e 桩 (空)
-  #include "board/drivers/led.h"             ← ⚠️ e2e 桩 (空)
+  #include "board/drivers/pwm.h"             ← ✅ 真实代码 (82.2%)
+  #include "board/drivers/led.h"             ← ✅ 真实代码 (96.0%)
   #include "board/drivers/timers.h"          ← ⚠️ e2e 桩 (空)
   #include "board/drivers/usb.h"             ← ⚠️ e2e 桩 (USB endpoint 模拟)
   #include "board/drivers/fake_siren.h"      ← ⚠️ e2e 桩 (声明)
@@ -152,8 +154,8 @@ libpanda.c (2026-07-29 现状):
 | `stm32h7/llfdcan_declarations.h` | 定义桩 | 🟡 低 ROI | 真实文件已有 `#ifndef E2E_TEST`。需在 libpanda.c 中 `#define FDCAN_START_ADDRESS 0U`，但收益极低（仅宏定义）。 |
 | `stm32h7/sound.h` | 空桩 | ❌ 不可 | 229 行 SAI4/DMA/DAC/DFSDM 外设初始化，无独立业务逻辑。 |
 | `early_init.h` | 空桩 | ❌ 不可 | SCB->VTOR、DBGMCU->IDCODE、jump_to_bootloader()，纯启动流程。 |
-| `drivers/pwm.h` | 空桩 | ✅ 可去桩 | 真实代码仅用 `register_set`/`register_set_bits`。需验证 fake TIM 有 CCMR1/CCMR2/CCER/ARR/CCR1-4/EGR 字段。 |
-| `drivers/led.h` | 空桩 | 🟡 需先拆 pwm | 依赖 `pwm_init`/`pwm_set`。pwm.h 去桩后即可去桩。 |
+| `drivers/pwm.h` | 空桩 | ✅ 已完成 (Phase G) | 真实代码仅用 `register_set`/`register_set_bits`。扩展 `fake_stm.h` 中 `TIM_TypeDef` 为完整 20 字段布局，修复 `led_init()` 调用链（`jna_panda_init` 中添加）。覆盖率 82.2% (37/45)。 |
+| `drivers/led.h` | 空桩 | ✅ 已完成 (Phase G) | 依赖 `pwm_init`/`pwm_set`。pwm.h 去桩后去桩。修复 `led_init()` 未调用问题（仅 `main.c:281` 调用，e2e 永不执行 `panda_main`）。覆盖率 96.0% (24/25)。 |
 | `drivers/timers.h` | 空桩 | 🟡 有条件 | `microsecond_timer_get()` 读 fake CNT=0，10Hz 限速已由 fdcan.h `#ifdef E2E_TEST` 绕过。需验证无其他调用者依赖非零返回值。 |
 | `drivers/usb.h` | 功能桩 | ❌ 不可 | e2e 专属 USB endpoint 模拟器，非简单桩。真实 usb.h 为完整 USB OTG 驱动 (31KB)。 |
 | `drivers/fake_siren.h` | 声明桩 | ❌ 不可 | 116 行 I2C codec/DMA/TIM7/DAC，深度耦合硬件。 |
@@ -173,6 +175,7 @@ libpanda.c (2026-07-29 现状):
 | B5 | `harness_detect_e2e.gen.c` + e2e 桩 `harness.h` | `board/drivers/harness.h` | 100% |
 | C1 | e2e 桩 `crc.h` | `board/crc.h` | 100% |
 | C2 | gen 文件内联宏 | `board/stm32h7/llfdcan_declarations.h` (真实宏) | 91.3% |
+| G | e2e 桩 `pwm.h` + `led.h` | `board/drivers/pwm.h` + `board/drivers/led.h` (真实代码) | 82.2% / 96.0% |
 
 ### 3.4 生产代码 `#ifdef E2E_TEST` 使用清单
 

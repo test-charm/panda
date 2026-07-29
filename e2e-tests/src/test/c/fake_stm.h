@@ -18,8 +18,25 @@ void print(const char *a) { printf("%s", a); }
 void puth(unsigned int i) { printf("%u", i); }
 
 typedef struct {
-  uint32_t CNT;
-  uint32_t SR;  // needed by main.c tick_handler: TICK_TIMER->SR
+  uint32_t CR1;     // 0x00
+  uint32_t CR2;     // 0x04
+  uint32_t SMCR;    // 0x08
+  uint32_t DIER;    // 0x0C
+  uint32_t SR;      // 0x10 — needed by main.c tick_handler: TICK_TIMER->SR
+  uint32_t EGR;     // 0x14
+  uint32_t CCMR1;   // 0x18
+  uint32_t CCMR2;   // 0x1C
+  uint32_t CCER;    // 0x20
+  uint32_t CNT;     // 0x24
+  uint32_t PSC;     // 0x28
+  uint32_t ARR;     // 0x2C
+  uint32_t _pad1;   // 0x30 (RCR)
+  uint32_t CCR1;    // 0x34
+  uint32_t CCR2;    // 0x38
+  uint32_t CCR3;    // 0x3C
+  uint32_t CCR4;    // 0x40
+  uint32_t _pad2[3];// 0x44-0x4C
+  uint32_t BDTR;    // 0x50
 } TIM_TypeDef;
 
 TIM_TypeDef timer;
@@ -43,8 +60,11 @@ typedef struct {
   volatile uint32_t AFR[2];     // 0x20-0x24
 } GPIO_TypeDef;
 
-// ---- STM32H7 timer register bit macros (needed by clock_source.h / fan.h) ----
+// ---- STM32H7 timer register bit macros (needed by clock_source.h / fan.h / pwm.h) ----
 #define TIM_CCER_CC1E       (1U << 0)
+#define TIM_CCER_CC2E       (1U << 4)
+#define TIM_CCER_CC3E       (1U << 8)
+#define TIM_CCER_CC4E       (1U << 12)
 #define TIM_CCER_CC2NE      (1U << 2)
 #define TIM_CCER_CC3NE      (1U << 4)
 #define TIM_DIER_UIE        (1U << 0)
@@ -55,10 +75,24 @@ typedef struct {
 #define TIM_SMCR_TS_Pos     4U
 #define TIM_CR2_MMS_Pos     4U
 #define TIM_CR1_CEN         (1U << 0)
+#define TIM_CR1_ARPE        (1U << 7)
 #define TIM_CCMR1_OC1M_Pos  4U
+#define TIM_CCMR1_OC1M_1    (1U << 5)
+#define TIM_CCMR1_OC1M_2    (1U << 6)
+#define TIM_CCMR1_OC1PE     (1U << 3)
 #define TIM_CCMR1_OC2M_Pos  12U
+#define TIM_CCMR1_OC2M_1    (1U << 13)
+#define TIM_CCMR1_OC2M_2    (1U << 14)
+#define TIM_CCMR1_OC2PE     (1U << 11)
 #define TIM_CCMR2_OC3M_Pos  4U
+#define TIM_CCMR2_OC3M_1    (1U << 5)
+#define TIM_CCMR2_OC3M_2    (1U << 6)
+#define TIM_CCMR2_OC3PE     (1U << 3)
 #define TIM_CCMR2_OC4M_Pos  12U
+#define TIM_CCMR2_OC4M_1    (1U << 13)
+#define TIM_CCMR2_OC4M_2    (1U << 14)
+#define TIM_CCMR2_OC4PE     (1U << 11)
+#define TIM_EGR_UG          (1U << 0)
 
 // ---- STM32H7 IRQ numbers (any value OK — NVIC_DisableIRQ is no-op) ----
 #define TIM1_UP_TIM10_IRQn  25
