@@ -2,6 +2,7 @@
 
 > 功能: get microsecond timer (0xa8) and fan RPM (0xb2) via `comms_control_handler()`
 > 被测接口: USB control request 0xa8 / 0xb2
+> 合并覆盖: `microsecond-timer.md` (第十三节 A1) — 两个 scenario 已完全覆盖 microsecond timer，原独立文件为纯重复
 
 ## 1. 被测功能流程图
 

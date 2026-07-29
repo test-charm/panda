@@ -1,8 +1,8 @@
-# Health Packet (0xd2) Test Design
+# Health Packet + 版本读取 — 测试设计文档
 
-## 被测功能
-
-USB 控制请求 `0xd2` (get_health) — 调用 `get_health_pkt()` 函数，将当前固件的全局状态快照填充到 `health_t` 结构体中并通过 USB 返回。该结构体包含 30 个字段，覆盖电压、电流、安全模式、心跳状态、CAN 统计等核心遥测信息。
+> 功能: get_health (0xd2) + get_version (0xd6) + get_packet_versions (0xdd)
+> 被测接口: USB control request 0xd2 / 0xd6 / 0xdd
+> 合并自: `health-packet.md` + `get-version.md` + `packet-versions.md` (第十三节 B2+B4 合并)
 
 **函数签名**: `static int get_health_pkt(void *dat)` (board/main_comms.h:7-48)
 
@@ -122,3 +122,102 @@ USB 控制请求 `0xd2` (get_health) — 调用 `get_health_pkt()` 函数，将�
 | `unused_funcs.h` | 100% (23/23) | ✅ Phase D.2 |
 | `main.c` | 64.2% (145/226) | 主循环 |
 
+---
+
+## 固件版本读取 (0xd6)
+
+> 合并自: `get-version.md` (第十三节 B2)
+
+### 被测功能流程图
+
+```
+get version (0xd6):
+  [controlWrite(0xd6, 0, 0)]
+           │
+           ▼
+  memcpy(resp, gitversion, sizeof(gitversion))
+  resp_len = sizeof(gitversion) - 1
+           │
+           ▼
+        (done)
+```
+
+### 输入因子
+
+| 因子 | 类型 | 等价类 | 取值 |
+|------|------|--------|------|
+| `request` | uint8 | 0xd6 (唯一) | 0xd6 |
+| `gitversion` (前置) | char[64] | 任意 8-char 字符串 | "abcdef01" |
+
+### 输出因子
+
+| 输出 | 类型 | 说明 |
+|------|------|------|
+| respBuffer.len | int | resp_len = 63 |
+| respBuffer.bytes[0..7] | List\<Byte\> | 前 8 字节为 gitversion 字符 |
+
+### 测试用例
+
+**TC-V1**: 预设版本 → resp buffer 验证
+- 前置: gitversion="abcdef01"
+- 输入: request=0xd6
+- 输出: resp_len=63, bytes[0..7]=97,98,99,100,101,102,48,49
+
+### 覆盖检查
+
+| 条件 | TC-V1 |
+|------|:--:|
+| request == 0xd6 | ✅ |
+
+✅ 代码路径已覆盖。
+
+---
+
+## 数据包版本读取 (0xdd)
+
+> 合并自: `packet-versions.md` (第十三节 B4)
+
+### 被测功能流程图
+
+```
+get packet versions (0xdd):
+  [controlWrite(0xdd, 0, 0)]
+           │
+           ▼
+  versions[0] = HEALTH_PACKET_VERSION
+  versions[1] = CAN_PACKET_VERSION_HASH
+  memcpy(resp, versions, 8)
+  resp_len = 8
+           │
+           ▼
+        (done)
+```
+
+### 输入因子
+
+| 因子 | 类型 | 等价类 | 取值 |
+|------|------|--------|------|
+| `request` | uint8 | 0xdd (唯一) | 0xdd |
+
+### 输出因子
+
+| 输出 | 类型 | 说明 |
+|------|------|------|
+| healthVersion | int | HEALTH_PACKET_VERSION (e2e: 0) |
+| canVersionHash | int | CAN_PACKET_VERSION_HASH (e2e: 0) |
+| canInitTimeoutMs | int | `CAN_INIT_TIMEOUT_MS` 编译时常量 (500) |
+
+### 测试用例
+
+**TC-P1**: 读取数据包版本号和配置常量
+- 输入: request=0xdd
+- 输出: healthVersion=0, canVersionHash=0, canInitTimeoutMs=500
+
+### 覆盖检查
+
+| 条件 | TC-P1 |
+|------|:--:|
+| request == 0xdd | ✅ |
+| CAN_INIT_TIMEOUT_MS == 500 | ✅ |
+
+✅ 代码路径已覆盖。

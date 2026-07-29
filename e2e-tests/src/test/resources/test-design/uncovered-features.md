@@ -1266,15 +1266,18 @@ Phase F 完成后:  91.1% (1989/2183) ✅
 
 ### 总览
 
+> ✅ **更新 (2026-07-29):** 第 1+2 梯队已完成合并。以下 10 个文件已删除/合并，剩余 10 个待处理（第 3+4 梯队）。
+
 ```
-非端到端 / 可通过其他测试覆盖的：20 个 feature 文件
+非端到端 / 可通过其他测试覆盖的：20 个 feature 文件 → 10 个已合并 ✅
 ──────────────────────────────────────────
-纯重复：           1 个（可安全删除）
-单一数据读取：     8 个（简单 handler，可合并到相关 feature）  
-内部实现细节：     6 个（数据结构/初始化，可合并到相关 feature）
-单一控制写入：     5 个（简单 handler，可合并到相关 feature）
+纯重复：           1 个 → ✅ 已删除 (microsecond_timer)
+单一数据读取：     8 个 → ✅ B1-B5 已合并 (5), B6-B8 待处理 (3)
+内部实现细节：     6 个 → 待处理 (6)
+单一控制写入：     5 个 → ✅ D1-D2, D4-D5 已合并 (4), D3 待处理 (1)
 
 仍为真正端到端功能：32 个（不变）
+当前 feature 总数: 43 个 (52 → 43, 净减 9)
 ```
 
 ### 详细清单
@@ -1283,7 +1286,7 @@ Phase F 完成后:  91.1% (1989/2183) ✅
 
 | # | Feature 文件 | 被测对象 | 覆盖分析 | 合并目标 | 方案 |
 |---|-------------|---------|---------|---------|------|
-| A1 | `microsecond_timer.feature` | `get_microsecond_timer()` | 与 `timer_fan.feature` 中两个 scenario 完全一致（非零 timer + 零 timer） | `timer_fan.feature` | 直接删除 `microsecond_timer.feature`，无需其他改动 |
+| A1 | `microsecond_timer.feature` | `get_microsecond_timer()` | 与 `timer_fan.feature` 中两个 scenario 完全一致（非零 timer + 零 timer） | `timer_fan.feature` | ✅ 已删除 |
 
 #### 类别 B：单一数据读取 handler — 可合并到相关 feature
 
@@ -1291,11 +1294,11 @@ Phase F 完成后:  91.1% (1989/2183) ✅
 
 | # | Feature 文件 | 被测 handler | 合并目标 | 合并方式 |
 |---|-------------|-------------|---------|---------|
-| B1 | `hw_type.feature` | `get_hw_type()` (0xc1) | `spi_version_packet.feature` | SPI 版本包中 `bytes[21]` 已是 `hw_type = CUATRO`，可在现有 scenario 中添加 `hwType` 字段校验 |
-| B2 | `get_version.feature` | `get_version()` (0xd6) | `health.feature` | 在 SILENT 模式默认值 scenario 后追加 `get_version()` 调用 + `respBuffer` 校验 |
-| B3 | `mcu_uid.feature` | `get_mcu_uid()` (0xc3) | `spi_version_packet.feature` | SPI 版本包中 `bytes[9-20]` 已是 12 字节 UID，在现有 scenario 中校验一致性即可 |
-| B4 | `packet_versions.feature` | `get_packet_versions()` (0xdd) | `health.feature` | 在 health 默认值 scenario 中添加 `packetVersions` 字段 |
-| B5 | `serial.feature` | serial/provision (0xd0) | `spi_version_packet.feature` | 与 UID 类似，SPI 版本包已包含设备标识信息，可在同一测试中覆盖 |
+| B1 | `hw_type.feature` | `get_hw_type()` (0xc1) | `spi_version_packet.feature` | ✅ 已合并。SPI 版本包中 `bytes[21]` 已是 `hw_type = CUATRO`，现有 scenario 已覆盖 |
+| B2 | `get_version.feature` | `get_version()` (0xd6) | `health.feature` | ✅ 已合并。在 `health.feature` 中添加 get_version scenario |
+| B3 | `mcu_uid.feature` | `get_mcu_uid()` (0xc3) | `spi_version_packet.feature` | ✅ 已合并。SPI 版本包中 `bytes[9-20]` 已是 12 字节 UID，现有 scenario 已覆盖 |
+| B4 | `packet_versions.feature` | `get_packet_versions()` (0xdd) | `health.feature` | ✅ 已合并。在 `health.feature` 中添加 packet_versions scenario |
+| B5 | `serial.feature` | serial/provision (0xd0) | `spi_version_packet.feature` | ✅ 已合并。SPI 版本包已包含设备标识信息，现有 scenario 已覆盖 |
 | B6 | `interrupt_rate.feature` | `get_interrupt_rate()` (0xc4) | `fdcan_interrupt.feature` | 该 feature 已涉及 FDCAN 中断注册 + 速率校验，可在现有 scenario 中追加 `get_interrupt_rate` 调用 |
 | B7 | `signature.feature` | 签名分块 (0xd3/0xd4) | `health.feature` 或新建启动校验 scenario | 2 个单一 control write → respBuffer 校验，可在一个 scenario 中连续调用两个 endpoint |
 | B8 | `uart_read.feature` | UART 读取 (0xe0) | `endpoint2_write.feature` | endpoint2 ring 4 写入 → UART buffer，写后立即读回，在同一个 scenario 中验证 |
@@ -1319,11 +1322,11 @@ Phase F 完成后:  91.1% (1989/2183) ✅
 
 | # | Feature 文件 | 被测 handler | 合并目标 | 合并方式 |
 |---|-------------|-------------|---------|---------|
-| D1 | `can_fd_non_iso.feature` | `set_can_fd_non_iso()` (0xfc) | `can_fd_data_bitrate.feature` | 在同一个 scenario 中先设置 non-ISO 标志再设置 data bitrate，验证组合行为 + CCCR 寄存器 |
-| D2 | `can_fd_auto.feature` | `set_can_fd_auto()` (0xe8) | `can_fd_data_bitrate.feature` | 在数据速率配置 scenario 中同时设置 auto switching 标志 |
+| D1 | `can_fd_non_iso.feature` | `set_can_fd_non_iso()` (0xfc) | `can_fd_data_bitrate.feature` | ✅ 已合并。所有 3 个 scenario 已追加到 can_fd_data_bitrate.feature |
+| D2 | `can_fd_auto.feature` | `set_can_fd_auto()` (0xe8) | `can_fd_data_bitrate.feature` | ✅ 已合并。所有 3 个 scenario 已追加到 can_fd_data_bitrate.feature |
 | D3 | `can_comms_reset.feature` | `reset_can_comms()` (0xc0) | `safety_mode.feature` | `safety_mode.feature` 已有"切换安全模式清空队列"的 scenario（第 7 个），在其中增加 `reset_can_comms` 后状态校验 |
-| D4 | `reset_st.feature` | NVIC 系统复位 (0xd8) | `bootloader.feature` | `bootloader.feature` 两个有效 scenario 已触发 NVIC reset 并验证 `nvicResetCount`。`reset_st.feature` 的唯一 scenario 是 bootloader 测试的子集 |
-| D5 | `bootloader.feature` | `enter_bootloader_mode()` (0xd1) | 扩展后的 `reset_st.feature` | 与 D4 合并为一个「系统复位与引导模式」feature，共 5 个 scenario（reset 1 + bootloader 3 + 组合 1） |
+| D4 | `reset_st.feature` | NVIC 系统复位 (0xd8) | `bootloader.feature` | ✅ 已合并为 `system_reset_bootloader.feature` (4 个 scenario) |
+| D5 | `bootloader.feature` | `enter_bootloader_mode()` (0xd1) | 扩展后的 `reset_st.feature` | ✅ 已合并为 `system_reset_bootloader.feature` (4 个 scenario) |
 
 ### 仍为真正端到端功能的 32 个测试
 
@@ -1382,15 +1385,17 @@ Phase F 完成后:  91.1% (1989/2183) ✅
 
 ### 优先级建议
 
-```
-🟢 第 1 梯队 (立即执行，无风险):
-   A1: microsecond_timer.feature → 直接删除
+> ✅ **第 1+2 梯队已完成** (2026-07-29): 删除 microsecond_timer.feature; 合并 reset_st+bootloader → system_reset_bootloader.feature; 合并 can_fd_non_iso+can_fd_auto → can_fd_data_bitrate.feature; 合并 hw_type+mcu_uid+serial → spi_version_packet.feature (已隐式覆盖); 合并 get_version+packet_versions → health.feature
 
-🟡 第 2 梯队 (低风险，高收益):
-   D4+D5: reset_st + bootloader → 合并为一个 feature
-   D1+D2: can_fd_non_iso + can_fd_auto → 合并到 can_fd_data_bitrate
-   B1+B3+B5: hw_type + mcu_uid + serial → 合并到 spi_version_packet
-   B2+B4: get_version + packet_versions → 合并到 health
+```
+🟢 第 1 梯队 (立即执行，无风险): ✅ 已完成
+   A1: microsecond_timer.feature → 已删除
+
+🟡 第 2 梯队 (低风险，高收益): ✅ 已完成
+   D4+D5: reset_st + bootloader → 已合并为 system_reset_bootloader.feature
+   D1+D2: can_fd_non_iso + can_fd_auto → 已合并到 can_fd_data_bitrate.feature
+   B1+B3+B5: hw_type + mcu_uid + serial → 已合并到 spi_version_packet.feature
+   B2+B4: get_version + packet_versions → 已合并到 health.feature
 
 🟠 第 3 梯队 (中等风险，需设计 scenario):
    C1: can_queue_wrap → 合并到 can_comms（需设计边界 scenario）

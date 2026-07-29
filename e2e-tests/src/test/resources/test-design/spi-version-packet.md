@@ -3,6 +3,9 @@
 > 功能: `spi_version_packet()` in `board/drivers/spi.h` + `crc_checksum()` in `board/crc.h`
 > 被测接口: JNA `jna_spi_version_packet()` (直接调用生产代码)
 > 涉及文件: `board/crc.h` (20 行), `board/drivers/spi.h:44-86` (spi_version_packet)
+> 合并覆盖: `hw-type.md` + `mcu-uid.md` + `serial.md` (第十三节 B1+B3+B5)
+>   — `bytes[21]` = hw_type (已覆盖), `bytes[9..20]` = UID (已覆盖)
+>   — serial/provision (0xd0) 三个 scenario 已恢复至 feature 文件末尾，覆盖 `provision.h`
 
 ## 1. 被测功能流程图
 
@@ -148,3 +151,4 @@ SPI 驱动去桩策略：
 |--------|--------|------|
 | `board/crc.h` | 100% (20/20) | ✅ C1 去桩化 — 纯 CRC-8 算法，通过 spi_version_packet 调用覆盖 |
 | `board/drivers/spi.h` | **94.2%** (147/156) | ✅ Phase F.5 — spi_version_packet + spi_rx_done + spi_tx_done 全状态机覆盖
+| `board/provision.h` | **100%** (7/7) | ✅ 第十三节 B5 — 通过 serial/provision 场景覆盖 (get_provision_chunk + memcmp + unprovisioned 分支) |

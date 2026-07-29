@@ -1,5 +1,21 @@
 # language: en
-Feature: Bootloader Mode Entry
+Feature: System Reset and Bootloader Mode
+
+  Scenario: Reset ST triggers NVIC_SystemReset
+    When control write:
+      """
+      UsbControlRequest: {
+        request: -40y
+        param1: 0
+        param2: 0
+      }
+      """
+    Then control data should be:
+      """
+      : {
+        nvicResetCount: 1
+      }
+      """
 
   Scenario: Enter bootloader mode with param1 equals 0 triggers NVIC reset and sets bootloader magic
     When control write:

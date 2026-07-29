@@ -107,7 +107,7 @@ e2e-tests/
 │   │       ├── UsbControlRequests.java  # 33 个 USB 控制请求 spec
 │   │       └── ControlSetups.java       # 前置数据 spec
 │   └── resources/
-│       ├── features/                # 43 个 feature 文件（Phase F.5 新增 spi_state_machine.feature）
+│       ├── features/                # 43 个 feature 文件（第十三节合并后减少 9 个）
 │       └── test-design/             # 测试设计文档
 ```
 
@@ -119,7 +119,7 @@ e2e-tests/
 | CAN 回环 | `can_loopback.feature` | 4 | FDCAN TEST/MON |
 | 心跳 | `heartbeat.feature` | 6 | heartbeat_* 变量 |
 | 心跳丢失 | `heartbeat_loss.feature` | 9 | safetyState + powerSaveTracking 通过 jna_call_tick_handler |
-| 健康数据包 | `health.feature` | 7 | healthPacket + 可设 voltage/current + @red/@tres unused 验证 ✅ D.2 |
+| 健康/版本数据包 | `health.feature` | 9 | 合并了 health + get_version + packet_versions (第十三节 B2+B4) |
 | CAN 模式 | `can_mode.feature` | 6 | stopModeRegs (gpioBModer/gpioBOdr/gpioBPupdr) |
 | 继电器 | `relay.feature` | 6 | stopModeRegs.gpioAOdr (PA3/PA9) |
 | 省电模式 | `power_save.feature` | 15 | powerSaveTracking + stopModeRegs (gpioBOdr/gpioDOdr/gpioGOdr) |
@@ -131,30 +131,21 @@ e2e-tests/
 | CAN 队列回绕 | `can_queue_wrap.feature` | 5 | lastQueueWPtr/lastQueueRPtr/canPushResult/lastCanSlotsEmptyVal via JNA 直接队列操作 |
 | FDCAN 中断处理 | `fdcan_interrupt.feature` | 10 | process_can → TXBAR/IR/rxQueue, 0xff 守卫, can_rx 全路径 (标准帧/扩展帧/CAN-FD/BRS/FIFO满/转发/IRQ错误/safety_rx_invalid) ✅ C3 + E.4 |
 | libc 工具函数 | `libc.feature` | 4 | lastMemcmpResult / delay 不挂死 |
-| 固件版本 | `get_version.feature` | 1 | respBuffer |
-| 数据包版本 | `packet_versions.feature` | 1 | packetVersions + canInitTimeoutMs |
 | IR 功率 | `ir_power.feature` | 4 | irPwm (TIM1 CCR1) + @red unused 验证 ✅ D.2 |
-| 硬件类型 | `hw_type.feature` | 1 | respBuffer |
 | CAN 波特率 | `can_bitrate.feature` | 3 | FDCAN NBTP/CCCR/IE/TXBC/RXF0C |
-| CAN FD 自动 | `can_fd_auto.feature` | 3 | canFdConfig |
-| CAN FD Non-ISO | `can_fd_non_iso.feature` | 3 | FDCAN CCCR |
-| CAN FD 数据率 | `can_fd_data_bitrate.feature` | 3 | FDCAN DBTP/CCCR/IE/TXBC/RXF0C |
+| CAN FD 配置 | `can_fd_data_bitrate.feature` | 9 | 合并了 FD 数据波特率 + Non-ISO + 自动切换 (第十三节 D1+D2) |
 | 时钟源 | `clock_source.feature` | 3 | clockSource (TIM1/TIM8 CCR) |
 | 时钟源初始化 | `clock_source_init.feature` | 6 | clockSourceInit (TIM1×12, TIM8×8, GPIO×4, NVIC×2) |
 | 板级初始化 | `board_init.feature` | 7 | boardInit (GPIO MODER/OTYPER/OSPEEDR/PUPDR/AFR/ODR ×45, PWR_CR3) — N2 完成 |
-| 定时器/风扇 | `timer_fan.feature` | 2 | respBuffer (little-endian) |
+| 定时器/风扇 | `timer_fan.feature` | 2 | 合并覆盖 microsecond_timer (第十三节 A1) |
 | 风扇功率 | `fan_power.feature` | 10 | fanPower + stopModeRegs.gpioDOdr (PD3 板级验证 + unused JNA ✅ D.2) |
 | 风扇冷却 | `fan_cooldown.feature` | 3 | fanCooldownCounter + fanPower 通过 jna_call_tick_handler |
-| 系统复位 | `reset_st.feature` | 1 | nvicResetCount |
+| 系统复位与 Bootloader | `system_reset_bootloader.feature` | 4 | 合并了 reset_st + bootloader (第十三节 D4+D5) |
 | 深度休眠 | `deep_sleep.feature` | 13 | stopModeRegs (25+ 假寄存器: GPIO/ADC/RCC/SYSCFG/EXTI/PWR/SCB/NVIC) |
 | SOM GPIO | `som_gpio.feature` | 2 | respBuffer + @red unused 验证 ✅ D.2 |
 | CAN 健康 | `can_health.feature` | 6 | canHealth0 (PSR/ECR 提取) |
-| 微秒定时器 | `microsecond_timer.feature` | 2 | respBuffer (4-byte LE) |
-| MCU UID | `mcu_uid.feature` | 2 | respBuffer (12 bytes) |
 | 中断调用率 | `interrupt_rate.feature` | 3 | respBuffer (4-byte LE / 空) |
-| 序列号/Provision | `serial.feature` | 3 | respBuffer (serial 16B + provision 32B + unprovisioned magic) |
 | 固件签名 | `signature.feature` | 2 | respBuffer (64 bytes 分块) |
-| Bootloader 模式 | `bootloader.feature` | 3 | nvicResetCount, enterBootloaderMode |
 | UART 读取 | `uart_read.feature` | 3 | respBuffer (字符读取 / 空) |
 | Bootkick SOM 复位 | `bootkick.feature` | 14 | tick_handler FSM (state/waitingCountdown/resetCountdown/resetTriggered) + stopModeRegs (gpioAOdr/gpioCOdr) 通过 jna_call_tick_handler |
 | 继电器故障 | `relay_malfunction.feature` | 3 | readFaults (FAULT_RELAY_MALFUNCTION 边沿检测) |
@@ -165,7 +156,7 @@ e2e-tests/
 | ignition_can 自动复位 | `ignition_can.feature` | 2 | ignitionCan (通过 `jna_set_ignition_can` + `jna_call_tick_handler`) |
 | 线束翻转检测 | `harness_detect.feature` | 8 | harnessStatus (生产 `harness_detect_orientation()` ✅ B5 + ADC 拦截桩) |
 | Tick 路径 | `tick_paths.feature` | 6 | has_fan=false, heartbeat_counter 溢出, safety_mode_cnt 溢出, harness reinit (P1) |
-| SPI Version Packet | `spi_version_packet.feature` | 2 | spiVersionResult (生产 `spi_version_packet()` + `crc_checksum()` ✅ C1) |
+| SPI Version Packet + Device ID | `spi_version_packet.feature` | 5 | spiVersionResult + serial/provision (第十三节 B1+B3+B5) |
 | SPI 状态机 | `spi_state_machine.feature` | 21 | spiStateResult (生产 `spi_rx_done()` + `spi_tx_done()` 全状态覆盖 ✅ Phase F.5) |
 
 ## C 代码覆盖率
