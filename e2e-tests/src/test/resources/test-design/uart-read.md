@@ -1,5 +1,7 @@
 # UART 读取 — 测试设计文档
 
+> **⚠️ 已合并**: 此文档对应的 `uart_read.feature` 已于 2026-07-29 合并至 `spi_state_machine.feature`（第十三节 B8）。测试用例 U1-U3 见 `spi-state-machine.md` 第 9 节。
+
 > 功能: uart read via `comms_control_handler()` in `board/main_comms.h`
 > 被测接口: USB control request 0xe0 (uart read)
 

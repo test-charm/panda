@@ -107,7 +107,7 @@ e2e-tests/
 │   │       ├── UsbControlRequests.java  # 33 个 USB 控制请求 spec
 │   │       └── ControlSetups.java       # 前置数据 spec
 │   └── resources/
-│       ├── features/                # 35 个 feature 文件（第十三节合并后减少 17 个）
+│       ├── features/                # 34 个 feature 文件（第十三节合并后减少 18 个）
 │       └── test-design/             # 测试设计文档
 ```
 
@@ -141,7 +141,7 @@ e2e-tests/
 | 深度休眠 | `deep_sleep.feature` | 13 | stopModeRegs (25+ 假寄存器: GPIO/ADC/RCC/SYSCFG/EXTI/PWR/SCB/NVIC) |
 | SOM GPIO | `som_gpio.feature` | 2 | respBuffer + @red unused 验证 ✅ D.2 |
 | CAN 健康 | `can_health.feature` | 6 | canHealth0 (PSR/ECR 提取) |
-| UART 读取 | `uart_read.feature` | 3 | respBuffer (字符读取 / 空) |
+| UART 读取 | `spi_state_machine.feature` (已合并) | 3 | respBuffer (字符读取 / 空) — 第十三节 B8 合并 ✅ |
 | Bootkick SOM 复位 | `bootkick.feature` | 14 | tick_handler FSM (state/waitingCountdown/resetCountdown/resetTriggered) + stopModeRegs (gpioAOdr/gpioCOdr) 通过 jna_call_tick_handler |
 | 继电器故障 | `relay_malfunction.feature` | 3 | readFaults (FAULT_RELAY_MALFUNCTION 边沿检测) |
 | 永久故障 | `permanent_fault.feature` | 2 | readFaults + faultStatus (FAULT_STATUS_PERMANENT 不可恢复) |
@@ -150,7 +150,7 @@ e2e-tests/
 | 线束翻转检测 | `harness_detect.feature` | 8 | harnessStatus (生产 `harness_detect_orientation()` ✅ B5 + ADC 拦截桩) |
 | Tick 路径 | `tick_paths.feature` | 12 | has_fan=false, heartbeat_counter 溢出, safety_mode_cnt 溢出, harness reinit + register_divergence + watchdog (P1 + C4+C5) |
 | SPI Version Packet + Device ID | `spi_version_packet.feature` | 5 | spiVersionResult + serial/provision (第十三节 B1+B3+B5) |
-| SPI 状态机 | `spi_state_machine.feature` | 27 | spiStateResult (生产 `spi_rx_done()` + `spi_tx_done()` 全状态覆盖 + endpoint2_write 合并 (第十三节 C6) ✅ Phase F.5) |
+| SPI 状态机 | `spi_state_machine.feature` | 30 | spiStateResult (生产 `spi_rx_done()` + `spi_tx_done()` 全状态覆盖 + endpoint2_write 合并 (第十三节 C6) + uart_read 合并 (第十三节 B8) ✅ Phase F.5) |
 
 ## C 代码覆盖率
 

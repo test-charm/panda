@@ -212,3 +212,45 @@ SPI DATA_RX endpoint 2 → `comms_endpoint2_write()` 调用已在 B4 场景中�
 |--------|--------|------|
 | `board/drivers/spi.h` | **94.2%** (147/156) | ✅ Phase F.5 — spi_rx_done + spi_tx_done 全状态机覆盖 |
 | `e2e-tests/.../board/drivers/spi.h` | 66.7% (2/3) | e2e 包装桩 |
+
+## 9. UART 读取 — 控制传输 0xe0 (第十三节 B8 合并)
+
+> 合并自: `uart_read.feature` (3 scenarios)
+> 被测函数: `comms_control_handler()` case 0xe0 in `board/main_comms.h`
+
+### 9.1 数据流
+
+```
+comms_control_handler(0xe0, param1=ring_num, length):
+       │
+       ▼
+  ur = get_ring_by_number(ring_num)
+       │
+  ┌────┴────┐
+  ▼         ▼
+NULL      valid ring
+  │         │
+  ▼         ▼
+break    get_char loop → resp[resp_len++]
+         until resp_len == length || ring empty
+```
+
+### 9.2 测试用例
+
+| ID | 场景 | 输入 | 预期 |
+|----|------|------|------|
+| U1 | 无效 ring (param1=99) → NULL | `UsbControlRequest: { request: -32y, param1: 99, param2: 0 }` | `respBuffer.len: 0` |
+| U2 | 有效 ring 空数据 → 零长度 | `UartRead: { param1: 0 }` | `respBuffer.len: 0` |
+| U3 | 有效 ring 有 "HELLO" → 读取 5 字节 | `Given exists data: ControlSetup: { uartData: "HELLO" }` → `UartRead: { param1: 0, length: 5 }` | `respBuffer.len: 5`, bytes=[H,E,L,L,O] |
+
+### 9.3 覆盖检查
+
+| 条件 | U1 | U2 | U3 |
+|------|:--:|:--:|:--:|
+| `get_ring_by_number == NULL` | ✅ | — | — |
+| ring exists, empty | — | ✅ | — |
+| ring exists, has data | — | — | ✅ |
+| `resp_len < req_length` | — | ✅ | ✅ |
+| `get_char` 成功 | — | — | ✅ |
+
+✅ 所有分支已覆盖。

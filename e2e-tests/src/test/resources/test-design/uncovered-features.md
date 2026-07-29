@@ -1269,15 +1269,15 @@ Phase F 完成后:  91.1% (1989/2183) ✅
 > ✅ **更新 (2026-07-29):** 第 1+2 梯队已完成合并，C1 已完成合并。以下 11 个文件已删除/合并，剩余 9 个待处理（第 3+4 梯队）。
 
 ```
-非端到端 / 可通过其他测试覆盖的：20 个 feature 文件 → 11 个已合并 ✅
+非端到端 / 可通过其他测试覆盖的：20 个 feature 文件 → 12 个已合并 ✅
 ──────────────────────────────────────────
 纯重复：           1 个 → ✅ 已删除 (microsecond_timer)
-单一数据读取：     8 个 → ✅ B1-B5 已合并 (5), B6-B8 待处理 (3)
+单一数据读取：     8 个 → ✅ B1-B5 已合并 (5), B6-B7 待处理 (2), B8 已合并 ✅
 内部实现细节：     6 个 → ✅ C1 已合并 (1), C2-C6 待处理 (5)
 单一控制写入：     5 个 → ✅ D1-D2, D4-D5 已合并 (4), D3 待处理 (1)
 
 仍为真正端到端功能：32 个（不变）
-当前 feature 总数: 42 个 (52 → 42, 净减 10)
+当前 feature 总数: 41 个 (52 → 41, 净减 11)
 ```
 
 ### 详细清单
@@ -1301,7 +1301,7 @@ Phase F 完成后:  91.1% (1989/2183) ✅
 | B5 | `serial.feature` | serial/provision (0xd0) | `spi_version_packet.feature` | ✅ 已合并。SPI 版本包已包含设备标识信息，现有 scenario 已覆盖 |
 | B6 | `interrupt_rate.feature` | `get_interrupt_rate()` (0xc4) | `fdcan_interrupt.feature` | 该 feature 已涉及 FDCAN 中断注册 + 速率校验，可在现有 scenario 中追加 `get_interrupt_rate` 调用 |
 | B7 | `signature.feature` | 签名分块 (0xd3/0xd4) | `health.feature` 或新建启动校验 scenario | 2 个单一 control write → respBuffer 校验，可在一个 scenario 中连续调用两个 endpoint |
-| B8 | `uart_read.feature` | UART 读取 (0xe0) | `endpoint2_write.feature` | endpoint2 ring 4 写入 → UART buffer，写后立即读回，在同一个 scenario 中验证 |
+| B8 | `uart_read.feature` | UART 读取 (0xe0) | `spi_state_machine.feature` | ✅ 已合并。3 个 scenario (invalid ring / empty ring / round-trip) 移至 spi_state_machine.feature |
 
 #### 类别 C：内部实现细节 — 可合并到相关 feature
 
@@ -1411,7 +1411,7 @@ Phase F 完成后:  91.1% (1989/2183) ✅
 
 🔴 第 4 梯队 (高风险/争议大，暂缓):
    C3: board_init → 分散到其他按板 feature
-   B8: uart_read → 合并到 endpoint2_write（但 endpoint2_write 自身也可能被合并）
+   B8: ✅ uart_read → 已合并到 spi_state_machine.feature (2026-07-29)
 ```
 
 ---
