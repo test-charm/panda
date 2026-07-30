@@ -409,7 +409,7 @@ Phase J 后: **92.9%** (2304/2479, ~40 files) ← 最新 ✅
 | 死代码/不可达分支 | 10 | `pwm.h:27-28,53-54` (default 分支), `main_comms.h:332-336` (default handler) | 仅在无效输入时触发 |
 | ~~系统复位/硬件崩溃~~ | ~~3→0~~ | ~~`power_saving.h:120-121` (NVIC_SystemReset)~~ ✅ J12c 已覆盖 | `enter_stop_mode()` ignition ON 路径通过 JNA 直接触发 |
 | 忙等待/无限循环 | 10 | `libc.h:3-8,12-17` (delay, assert_fatal) | e2e 中无限循环导致超时 |
-| ADC/电压读取 | 8 | `boards/cuatro.h:28-34`, `red.h:70-72` | 依赖 ADC 外设，e2e 中始终返回 0 |
+| ADC/电压读取 | 3 | `red.h:70-72` | 依赖 ADC 外设。~~`cuatro.h:28-34`~~ ✅ 已通过 ADC stub + 真实函数覆盖 |
 | 预处理器宏定义 | 3 | `board_declarations.h:51`, `led.h:2`, `llfdcan_declarations.h:10` | `#define` 不被计入执行覆盖 |
 | 未调用函数 | 4 | `unused_funcs.h:3-4`, `llfdcan_declarations.h:39` | `unused_init_bootloader` 从未被调用, FDCAN3 三元分支 |
 | 板型默认分支 | 8 | `boards/{cuatro,tres,red}.h` default cases | switch-default 路径在不合法输入时 |
@@ -435,7 +435,7 @@ Phase J 后: 92.9% (2304/2479, 40 files, +45 lines covered)
 
 剩余不可覆盖 (~158 lines):
   main() 启动序列 (81 lines), llfdcan timeout (24 lines), libc delay/assert (10 lines),
-  pwm default 分支 (8 lines), 板型 ADC/default (16 lines), 宏定义/防御 print (19 lines)
+  pwm default 分支 (8 lines), 板型 ADC/default (11 lines), 宏定义/防御 print (19 lines)
 ```
 
 ### 10.5 Phase J 补充 (J11-J14 + J12b-J12c)

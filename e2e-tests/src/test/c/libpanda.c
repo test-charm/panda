@@ -233,13 +233,32 @@ static bool wfi_entered;
 
 GPIO_TypeDef dummy_gpio;
 
+// ADC input globals for board voltage/current readout.  e2e-adc-stub in
+// lladc.h returns these values for channels 8 (voltage) and 3 (current) so
+// that the real cuatro_read_voltage_mV / cuatro_read_current_mA can be exercised.
+uint16_t e2e_adc_ch8_mV = 1091;  // 1091*11 = 12001 ≈ legacy default 12000
+uint16_t e2e_adc_ch3_mV = 0;
+
+// Legacy globals kept for backward compat (default health test uses 12000 mV).
 static uint32_t e2e_voltage_mV = 12000;
 static uint32_t e2e_current_mA = 0;
 uint32_t board_read_voltage_mV_stub(void) { return e2e_voltage_mV; }
 uint32_t board_read_current_mA_stub(void) { return e2e_current_mA; }
 
-void jna_set_voltage_mV(int val) { e2e_voltage_mV = (uint32_t)val; }
-void jna_set_current_mA(int val) { e2e_current_mA = (uint32_t)val; }
+// JNA setters — both the legacy stub path and the new ADC path.
+// For the ADC path the value is divided by the board's HW factor so
+// that the real read function reconstructs the intended value.
+void jna_set_voltage_mV(int val) {
+  e2e_voltage_mV = (uint32_t)val;
+  // Reverse the HW *11 scaling so that cuatro_read_voltage_mV reconstructs
+  // the intended value as closely as possible (round to nearest).
+  e2e_adc_ch8_mV = (uint16_t)((val + 5) / 11);
+}
+void jna_set_current_mA(int val) {
+  e2e_current_mA = (uint32_t)val;
+  // Reverse the HW *2 scaling.  Exact for even values.
+  e2e_adc_ch3_mV = (uint16_t)(val / 2);
+}
 
 // Tracking stub for set_ir_power — records all calls
 #define MAX_IR_POWER_CALLS 16
@@ -289,8 +308,8 @@ struct board e2e_board = {
     .init_bootloader = unused_init_bootloader,
     .enable_can_transceiver = cuatro_enable_can_transceiver,
     .set_can_mode = tres_set_can_mode,
-    .read_voltage_mV = board_read_voltage_mV_stub,
-    .read_current_mA = board_read_current_mA_stub,
+    .read_voltage_mV = cuatro_read_voltage_mV,
+    .read_current_mA = cuatro_read_current_mA,
     .set_ir_power = board_set_ir_power_stub,
     .set_fan_enabled = cuatro_set_fan_enabled,
     .set_siren = board_set_siren_stub,
@@ -346,6 +365,12 @@ struct board e2e_board = {
 };
 #endif
 board *current_board = &e2e_board;
+
+// JNA wrappers that call the REAL board functions for coverage testing.
+// These bypass the e2e_board stub so the production code path is exercised.
+// Must appear after #include "board/stm32h7/board.h" which pulls in cuatro.h.
+uint32_t jna_cuatro_read_voltage_mV(void) { return cuatro_read_voltage_mV(); }
+uint32_t jna_cuatro_read_current_mA(void) { return cuatro_read_current_mA(); }
 
 // ---- JNA entry point for harness_detect_orientation (B5: now real production code) ----
 void jna_detect_harness_orientation(void) {
@@ -465,6 +490,8 @@ void jna_reset_stop_mode_tracking(void) {
     wfi_entered = false;
     e2e_voltage_mV = 12000;
     e2e_current_mA = 0;
+    e2e_adc_ch8_mV = 1091;  // 1091*11 = 12001
+    e2e_adc_ch3_mV = 0;
     // Zero all fake register instances
     e2e_GPIOA = (GPIO_TypeDef){0};   e2e_GPIOB = (GPIO_TypeDef){0};
     e2e_GPIOC = (GPIO_TypeDef){0};   e2e_GPIOD = (GPIO_TypeDef){0};

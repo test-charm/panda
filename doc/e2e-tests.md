@@ -48,7 +48,7 @@ Cucumber BDD 断言: gpioAModer: 0xFFFFFFF1, rccCr: 0x0, ...
 | 外设 | 假实例 | 访问的生产代码 |
 |------|--------|--------------|
 | GPIO A-G | `e2e_GPIOA`..`e2e_GPIOG` | `board/drivers/gpio.h` (set_gpio_output, set_gpio_mode) |
-| ADC1/2 | `e2e_ADC1`, `e2e_ADC2` | 寄存器直接操作 |
+| ADC1/2 | `e2e_ADC1`, `e2e_ADC2` | 寄存器直接操作。lladc.h stub 拦截 ch4/ch17 (SBU) + ch8/ch3 (电压/电流)，返回可配置全局变量 |
 | RCC | `e2e_RCC` | 时钟控制 |
 | SYSCFG | `e2e_SYSCFG` | EXTI 配置 |
 | EXTI | `e2e_EXTI` | 中断/唤醒 |
@@ -130,7 +130,7 @@ e2e-tests/
 | CAN 回环 | `can_loopback.feature` | 4 | FDCAN TEST/MON |
 | 心跳 | `heartbeat.feature` | 6 | heartbeat_* 变量 |
 | 心跳丢失 | `heartbeat_loss.feature` | 9 | safetyState + powerSaveTracking 通过 jna_call_tick_handler |
-| 健康/版本数据包 | `health.feature` | 11 | 合并了 health + get_version + packet_versions + signature (第十三节 B2+B4+B7) |
+| 健康/版本数据包 | `health.feature` | 11 | 合并了 health + get_version + packet_versions + signature (第十三节 B2+B4+B7)，电压/电流通过真实 `cuatro_read_voltage_mV`/`cuatro_read_current_mA` 验证 |
 | CAN 模式 | `can_mode.feature` | 6 | stopModeRegs (gpioBModer/gpioBOdr/gpioBPupdr) |
 | 继电器 | `relay.feature` | 6 | stopModeRegs.gpioAOdr (PA3/PA9) |
 | 省电模式 | `power_save.feature` | 16 | powerSaveTracking + stopModeRegs (gpioBOdr/gpioDOdr/gpioGOdr) + flipped harness disable |
@@ -194,7 +194,7 @@ e2e-tests/
 | `board/drivers/led.h` | **96.0%** (24/25) | 2/2 | ✅ 去桩化 (仅 LED_RED define 未覆盖) |
 | `board/stm32h7/llfdcan.h` | **85.1%** (137/161) | — | ✅ Phase J: J7 低速 + J9 5M (timeout 路径不可覆盖) |
 | `board/drivers/fdcan.h` | **100%** (158/158) | — | ✅ Phase J: J3 checksum error + J4 all FDCAN handlers 全覆盖 |
-| `board/boards/cuatro.h` | **87.9%** (58/66) | — | ✅ N2 完成 |
+| `board/boards/cuatro.h` | **98.5%** (65/66) | — | ✅ N2 完成，ADC 电压/电流通过 stub 覆盖 |
 | `board/boards/tres.h` | **92.4%** (85/92) | — | ✅ N2 完成 |
 | `board/boards/red.h` | **90.0%** (63/70) | — | ✅ N2 完成 |
 | `board/drivers/spi.h` | **99.4%** (155/156) | — | ✅ Phase F.5 + J13 (spi_init) |
@@ -202,7 +202,7 @@ e2e-tests/
 | `board/drivers/interrupts.h` | **100%** (53/53) | 4/4 | ✅ Phase J: J6 rate print 全覆盖 |
 | `board/drivers/uart.h` | **100%** (77/77) | — | ✅ Phase J: J5 injectc overwrite 全覆盖 |
 | `board/stm32h7/llfdcan_declarations.h` | **95.7%** (22/23) | — | CAN_NAME_FROM_CANIF FDCAN3 分支不可覆盖 |
-| **合计** | **93.7%** (2322/2479, 40 files) | — | Phase J + J11-J14 + J12b-J12c 完成 ✅ |
+| **合计** | **94.0%** (2329/2479, 40 files) | — | Phase J + J11-J14 + J12b-J12c 完成 + cuatro ADC 覆盖 ✅ |
 
 ## 设计原则
 

@@ -54,6 +54,11 @@ typedef struct {
 // All other ADC reads return 0 (which is fine — only harness orientation uses ADC in e2e).
 extern struct harness_t harness;
 
+// Configurable ADC values for board-specific voltage/current readout
+// (cuatro_read_voltage_mV: ch8 * 11, cuatro_read_current_mA: ch3 * 2)
+extern uint16_t e2e_adc_ch8_mV;
+extern uint16_t e2e_adc_ch3_mV;
+
 static uint16_t adc_get_mV(const adc_signal_t *signal) {
   // Intercept harness SBU1 / SBU2 reads by channel number
   if (signal->channel == 4U) {
@@ -61,6 +66,13 @@ static uint16_t adc_get_mV(const adc_signal_t *signal) {
   }
   if (signal->channel == 17U) {
     return harness.sbu2_voltage_mV;
+  }
+  // Board voltage/current readout channels (cuatro)
+  if (signal->channel == 8U) {
+    return e2e_adc_ch8_mV;
+  }
+  if (signal->channel == 3U) {
+    return e2e_adc_ch3_mV;
   }
   return 0U;
 }

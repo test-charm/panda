@@ -15,8 +15,8 @@
                     ▼
             health_t {
               uptime_pkt         ← uptime_cnt
-              voltage_pkt        ← board->read_voltage_mV() [stub: 12000]
-              current_pkt        ← board->read_current_mA() [stub: 0]
+              voltage_pkt        ← board->read_voltage_mV() [cuatro: real *11 via ADC stub; red/tres: stub=12000]
+              current_pkt        ← board->read_current_mA() [cuatro: real *2 via ADC stub; red/tres: unused=0]
               ignition_line_pkt  ← harness_check_ignition() [stub: false]
               ignition_can_pkt   ← ignition_can (extern)
               controls_allowed_pkt ← controls_allowed (opendbc)
@@ -56,8 +56,8 @@
 | CAN TX 阻断计数 (safety_tx_blocked) | 整数 | 0, ≥1 | 0, 1 |
 | 心跳丢失 (heartbeat_lost) | 布尔 | false, true | false, true |
 | 心跳已启用 (heartbeat_engaged) | 布尔 | false, true | false, true |
-| 电压 (e2e_voltage_mV) | 整数 | 默认 12000, 可设定 | 12000, 13500 |
-| 电流 (e2e_current_mA) | 整数 | 默认 0, 可设定; red/tres 强制 0 (unused) | 0, 500 |
+| 电压 (voltageMV) | 整数 | 默认 12001 (1091×11, ADC stub), 可设定; red/tres: stub 12000 | 12001, 11000 |
+| 电流 (currentMA) | 整数 | 默认 0, 可设定; red/tres 强制 0 (unused) | 0, 500 |
 
 ## 输出因子（被测字段）
 
@@ -70,11 +70,14 @@
 | heartbeat_lost_pkt | uint8 | heartbeat_lost |
 | heartbeat_engaged (从safety.h) | bool | heartbeat_engaged |
 | uptime_pkt | uint32 | uptime_cnt |
-| voltage_pkt | uint32 | board stub (12000) |
+| voltage_pkt | uint32 | `current_board->read_voltage_mV()` |
+| | | cuatro: `cuatro_read_voltage_mV()` → `adc_get_mV(ch8) * 11` (ADC stub 可设定) |
+| | | red/tres: stub 返回 e2e_voltage_mV (默认 12000) |
 | current_pkt | uint32 | `current_board->read_current_mA()` |
-| | | cuatro: stub (可设定); red/tres: unused_read_current (固定 0) |
+| | | cuatro: `cuatro_read_current_mA()` → `adc_get_mV(ch3) * 2` (ADC stub 可设定) |
+| | | red/tres: `unused_read_current` 始终返回 0 |
 
-> **说明**: 电压由硬件 stub 固定返回 12000mV。电流在 cuatro 上可通过 `currentMA` 注入，在 red/tres 上 `unused_read_current` 始终返回 0。uptime 验证 ≥0 即可（固件初始化后为 0）。其余 20+ 字段值固定为 0/false，不做逐一验证。
+> **说明**: cuatro 板已切换到真实 `cuatro_read_voltage_mV()` / `cuatro_read_current_mA()`，通过 ADC stub (lladc.h) 的 ch8/ch3 通道注入测试值，覆盖 ×11/×2 硬件乘法因子。电压默认 12001mV (1091×11)，可设定值需为 11 的倍数以确保精确。电流在 cuatro 上通过 currentMA 注入，需为偶数确保精确；在 red/tres 上 `unused_read_current` 始终返回 0。uptime 验证 ≥0 即可（固件初始化后为 0）。其余 20+ 字段值固定为 0/false，不做逐一验证。
 
 ## 测试用例
 
@@ -84,7 +87,7 @@
 
 | 前置操作 | safety_mode_pkt | safety_tx_blocked_pkt | heartbeat_lost_pkt | voltage_pkt | uptime_pkt |
 |----------|:---------------:|:---------------------:|:------------------:|:-----------:|:----------:|
-| (无)     | 0 (SILENT)      | 0                     | 0                  | 12000       | ≥0         |
+| (无)     | 0 (SILENT)      | 0                     | 0                  | 12001       | ≥0         |
 
 ### 用例 2: 切换安全模式后健康数据包反映新模式
 
@@ -95,12 +98,14 @@
 | SetSafetyMode(2) | 2 (TOYOTA) | 0 | 0 |
 
 ### 用例 4: 健康数据包电压反映可设 e2e 值
-- 前置: ControlSetup { voltageMV: 13500 }
-- 输出: voltage: 13500
+- 前置: ControlSetup { voltageMV: 11000 }
+- 输出: voltage: 11000
+- 说明: `jna_set_voltage_mV(11000)` → `e2e_adc_ch8_mV=1000` → `cuatro_read_voltage_mV()` 返回 `1000*11=11000`
 
 ### 用例 5: 健康数据包电流反映可设 e2e 值
 - 前置: ControlSetup { currentMA: 500 }
 - 输出: current: 500
+- 说明: `jna_set_current_mA(500)` → `e2e_adc_ch3_mV=250` → `cuatro_read_current_mA()` 返回 `250*2=500`
 
 ### 用例 6 (@red): 预设电流非零，unused_read_current 仍返回 0
 - 前置: ControlSetup { currentMA: 500 } + red board (`.read_current_mA = unused_read_current`)
@@ -118,9 +123,10 @@
 
 | 源文件 | 行覆盖 | 说明 |
 |--------|--------|------|
-| `main_comms.h` | 95.5% (257/269) | USB 命令处理 |
-| `unused_funcs.h` | 100% (23/23) | ✅ Phase D.2 |
+| `main_comms.h` | 97.0% (261/269) | USB 命令处理 |
+| `unused_funcs.h` | 91.3% (21/23) | ✅ Phase D.2 |
 | `main.c` | 64.2% (145/226) | 主循环 |
+| `boards/cuatro.h` | 98.5% (65/66) | ✅ `cuatro_read_voltage_mV`/`cuatro_read_current_mA` 通过 ADC stub 覆盖 |
 
 ---
 

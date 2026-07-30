@@ -19,7 +19,7 @@ Feature: Health Packet, Version, and Packet Version Retrieval
           safetyRxInvalid: 0
           heartbeatLost: 0
           safetyParam: 0
-          voltage: 12000
+          voltage: 12001
           current: 0
           uptime: 0
         }
@@ -138,7 +138,7 @@ Feature: Health Packet, Version, and Packet Version Retrieval
     Given exists data:
       """
       ControlSetup: {
-        voltageMV: 13500
+        voltageMV: 11000
       }
       """
     When control write:
@@ -151,7 +151,7 @@ Feature: Health Packet, Version, and Packet Version Retrieval
       """
       : {
         healthPacket: {
-          voltage: 13500
+          voltage: 11000
         }
       }
       """
