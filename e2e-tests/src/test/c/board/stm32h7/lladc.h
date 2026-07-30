@@ -80,5 +80,4 @@ static uint16_t adc_get_mV(const adc_signal_t *signal) {
   if (signal->channel == 2U) {
     return e2e_adc_ch2_mV;
   }
-  return 0U;
 }
