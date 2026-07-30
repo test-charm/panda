@@ -79,6 +79,11 @@ get CAN health (0xc2):
 - 输入: 直接调用 update_can_health_pkt(0, 16)
 - 输出: totalErrorCnt=1, totalRxLostCnt=1
 
+### TC7: DLEC 非零非 7 → lastDataStoredError 存储 (Phase J11)
+- 前置: PSR=256 (DLEC=1 bit8, LEC=0)
+- 输入: 直接调用 update_can_health_pkt(0, 0)
+- 输出: lastDataError=1, lastDataStoredError=1
+
 ## 5. 覆盖检查
 
 | 代码行 | 内容 | TC |
@@ -88,7 +93,7 @@ get CAN health (0xc2):
 | L20 | error_warning | TC4 |
 | L21 | error_passive | TC4 |
 | L23-26 | last_error + stored (≠0,≠7) | TC2, TC4(==0), TC5 |
-| L28-31 | last_data_error + stored | TC4(==0) |
+| L28-31 | last_data_error + stored (≠0,≠7) | TC4(==0), **TC7(==1)** |
 | L33 | receive_error_cnt | TC2 |
 | L34 | transmit_error_cnt | TC2, TC5 |
 | L36-37 | irq call rates | ✅ 读取中断数组 (值为0) |

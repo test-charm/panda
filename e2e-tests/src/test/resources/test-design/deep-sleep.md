@@ -51,11 +51,11 @@ request deep sleep (0xb5):
 | 8 | 配置 SBU EXTI 唤醒 | `syscfgExticr[0-1]`, `extiImr1`(bit1,4), `extiRtsr1`(bit1,4), `extiFtsr1`(bit1,4) | 见 TC5 |
 | 9 | 配置 CAN EXTI 唤醒 | `syscfgExticr[1-3]`, `extiImr1`(bit5,8,12), `extiFtsr1`(bit5,8,12) | 见 TC5 |
 | 10 | 清除 EXTI 挂起 | `extiPr1` (写 1 清零) | 存写入值 |
-| 11 | 点火检测 (提前复位) | `harness_check_ignition()` → `NVIC_SystemReset` | 桩返回 false，跳过 |
+| 11 | 点火检测 (提前复位) | `harness_check_ignition()` → `NVIC_SystemReset` | ✅ J12c: ignition ON 时触发 |
 | 12 | PWR STOP 模式 + SVOS5 + FLPS | `pwrCpucr` / `pwrCr1` | `0` / `0x4200` |
 | 13 | SCB SLEEPDEEP | `scbScr` | `0x4` |
 | 14 | NVIC 全部禁用 + 使能唤醒 EXTI + WFI | `nvicIcer0`=`nvicIcer7`=`nvicIcpr0`=`nvicIcpr7`=`0xFFFFFFFF`, `irqDisabled`/`dsbCalled`/`isbCalled`/`wfiEntered`=true |
-| 15 | NVIC_SystemReset | `nvicResetCount`=1 (reset_st.feature 验证) |
+| 15 | NVIC_SystemReset | `nvicResetCount`=1 (post-WFI), 2 (ignition ON 含提前复位) |
 
 ## 3. 输入因子
 
@@ -118,6 +118,12 @@ request deep sleep (0xb5):
 - 输入: processStopMode()
 - 验证: `scbScr=4` (SLEEPDEEP), `nvicIcer0`=`nvicIcer7`=`nvicIcpr0`=`nvicIcpr7`=`0xFFFFFFFF`, `irqDisabled=true`, `dsbCalled=true`, `isbCalled=true`, `wfiEntered=true`
 
+### TC9: 点火 ON 时 stop mode 触发 NVIC_SystemReset 提前复位 (Phase J12c)
+- 前置: 复位 nvic 计数
+- 输入: `jna_enter_stop_mode_ignition_on()` (直接设置 GPIOC.4=0 模拟 ignition ON + stop_mode_requested=true → enter_stop_mode)
+- 验证: `nvicResetCount=1` (ignition ON 分支 hitted), `wfiEntered=true`
+- 覆盖: `power_saving.h:120` — `harness_check_ignition()==true` 分支内 `NVIC_SystemReset()`
+
 ## 6. 覆盖检查
 
 | 条件 | 覆盖 |
@@ -135,10 +141,10 @@ request deep sleep (0xb5):
 | PWR STOP 模式 + 电压缩放 | TC7 |
 | SCB SLEEPDEEP | TC8 |
 | NVIC 禁用 + 唤醒 EXTI | TC8 |
-| NVIC_SystemReset | TC8 |
+| NVIC_SystemReset | TC8, TC9 |
 | stop_mode_requested==false → 跳过 | TC1 (仅验证标志, 不进 enter_stop_mode) |
 
-✅ 全部 15 个代码路径已覆盖。
+✅ 全部 16 个代码路径已覆盖。
 
 ## 7. 架构说明
 

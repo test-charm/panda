@@ -657,6 +657,19 @@ void jna_process_stop_mode(void) {
     }
 }
 
+// J12c: call enter_stop_mode with ignition forced ON to cover line 120
+void jna_enter_stop_mode_ignition_on(void) {
+    // harness_detect_orientation() at init sets harness.status = HARNESS_STATUS_NC,
+    // which causes harness_check_ignition() to hit the default:break → return false.
+    // Set harness to NORMAL so ignition check reads SBU1 GPIO.
+    harness.status = HARNESS_STATUS_NORMAL;
+    // Set ignition ON: clear SBU1 (GPIOC.4) and SBU2 (GPIOA.1) IDR bits
+    e2e_GPIOC.IDR &= ~(1U << 4);
+    e2e_GPIOA.IDR &= ~(1U << 1);
+    stop_mode_requested = true;
+    enter_stop_mode();
+}
+
 // Simulates the main loop's WFI idle path (board/main.c:377-385).
 // Tests the non-CUATRO __WFI() light sleep path and CUATRO with SOM GPIO high.
 // The CUATRO enter_stop_mode() deep sleep path is covered by deep_sleep.feature.
@@ -1527,6 +1540,10 @@ int jna_get_can_health_last_data_error(int bus) {
     if ((bus < 0) || (bus >= PANDA_CAN_CNT)) return 0;
     return (int)can_health[bus].last_data_error;
 }
+int jna_get_can_health_last_data_stored_error(int bus) {
+    if ((bus < 0) || (bus >= PANDA_CAN_CNT)) return 0;
+    return (int)can_health[bus].last_data_stored_error;
+}
 int jna_get_can_health_total_error_cnt(int bus) {
     if ((bus < 0) || (bus >= PANDA_CAN_CNT)) return 0;
     return (int)can_health[bus].total_error_cnt;
@@ -1751,6 +1768,16 @@ int jna_detect_with_pull(int port_idx, int pin, int pull_mode) {
         return detect_with_pull(ports[port_idx], pin, pull_mode) ? 1 : 0;
     }
     return 0;
+}
+
+// J13: spi_init — called once by real board init, never by e2e
+void jna_spi_init(void) {
+    spi_init();
+}
+
+// J12b: pwm_init channel 3 — called by llfan_init() which is stubbed out in e2e
+void jna_pwm_init_channel_3(void) {
+    pwm_init(TIM3, 3);
 }
 
 // J3: CAN health total_tx_checksum_error_cnt

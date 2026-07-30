@@ -137,3 +137,20 @@ Feature: CAN Health Statistics
         }
       }
       """
+
+  Scenario: DLEC non-zero non-7 triggers lastDataStoredError
+    Given exists data:
+      """
+      ControlSetup: {
+        fdcanPsr: 256     # DLEC=1 (bit8), non-zero and non-7 → stored
+      }
+      """
+    Then control data should be:
+      """
+      : {
+        canHealth0: {
+          lastDataError: 1             # DLEC=1 extracted
+          lastDataStoredError: 1       # DLEC≠0,≠7 → stored
+        }
+      }
+      """

@@ -92,6 +92,9 @@ Cucumber BDD 断言: gpioAModer: 0xFFFFFFF1, rccCr: 0x0, ...
 | `jna_get_direct_safety_rx_invalid()` | 读取 `safety_rx_invalid` 原始值 |
 | `jna_set_bus_forwarding_bus(bus, fwd)` | 设置 `bus_config[].forwarding_bus` |
 | `jna_get_bus_config_canfd_enabled/brs_enabled(bus)` | 读取 CAN-FD/BRS 自动检测标志 |
+| `jna_pwm_init_channel_3()` | 调用 `pwm_init(TIM3, 3)` (llfan stub 路径) ✅ J12b |
+| `jna_enter_stop_mode_ignition_on()` | 模拟 ignition ON → `enter_stop_mode()` → `NVIC_SystemReset` ✅ J12c |
+| `jna_spi_init()` | 调用 `spi_init()` (覆盖 DMA 初始化) ✅ J13 |
 
 ## 目录结构
 
@@ -130,7 +133,7 @@ e2e-tests/
 | 健康/版本数据包 | `health.feature` | 11 | 合并了 health + get_version + packet_versions + signature (第十三节 B2+B4+B7) |
 | CAN 模式 | `can_mode.feature` | 6 | stopModeRegs (gpioBModer/gpioBOdr/gpioBPupdr) |
 | 继电器 | `relay.feature` | 6 | stopModeRegs.gpioAOdr (PA3/PA9) |
-| 省电模式 | `power_save.feature` | 15 | powerSaveTracking + stopModeRegs (gpioBOdr/gpioDOdr/gpioGOdr) |
+| 省电模式 | `power_save.feature` | 16 | powerSaveTracking + stopModeRegs (gpioBOdr/gpioDOdr/gpioGOdr) + flipped harness disable |
 | 替代体验 | `alternative_experience.feature` | 5 | alternativeExperience |
 | 警笛 | `siren.feature` | 4 | stopModeRegs.gpioBOdr (PB14) via tick_handler + @red unused 验证 ✅ D.2 |
 | 系统复位与 Bootloader | `system_reset_bootloader.feature` | 4 | 合并了 reset_st + bootloader (第十三节 D4+D5) |
@@ -146,13 +149,13 @@ e2e-tests/
 | CAN FD 配置 | `can_fd_data_bitrate.feature` | 10 | 合并了 FD 数据波特率 + Non-ISO + 自动切换 (Phase J: J9 5Mbps 数据速率) |
 | 时钟源 | `clock_source.feature` | 9 | clockSource (TIM1/TIM8 CCR) + clockSourceInit (第十三节 C2) |
 | 板级初始化 | `board_init.feature` | 7 | boardInit (GPIO MODER/OTYPER/OSPEEDR/PUPDR/AFR/ODR ×45, PWR_CR3) — N2 完成 |
-| LED PWM 初始化 | `led_pwm.feature` | 6 | ledPwmState (TIM3 CR1/ARR/CCMR1/CCMR2/CCER/CCR1-4) — pwm.h/led.h 去桩化 ✅ |
+| LED PWM 初始化 | `led_pwm.feature` | 7 | ledPwmState (TIM3 CR1/ARR/CCMR1/CCMR2/CCER/CCR1-4) — pwm.h/led.h 去桩化 ✅ + pwm_init ch3 ✅ |
 | 定时器/风扇 | `timer_fan.feature` | 2 | 合并覆盖 microsecond_timer (第十三节 A1) |
 | 风扇功率 | `fan_power.feature` | 10 | fanPower + stopModeRegs.gpioDOdr (PD3 板级验证 + unused JNA ✅ D.2) |
 | 风扇冷却 | `fan_cooldown.feature` | 3 | fanCooldownCounter + fanPower 通过 jna_call_tick_handler |
-| 深度休眠 | `deep_sleep.feature` | 13 | stopModeRegs (25+ 假寄存器: GPIO/ADC/RCC/SYSCFG/EXTI/PWR/SCB/NVIC) |
+| 深度休眠 | `deep_sleep.feature` | 14 | stopModeRegs (25+ 假寄存器: GPIO/ADC/RCC/SYSCFG/EXTI/PWR/SCB/NVIC) + ignition ON NVIC_SystemReset |
 | SOM GPIO | `som_gpio.feature` | 2 | respBuffer + @red unused 验证 ✅ D.2 |
-| CAN 健康 | `can_health.feature` | 6 | canHealth0 (PSR/ECR 提取) |
+| CAN 健康 | `can_health.feature` | 7 | canHealth0 (PSR/ECR 提取 + DLEC lastDataStoredError) |
 | UART 读取 | `spi_state_machine.feature` (已合并) | 3 | respBuffer (字符读取 / 空) — 第十三节 B8 合并 ✅ |
 | Bootkick SOM 复位 | `bootkick.feature` | 14 | tick_handler FSM (state/waitingCountdown/resetCountdown/resetTriggered) + stopModeRegs (gpioAOdr/gpioCOdr) 通过 jna_call_tick_handler |
 | 继电器故障 | `relay_malfunction.feature` | 3 | readFaults (FAULT_RELAY_MALFUNCTION 边沿检测) |
@@ -162,12 +165,12 @@ e2e-tests/
 | 线束翻转检测 | `harness_detect.feature` | 8 | harnessStatus (生产 `harness_detect_orientation()` ✅ B5 + ADC 拦截桩) |
 | Tick 路径 | `tick_paths.feature` | 12 | has_fan=false, heartbeat_counter 溢出, safety_mode_cnt 溢出, harness reinit + register_divergence + watchdog (P1 + C4+C5) |
 | SPI Version Packet + Device ID | `spi_version_packet.feature` | 7 | spiVersionResult + serial/provision + USB 0xc3 MCU UID (Phase J) |
-| SPI 状态机 | `spi_state_machine.feature` | 30 | spiStateResult (生产 `spi_rx_done()` + `spi_tx_done()` 全状态覆盖 + endpoint2_write 合并 (第十三节 C6) + uart_read 合并 (第十三节 B8) ✅ Phase F.5) |
+| SPI 状态机 | `spi_state_machine.feature` | 31 | spiStateResult (生产 `spi_rx_done()` + `spi_tx_done()` + `spi_init()` ✅ J13 全状态覆盖 + endpoint2_write 合并 (第十三节 C6) + uart_read 合并 (第十三节 B8) ✅ Phase F.5) |
 
 ## C 代码覆盖率
 
 > 数据来源: `e2e-tests/run_all_coverage.sh` 合并报告 (cuatro + tres + red)
-> 生成时间: 2026-07-30 (Phase J 完成)
+> 生成时间: 2026-07-30 (Phase J + J11-J14 + J12b-c 完成)
 
 | 源文件 | 行覆盖 | 函数覆盖 | 说明 |
 |--------|--------|---------|------|
@@ -183,23 +186,23 @@ e2e-tests/
 | `board/boards/unused_funcs.h` | **91.3%** (21/23) | — | unused_init_bootloader 空函数体未调用 |
 | `board/drivers/clock_source.h` | **100%** (40/40) | 2/2 | ✅ N1 完成 |
 | `board/utils.h` | **100%** (10/10) | 1/1 | 工具函数 |
-| `board/sys/power_saving.h` | **96.7%** (89/92) | — | ✅ B1 |
+| `board/sys/power_saving.h` | **97.4%** (90/92) | — | ✅ B1 + J14 + J12c |
 | `board/drivers/bootkick.h` | **97.9%** (47/48) | — | ✅ B2 |
-| `board/drivers/can_health_pkt.h` | **94.6%** (35/37) | — | ✅ B4 (共享文件) |
+| `board/drivers/can_health_pkt.h` | **100%** (37/37) | — | ✅ B4 + J11 DLEC (共享文件) |
 | `board/drivers/harness.h` | **100%** (70/70) | — | ✅ Phase J: J2 harness_init 全覆盖 |
-| `board/drivers/pwm.h` | **82.2%** (37/45) | 2/2 | ✅ 去桩化 (仅 default 分支 + ch3 llfan 路径未覆盖) |
+| `board/drivers/pwm.h` | **100%** (45/45) | 2/2 | ✅ J12b: pwm_init ch3, 全覆盖 |
 | `board/drivers/led.h` | **96.0%** (24/25) | 2/2 | ✅ 去桩化 (仅 LED_RED define 未覆盖) |
 | `board/stm32h7/llfdcan.h` | **85.1%** (137/161) | — | ✅ Phase J: J7 低速 + J9 5M (timeout 路径不可覆盖) |
 | `board/drivers/fdcan.h` | **100%** (158/158) | — | ✅ Phase J: J3 checksum error + J4 all FDCAN handlers 全覆盖 |
 | `board/boards/cuatro.h` | **87.9%** (58/66) | — | ✅ N2 完成 |
 | `board/boards/tres.h` | **92.4%** (85/92) | — | ✅ N2 完成 |
 | `board/boards/red.h` | **90.0%** (63/70) | — | ✅ N2 完成 |
-| `board/drivers/spi.h` | **94.2%** (147/156) | — | ✅ Phase F.5 |
+| `board/drivers/spi.h` | **99.4%** (155/156) | — | ✅ Phase F.5 + J13 (spi_init) |
 | `board/drivers/timers.h` | **100%** (27/27) | 4/4 | ✅ Phase H |
 | `board/drivers/interrupts.h` | **100%** (53/53) | 4/4 | ✅ Phase J: J6 rate print 全覆盖 |
 | `board/drivers/uart.h` | **100%** (77/77) | — | ✅ Phase J: J5 injectc overwrite 全覆盖 |
 | `board/stm32h7/llfdcan_declarations.h` | **95.7%** (22/23) | — | CAN_NAME_FROM_CANIF FDCAN3 分支不可覆盖 |
-| **合计** | **92.9%** (2304/2479, 40 files) | — | Phase J 完成 ✅ |
+| **合计** | **93.7%** (2322/2479, 40 files) | — | Phase J + J11-J14 + J12b-J12c 完成 ✅ |
 
 ## 设计原则
 

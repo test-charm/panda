@@ -50,6 +50,16 @@ public class PandaSteps {
         client.processStopMode();
     }
 
+    @When("enter stop mode with ignition on")
+    public void enterStopModeIgnitionOn() {
+        client.enterStopModeIgnitionOn();
+    }
+
+    @When("reset nvic count")
+    public void resetNvicCount() {
+        client.resetNvicCount();
+    }
+
     @When("process wfi idle")
     public void processWfiIdle() {
         client.processWfiIdle();
@@ -350,6 +360,16 @@ public class PandaSteps {
     @When("spi reset error count")
     public void spiResetErrorCount() {
         client.resetSpiErrorCount();
+    }
+
+    @When("spi init")
+    public void spiInit() {
+        client.spiInit();
+    }
+
+    @When("pwm init channel 3")
+    public void pwmInitChannel3() {
+        client.pwmInitChannel3();
     }
 
     public static class ControlSetup {

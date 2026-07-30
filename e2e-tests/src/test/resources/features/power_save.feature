@@ -344,3 +344,39 @@ Feature: Power Save State Control
         }
       }
       """
+
+  # ---- J14: Flipped harness disable power save — llcan_irq_enable(cans[0]) ----
+  # When harness is flipped and power save is disabled, cans[0] (bus0)
+  # is re-enabled instead of cans[2]. Tests the if-branch of the disable
+  # path in set_power_save_state().
+
+  Scenario: Disabling power save with flipped harness enables cans[0] instead of cans[2]
+    Given exists data:
+      """
+      ControlSetup: {
+        harnessStatus: 2
+      }
+      """
+    When control write:
+      """
+      SetPowerSaveState: {
+        param1: 1
+      }
+      """
+    When control write:
+      """
+      SetPowerSaveState: {
+        param1: 0
+      }
+      """
+    Then control data should be:
+      """
+      : {
+        powerSaveEnabled: false
+        powerSaveTracking: {
+          irqDisableCount: 4
+          irqEnableCount: 4
+          lastIrqEnabledBus: 1
+        }
+      }
+      """

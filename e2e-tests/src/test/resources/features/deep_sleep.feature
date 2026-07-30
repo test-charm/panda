@@ -254,3 +254,17 @@ Feature: Deep Sleep Request
       }
       """
 
+  # ---- line 120: NVIC_SystemReset when ignition is ON ----
+  # enter_stop_mode with ignition forced ON directly via JNA (bypasses
+  # ControlSetup ordering issue with set_intercept_relay from RequestDeepSleep).
+
+  Scenario: Ignition ON during stop mode triggers NVIC_SystemReset at line 120
+    When reset nvic count
+    When enter stop mode with ignition on
+    Then control data should be:
+      """
+      : {
+        nvicResetCount: 2
+      }
+      """
+

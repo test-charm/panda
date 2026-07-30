@@ -93,20 +93,26 @@ set power save state (0xe7):
 - 输入: param1=0
 - 输出: powerSaveEnabled=false, irqEnableCount=4, lastIrqEnabledBus=1, canTransceiversEnabled=true, canTransceiversCallCount=1
 
+### TC7: Flipped harness — 禁用省电时重新使能 cans[0] 而非 cans[2] (Phase J14)
+- 前置: power_save_enabled=true, harness.status=HARNESS_STATUS_FLIPPED
+- 输入: param1=0
+- 输出: powerSaveEnabled=false, irqEnableCount=4, lastIrqEnabledBus=1 (cans[0] 先使能, 然后 cans[1])
+
 ## 5. 覆盖检查
 
-| 条件 | TC1 | TC2 | TC3 | TC4 | TC5 | TC6 |
-|------|-----|-----|-----|-----|-----|-----|
-| param1 == 0 | ✅ | — | — | — | ✅ | ✅ |
-| param1 != 0 | — | ✅ | ✅ | ✅ | — | — |
-| enable != power_save (Y) | — | ✅ | ✅ | — | — | ✅ |
-| enable != power_save (N) | ✅ | — | — | ✅ | ✅ | — |
-| enable == true (启用路径) | — | ✅ | ✅ | — | — | — |
-| enable == false (禁用路径) | — | — | — | — | — | ✅ |
-| llcan_irq_disable 调用 | — | ✅ | ✅ | — | — | — |
-| llcan_irq_enable 调用 | — | — | — | — | — | ✅ |
-| set_ir_power(0) 调用 | — | ✅ | ✅ | — | — | — |
-| enable_can_transceivers | — | ✅ | — | — | — | ✅ |
+| 条件 | TC1 | TC2 | TC3 | TC4 | TC5 | TC6 | TC7 |
+|------|-----|-----|-----|-----|-----|-----|-----|
+| param1 == 0 | ✅ | — | — | — | ✅ | ✅ | ✅ |
+| param1 != 0 | — | ✅ | ✅ | ✅ | — | — | — |
+| enable != power_save (Y) | — | ✅ | ✅ | — | — | ✅ | ✅ |
+| enable != power_save (N) | ✅ | — | — | ✅ | ✅ | — | — |
+| enable == true (启用路径) | — | ✅ | ✅ | — | — | — | — |
+| enable == false (禁用路径) | — | — | — | — | — | ✅ | ✅ |
+| harness FLIPPED → cans[0] 路径 | — | — | — | — | — | — | ✅ |
+| llcan_irq_disable 调用 | — | ✅ | ✅ | — | — | — | — |
+| llcan_irq_enable 调用 | — | — | — | — | — | ✅ | ✅ |
+| set_ir_power(0) 调用 | — | ✅ | ✅ | — | — | — | — |
+| enable_can_transceivers | — | ✅ | — | — | — | ✅ | ✅ |
 
 ✅ 所有代码路径、条件分支和硬件调用已覆盖。
 

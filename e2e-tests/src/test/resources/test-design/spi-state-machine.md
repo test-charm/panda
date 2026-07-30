@@ -4,13 +4,13 @@
 > 被测接口: JNA `jna_spi_rx_done()`, `jna_spi_tx_done()`, `jna_spi_set_state()`, `jna_spi_write_rx_buf()` (直接操作 SPI buffer 并调用生产代码)
 > 涉及文件: `board/drivers/spi.h` (156 行)
 > Phase H: e2e 包装器已删除，真实 `board/drivers/spi.h` 直接使用。llspi stubs 集中在 `fake_stm.h`。
-> 覆盖基线: 147/156 (94.2%), 仅 `spi_init()` 8行 + 防御 print 4行未覆盖
+> 覆盖基线: 155/156 (99.4%), 仅防御 print 4行未覆盖
 
 ## 1. 被测功能流程图
 
 ```
 SPI 状态机 (spi.h):
-  spi_init()                      — 硬件 DMA 初始化 (e2e 不可测)
+  spi_init()                      — JNA 直接调用，覆盖初始化/DMA ✅
        │
        ▼
   ┌─ HEADER (0) ◄──────────────────────────────────┐
@@ -125,6 +125,12 @@ SPI 状态机 (spi.h):
 | C4 | Unexpected state → HEADER | 4 (DATA_RX_ACK) | spi_tx_done() | 0 |
 | C5 | reset=true → HEADER | 5 (DATA_TX) | spi_tx_done(reset=true) | 0 |
 
+### 4.4 spi_init: 初始化 (D 组, Phase J13)
+
+| ID | 场景 | 前置 | 输入 | 预期 state |
+|----|------|------|------|-----------|
+| D1 | spi_init 初始化状态机 | 任意 | `jna_spi_init()` | 0 (HEADER), errorCount=0 |
+
 ## 5. 覆盖检查
 
 ### `spi_rx_done()` in board/drivers/spi.h:106-234
@@ -171,7 +177,6 @@ SPI 状态机 (spi.h):
 
 | 行 | 原因 | 分类 |
 |----|------|------|
-| 88-95 | `spi_init()` — 调用 `llspi_init()` (硬件 DMA 配置) | 硬件依赖 |
 | 156-157 | Endpoint 1/0x81 CAN read 非零长度 → print 错误 | 防御性 |
 | 172-173 | Endpoint 3 CAN write 零长度 → print 错误 | 防御性 |
 
@@ -211,7 +216,7 @@ SPI DATA_RX endpoint 2 → `comms_endpoint2_write()` 调用已在 B4 场景中�
 
 | 源文件 | 行覆盖 | 说明 |
 |--------|--------|------|
-| `board/drivers/spi.h` | **94.2%** (147/156) | ✅ Phase F.5 — spi_rx_done + spi_tx_done 全状态机覆盖 |
+| `board/drivers/spi.h` | **99.4%** (155/156) | ✅ Phase F.5 + J13 — spi_rx_done + spi_tx_done + spi_init 全覆盖 |
 | `e2e-tests/.../board/drivers/spi.h` | 66.7% (2/3) | e2e 包装桩 |
 
 ## 9. UART 读取 — 控制传输 0xe0 (第十三节 B8 合并)

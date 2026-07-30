@@ -83,3 +83,17 @@ Feature: LED PWM initialization
         }
       }
       """
+
+  @tres
+  Scenario: pwm_init channel 3 covers fan PWM path stubbed by llfan_init
+    When board init
+    When pwm init channel 3
+    Then control data should be:
+      """
+      : {
+        ledPwmState: {
+          tim3Ccmr2: 26728
+          tim3Ccer: 4352
+        }
+      }
+      """

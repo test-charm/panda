@@ -386,15 +386,15 @@ Phase J 后: **92.9%** (2304/2479, ~40 files) ← 最新 ✅
 | J8 | ✅ | `main_comms.h` | 239-241 | `0xde` 命令中 `can_init()` 调用 | `can_bitrate.feature`: 修复 param2: 0→5000 |
 | J9 | ✅ | `llfdcan.h` | 87 | `CAN_SP_DATA_5M` (data_speed=50000) | `can_fd_data_bitrate.feature`: 0xf9 param2=-15536 (5Mbps) |
 
-### 10.2 有条件可补 — 部分完成 (1/5, +9 lines)
+### 10.2 有条件可补 — 全部完成 (5/5, +45 lines)
 
 | # | 状态 | 文件 | 行号 | 未覆盖内容 | 障碍 |
 |---|------|------|------|-----------|------|
 | J10 | ✅ | `gpio.h` | 93-101 | `detect_with_pull()` | `gpio_harness.feature`: JNA 直接调用 `detect_with_pull(GPIOF, 7, PULL_UP)` |
-| J11 | ❌ | `can_health_pkt.h` | 29-30 | `last_data_stored_error` | 需触发 FDCAN DLEC (数据阶段错误)，需要构造特定 CAN 总线错误 |
-| J12 | ❌ | `pwm.h` | 23-26 | `pwm_init` channel 4 | cuatro/tres 有 channel 4 (fan)，但 llfan 路径在 e2e 桩中被截断 |
-| J13 | ❌ | `spi.h` | 88-95 | `spi_init()` | 依赖 `llspi_init()` → `llspi_mosi_dma()`，这些在 `fake_stm.h` 中已有桩，可尝试直接调用验证 DMA 初始化参数 |
-| J14 | ❌ | `power_saving.h` | 39 | `llcan_irq_enable(cans[0])` (flipped harness) | 需先设置 `harness.status = HARNESS_STATUS_FLIPPED`，再进入省电模式 |
+| J11 | ✅ | `can_health_pkt.h` | 29-30 | `last_data_stored_error` | `can_health.feature`: `ControlSetup: {fdcanPsr: 256}` 设置 DLEC=1 |
+| J12 | ✅ | `pwm.h` | 23-26 | `pwm_init` channel 4 | 已被现有 @tres `board_init` 测试覆盖 (`pwm_init(TIM3, 4)`) |
+| J13 | ✅ | `spi.h` | 88-95 | `spi_init()` | `spi_state_machine.feature`: JNA 直接调用 `spi_init()`，验证状态机初始化为 HEADER |
+| J14 | ✅ | `power_saving.h` | 39 | `llcan_irq_enable(cans[0])` (flipped harness) | `power_save.feature`: flipped harness → 开省电 → 关省电，覆盖 disable 路径的 cans[0] 分支 |
 
 ### 10.3 不可补 (❌ No, ~165 lines)
 
@@ -407,7 +407,7 @@ Phase J 后: **92.9%** (2304/2479, ~40 files) ← 最新 ✅
 | 硬件地址/寄存器直接访问 | ~~7~~→3 | ~~`main_comms.h:132-135` (MCU UID) ✅ 已覆盖~~, 剩余: `llfdcan.h` timeout print | `0xc3` USB 命令已在 e2e 中可用 |
 | 调试/编译条件守卫 | 7 | `main_comms.h:101-107` (ALLOW_DEBUG), `registers.h:39` (DEBUG_FAULTS) | 编译期 `#ifdef` 守卫 |
 | 死代码/不可达分支 | 10 | `pwm.h:27-28,53-54` (default 分支), `main_comms.h:332-336` (default handler) | 仅在无效输入时触发 |
-| 系统复位/硬件崩溃 | 3 | `power_saving.h:120-121` (NVIC_SystemReset) | 调用即终止进程 |
+| ~~系统复位/硬件崩溃~~ | ~~3→0~~ | ~~`power_saving.h:120-121` (NVIC_SystemReset)~~ ✅ J12c 已覆盖 | `enter_stop_mode()` ignition ON 路径通过 JNA 直接触发 |
 | 忙等待/无限循环 | 10 | `libc.h:3-8,12-17` (delay, assert_fatal) | e2e 中无限循环导致超时 |
 | ADC/电压读取 | 8 | `boards/cuatro.h:28-34`, `red.h:70-72` | 依赖 ADC 外设，e2e 中始终返回 0 |
 | 预处理器宏定义 | 3 | `board_declarations.h:51`, `led.h:2`, `llfdcan_declarations.h:10` | `#define` 不被计入执行覆盖 |
@@ -415,7 +415,7 @@ Phase J 后: **92.9%** (2304/2479, ~40 files) ← 最新 ✅
 | 板型默认分支 | 8 | `boards/{cuatro,tres,red}.h` default cases | switch-default 路径在不合法输入时 |
 | 防御性 print | 5 | `spi.h:156-157,172-173`, `fdcan.h` | DEBUG 日志，正常流程不触发 |
 
-### 10.4 最终结果 (Phase J 完成)
+### 10.4 最终结果 (Phase J 基线)
 
 ```
 初始基线:  91.2% (2259/2478, 40 files)
@@ -433,12 +433,35 @@ Phase J 后: 92.9% (2304/2479, 40 files, +45 lines covered)
 
 100% 文件新增: harness.h, gpio.h, uart.h, interrupts.h, fdcan.h
 
-剩余不可覆盖 (~175 lines):
+剩余不可覆盖 (~158 lines):
   main() 启动序列 (81 lines), llfdcan timeout (24 lines), libc delay/assert (10 lines),
-  pwm default 分支 (8 lines), 板型 ADC/default (16 lines), 宏定义/防御 print (36 lines)
+  pwm default 分支 (8 lines), 板型 ADC/default (16 lines), 宏定义/防御 print (19 lines)
 ```
 
-### 10.5 需关注的回退
+### 10.5 Phase J 补充 (J11-J14 + J12b-J12c)
+
+J11-J14 + J12b-J12c 在 Phase J 之后补充完成，新增覆盖：
+
+```
+J11 can_health_pkt.h:  +2 lines (last_data_stored_error via DLEC=1)
+J12 pwm.h:             已覆盖  (existing @tres board_init → pwm_init(TIM3, 4))
+J12b pwm.h:            +8 lines (pwm_init channel 3, llfan stub path, @tres JNA)
+J12c power_saving.h:   +1 line  (NVIC_SystemReset at L120, enter_stop_mode ignition ON)
+J13 spi.h:             +8 lines (spi_init path, llspi_init + llspi_mosi_dma)
+J14 power_saving.h:    +1 line  (llcan_irq_enable(cans[0]) flipped harness disable)
+```
+
+新增测试文件改动：
+- `libpanda.c`: +20 lines (J11 `jna_get_can_health_last_data_stored_error`, J13 `jna_spi_init`, J12b `jna_pwm_init_channel_3`, J12c `jna_enter_stop_mode_ignition_on`)
+- `PandaClient.java`: +25 lines (J11 `lastDataStoredError`, J13 `spiInit()`, J12b `pwmInitChannel3()`, J12c `enterStopModeIgnitionOn()`, `resetNvicCount()`)
+- `PandaSteps.java`: +20 lines (J13 `spi init`, J12b `pwm init channel 3`, J12c `enter stop mode with ignition on`, `reset nvic count`)
+- `can_health.feature`: +16 lines (J11 DLEC scenario)
+- `spi_state_machine.feature`: +17 lines (J13 spi_init scenario)
+- `power_save.feature`: +30 lines (J14 flipped harness disable scenario)
+- `led_pwm.feature`: +16 lines (J12b pwm_init channel 3 scenario)
+- `deep_sleep.feature`: +30 lines (J12c ignition ON NVIC_SystemReset scenario)
+
+### 10.6 需关注的回退
 
 以下文件覆盖率较上次记录下降：
 

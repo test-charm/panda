@@ -149,22 +149,28 @@ pwm_set(TIM3, channel, percentage):
 - 验证: tim3Ccr1=0, tim3Ccr2=0, tim3Ccr3=0
 - 覆盖: GPIO-only LED 路径不误触 PWM
 
+### TC7: Tres — pwm_init channel 3 JNA 直接调用 (led_pwm.feature:88, Phase J12b)
+- 板型: `@tres`
+- 输入: `When board init` → `When pwm init channel 3`
+- 验证: tim3Ccmr2=26728 (ch4|ch3 PWM), tim3Ccer=4352 (CC4E|CC3E)
+- 覆盖: `pwm_init(TIM3, 3)` — llfan_init stub 路径
+
 ## 5. 覆盖检查
 
 ### 5.1 `pwm_init()` — 39 行
 
-| 行 | 代码 | TC1 | TC2 | TC3 | TC5 | 状态 |
-|----|------|-----|-----|-----|-----|------|
-| 8 | 函数入口 | ✅ | — | — | ✅ | |
-| 10 | `register_set(CR1, CEN\|ARPE, 0x3F)` | ✅ | — | — | ✅ | |
-| 13 | `switch(channel)` | ✅ | — | — | ✅ | |
-| 14-17 | `case 1U`: CCMR1, CCER | ✅ | ✅ | ✅ | — | ch1 PWM 模式 |
-| 18-21 | `case 2U`: CCMR1, CCER | ✅ | ✅ | ✅ | — | ch2 PWM 模式 |
-| 22-25 | `case 3U`: CCMR2, CCER | — | — | — | — | ❌ llfan.h (硬件) |
-| 26-29 | `case 4U`: CCMR2, CCER | ✅ | ✅ | ✅ | ✅ | ch4 PWM 模式 |
-| 30-31 | `default`: break | — | — | — | — | ❌ 防御代码 |
-| 35 | `register_set(ARR, 4800)` | ✅ | — | — | ✅ | |
-| 38 | `EGR \|= UG` | ✅ | — | — | ✅ | |
+| 行 | 代码 | TC1 | TC2 | TC3 | TC5 | TC7 | 状态 |
+|----|------|-----|-----|-----|-----|-----|------|
+| 8 | 函数入口 | ✅ | — | — | ✅ | ✅ | |
+| 10 | `register_set(CR1, CEN\|ARPE, 0x3F)` | ✅ | — | — | ✅ | ✅ | |
+| 13 | `switch(channel)` | ✅ | — | — | ✅ | ✅ | |
+| 14-17 | `case 1U`: CCMR1, CCER | ✅ | ✅ | ✅ | — | — | ch1 PWM 模式 |
+| 18-21 | `case 2U`: CCMR1, CCER | ✅ | ✅ | ✅ | — | — | ch2 PWM 模式 |
+| 22-25 | `case 3U`: CCMR2, CCER | — | — | — | — | ✅ | ✅ J12b: llfan.h stub 路径 |
+| 26-29 | `case 4U`: CCMR2, CCER | ✅ | ✅ | ✅ | ✅ | — | ch4 PWM 模式 |
+| 30-31 | `default`: break | — | — | — | — | — | ❌ 防御代码 |
+| 35 | `register_set(ARR, 4800)` | ✅ | — | — | ✅ | ✅ | |
+| 38 | `EGR \|= UG` | ✅ | — | — | ✅ | ✅ | |
 
 ### 5.2 `pwm_set()` — 16 行
 
@@ -223,12 +229,12 @@ pwm_set(TIM3, channel, percentage):
 
 | 文件 | 总行数 | 已覆盖 | 未覆盖 | 覆盖率 |
 |------|--------|--------|--------|--------|
-| `board/drivers/pwm.h` | 45 | 37 | 8 (ch3 llfan + default ×2 + 行末) | **82.2%** |
+| `board/drivers/pwm.h` | 45 | 45 | 0 | **100%** ✅ |
 | `board/drivers/led.h` | 25 | 24 | 1 (LED_RED define) | **96.0%** |
 
 | 测试指标 | 数值 |
 |----------|------|
-| 场景总数 | 6 (4 cuatro + 2 tres) |
+| 场景总数 | 7 (4 cuatro + 3 tres) |
 | 验证的 TIM3 寄存器 | 9 (CR1/ARR/CCMR1/CCMR2/CCER/CCR1-4) |
 | 验证的寄存器位 | ~60 |
 | 去桩化文件 | pwm.h, led.h |

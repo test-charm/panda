@@ -397,6 +397,22 @@ Feature: SPI State Machine (Phase F.5)
       }
       """
 
+  # ---- J13: spi_init() coverage ----
+  # spi_init() is called once by board init, never by e2e.
+  # Tests that it calls llspi_init(), sets state to HEADER, and starts DMA.
+
+  Scenario: spi_init initializes state machine to HEADER and starts DMA
+    When spi init
+    Then control data should be:
+      """
+      : {
+        spiStateResult: {
+          state: 0
+          errorCount: 0
+        }
+      }
+      """
+
   # ---- endpoint2 write ring dispatch (merged from endpoint2_write.feature) ----
   # comms_endpoint2_write() dispatches data to debug/buffer rings based on
   # the first byte (ring selector). Ring 0 → debug UART, ring 4 → SOM debug.

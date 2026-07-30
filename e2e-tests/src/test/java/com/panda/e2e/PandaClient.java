@@ -444,6 +444,7 @@ public class PandaClient {
         void jna_set_heartbeat_disabled(int val);
 
         int jna_get_nvic_reset_count();
+        void jna_reset_nvic_count();
 
 
         int jna_get_stop_mode_requested();
@@ -596,6 +597,8 @@ public class PandaClient {
 
         int jna_get_can_health_last_data_error(int bus);
 
+        int jna_get_can_health_last_data_stored_error(int bus);
+
         int jna_get_can_health_total_error_cnt(int bus);
 
         int jna_get_can_health_total_rx_lost_cnt(int bus);
@@ -640,6 +643,9 @@ public class PandaClient {
         void jna_set_gpio_output_type_push_pull(int port_idx, int pin);  // J1
         void jna_harness_init();                                          // J2
         int jna_detect_with_pull(int port_idx, int pin, int pull_mode);   // J10
+        void jna_spi_init();                                              // J13
+        void jna_pwm_init_channel_3();                                   // J12b
+        void jna_enter_stop_mode_ignition_on();                          // J12c
         int jna_get_can_health_total_tx_checksum_error_cnt(int bus);      // J3
         void jna_uart_overwrite_init(int fifo_size);                      // J5
         int jna_uart_put_char_overwrite(byte c);                          // J5
@@ -1501,6 +1507,10 @@ public class PandaClient {
         return lib.jna_get_nvic_reset_count();
     }
 
+    public void resetNvicCount() {
+        lib.jna_reset_nvic_count();
+    }
+
     public int getEnterBootloaderMode() {
         return lib.jna_get_enter_bootloader_mode();
     }
@@ -1609,6 +1619,11 @@ public class PandaClient {
         lib.jna_process_stop_mode();
     }
 
+    // J12c: enter stop mode with ignition forced ON to cover line 120
+    public void enterStopModeIgnitionOn() {
+        lib.jna_enter_stop_mode_ignition_on();
+    }
+
     public void processWfiIdle() {
         lib.jna_process_wfi_idle();
     }
@@ -1629,6 +1644,7 @@ public class PandaClient {
         private final boolean canfdNonIso;
         private final int lastError;
         private final int lastDataError;
+        private final int lastDataStoredError;
         private final int receiveErrorCnt;
         private final int transmitErrorCnt;
         private final int errorWarning;
@@ -1651,6 +1667,7 @@ public class PandaClient {
                 lib.jna_get_can_health_canfd_non_iso(bus) != 0,
                 lib.jna_get_can_health_last_error(bus),
                 lib.jna_get_can_health_last_data_error(bus),
+                lib.jna_get_can_health_last_data_stored_error(bus),
                 lib.jna_get_can_health_receive_error_cnt(bus),
                 lib.jna_get_can_health_transmit_error_cnt(bus),
                 lib.jna_get_can_health_error_warning(bus),
@@ -1960,6 +1977,17 @@ public class PandaClient {
 
     public void setSpiCanTxReady(boolean ready) {
         lib.jna_spi_set_can_tx_ready(ready ? 1 : 0);
+    }
+
+    // J13: call spi_init() directly to cover initialization path
+    public void spiInit() {
+        lib.jna_spi_init();
+        this.spiStateResult = new SpiStateResult(lib.jna_spi_get_state(), lib.jna_spi_get_error_count(), null);
+    }
+
+    // J12b: call pwm_init(TIM3, 3) to cover channel 3 branch (stubbed llfan_init)
+    public void pwmInitChannel3() {
+        lib.jna_pwm_init_channel_3();
     }
 
     // ---- Phase J: Additional coverage wrappers ----
