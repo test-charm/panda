@@ -108,11 +108,29 @@ Feature: Bootkick SOM Reset FSM
       """
 
   Scenario: Serial activity aborts waiting countdown
+    # First enter STANDBY via heartbeat
+    When call tick handler 8 times
+    # Trigger STANDBY→BOOTKICK edge, countdown starts at 20 → 19 after first decrement
     Given exists data:
       """
       ControlSetup: {
         ignitionLine: 1
         harnessStatus: 1
+      }
+      """
+    When call tick handler 8 times
+    Then control data should be:
+      """
+      bootkick: {
+        state: 1
+        waitingCountdown: 19
+        resetTriggered: 0
+      }
+      """
+    # Now inject serial activity → countdown must be aborted to 0
+    Given exists data:
+      """
+      ControlSetup: {
         somUartWptr: 42
       }
       """
