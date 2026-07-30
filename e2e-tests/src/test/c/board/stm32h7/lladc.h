@@ -56,8 +56,10 @@ extern struct harness_t harness;
 
 // Configurable ADC values for board-specific voltage/current readout
 // (cuatro_read_voltage_mV: ch8 * 11, cuatro_read_current_mA: ch3 * 2)
+// (red_read_voltage_mV: ch2 * 11, shared by red and tres boards)
 extern uint16_t e2e_adc_ch8_mV;
 extern uint16_t e2e_adc_ch3_mV;
+extern uint16_t e2e_adc_ch2_mV;
 
 static uint16_t adc_get_mV(const adc_signal_t *signal) {
   // Intercept harness SBU1 / SBU2 reads by channel number
@@ -73,6 +75,10 @@ static uint16_t adc_get_mV(const adc_signal_t *signal) {
   }
   if (signal->channel == 3U) {
     return e2e_adc_ch3_mV;
+  }
+  // Board voltage readout channel (red/tres: ADC1 ch2)
+  if (signal->channel == 2U) {
+    return e2e_adc_ch2_mV;
   }
   return 0U;
 }

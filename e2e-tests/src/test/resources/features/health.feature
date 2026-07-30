@@ -216,6 +216,52 @@ Feature: Health Packet, Version, and Packet Version Retrieval
       }
       """
 
+  @red
+  Scenario: Health packet voltage reflects settable e2e value on red board
+    Given exists data:
+      """
+      ControlSetup: {
+        voltageMV: 11000
+      }
+      """
+    When control write:
+      """
+      GetHealth: {
+        param1: 0
+      }
+      """
+    Then control data should be:
+      """
+      : {
+        healthPacket: {
+          voltage: 11000
+        }
+      }
+      """
+
+  @tres
+  Scenario: Health packet voltage reflects settable e2e value on tres board
+    Given exists data:
+      """
+      ControlSetup: {
+        voltageMV: 11000
+      }
+      """
+    When control write:
+      """
+      GetHealth: {
+        param1: 0
+      }
+      """
+    Then control data should be:
+      """
+      : {
+        healthPacket: {
+          voltage: 11000
+        }
+      }
+      """
+
   Scenario: Health packet current reflects settable e2e value
     Given exists data:
       """

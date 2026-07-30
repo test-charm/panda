@@ -439,6 +439,7 @@ public class PandaClient {
         // Direct calls to real board readout functions (for coverage testing)
         int jna_cuatro_read_voltage_mV();
         int jna_cuatro_read_current_mA();
+        int jna_red_read_voltage_mV();
 
         // Direct state setters (bypass firmware pipeline)
         void jna_set_current_safety_mode(int val);
@@ -1489,6 +1490,10 @@ public class PandaClient {
 
     public int cuatroReadCurrentMA() {
         return lib.jna_cuatro_read_current_mA();
+    }
+
+    public int redReadVoltageMV() {
+        return lib.jna_red_read_voltage_mV();
     }
 
     // Direct state setters (bypass firmware pipeline)

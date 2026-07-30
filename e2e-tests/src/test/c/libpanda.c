@@ -234,10 +234,11 @@ static bool wfi_entered;
 GPIO_TypeDef dummy_gpio;
 
 // ADC input globals for board voltage/current readout.  e2e-adc-stub in
-// lladc.h returns these values for channels 8 (voltage) and 3 (current) so
-// that the real cuatro_read_voltage_mV / cuatro_read_current_mA can be exercised.
+// lladc.h returns these values for channels 8 (cuatro voltage), 3 (cuatro current),
+// and 2 (red/tres voltage) so that the real board readout functions can be exercised.
 uint16_t e2e_adc_ch8_mV = 1091;  // 1091*11 = 12001 ≈ legacy default 12000
 uint16_t e2e_adc_ch3_mV = 0;
+uint16_t e2e_adc_ch2_mV = 1091;  // red/tres voltage: 1091*11 = 12001
 
 // Legacy globals kept for backward compat (default health test uses 12000 mV).
 static uint32_t e2e_voltage_mV = 12000;
@@ -250,9 +251,11 @@ uint32_t board_read_current_mA_stub(void) { return e2e_current_mA; }
 // that the real read function reconstructs the intended value.
 void jna_set_voltage_mV(int val) {
   e2e_voltage_mV = (uint32_t)val;
-  // Reverse the HW *11 scaling so that cuatro_read_voltage_mV reconstructs
+  // Reverse the HW *11 scaling so that board read functions reconstruct
   // the intended value as closely as possible (round to nearest).
-  e2e_adc_ch8_mV = (uint16_t)((val + 5) / 11);
+  uint16_t raw = (uint16_t)((val + 5) / 11);
+  e2e_adc_ch8_mV = raw;  // cuatro: ch8 * 11
+  e2e_adc_ch2_mV = raw;  // red/tres: ch2 * 11
 }
 void jna_set_current_mA(int val) {
   e2e_current_mA = (uint32_t)val;
@@ -331,7 +334,7 @@ struct board e2e_board = {
     .init_bootloader = unused_init_bootloader,
     .enable_can_transceiver = tres_enable_can_transceiver,
     .set_can_mode = tres_set_can_mode,
-    .read_voltage_mV = board_read_voltage_mV_stub,
+    .read_voltage_mV = red_read_voltage_mV,
     .read_current_mA = unused_read_current,
     .set_ir_power = board_set_ir_power_stub,
     .set_fan_enabled = tres_set_fan_enabled,
@@ -354,7 +357,7 @@ struct board e2e_board = {
     .init_bootloader = unused_init_bootloader,
     .enable_can_transceiver = red_enable_can_transceiver,
     .set_can_mode = red_set_can_mode,
-    .read_voltage_mV = board_read_voltage_mV_stub,
+    .read_voltage_mV = red_read_voltage_mV,
     .read_current_mA = unused_read_current,
     .set_ir_power = unused_set_ir_power,
     .set_fan_enabled = unused_set_fan_enabled,
@@ -371,6 +374,7 @@ board *current_board = &e2e_board;
 // Must appear after #include "board/stm32h7/board.h" which pulls in cuatro.h.
 uint32_t jna_cuatro_read_voltage_mV(void) { return cuatro_read_voltage_mV(); }
 uint32_t jna_cuatro_read_current_mA(void) { return cuatro_read_current_mA(); }
+uint32_t jna_red_read_voltage_mV(void) { return red_read_voltage_mV(); }
 
 // ---- JNA entry point for harness_detect_orientation (B5: now real production code) ----
 void jna_detect_harness_orientation(void) {
