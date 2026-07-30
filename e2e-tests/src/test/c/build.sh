@@ -56,13 +56,10 @@ if [ "${COVERAGE:-}" != "1" ] && [ -f "$OUTPUT" ] \
     && [ "$OUTPUT" -nt "$SCRIPT_DIR/generate_bootkick_stubs.py" ] \
     && [ "$OUTPUT" -nt "$PROJECT_ROOT/board/drivers/bootkick.h" ] \
     && [ "$OUTPUT" -nt "$SCRIPT_DIR/fdcan_regs.h" ] \
-    && [ "$OUTPUT" -nt "$SCRIPT_DIR/board/stm32h7/llfdcan_declarations.h" ] \
     && [ "$OUTPUT" -nt "$SCRIPT_DIR/board/stm32h7/lladc.h" ] \
     && [ "$OUTPUT" -nt "$PROJECT_ROOT/board/drivers/harness.h" ] \
     && [ "$OUTPUT" -nt "$PROJECT_ROOT/board/drivers/spi.h" ] \
-    && [ "$OUTPUT" -nt "$SCRIPT_DIR/board/drivers/spi.h" ] \
-    && [ "$OUTPUT" -nt "$SCRIPT_DIR/board/drivers/pwm.h" ] \
-    && [ "$OUTPUT" -nt "$SCRIPT_DIR/board/drivers/led.h" ]; then
+    && [ "$OUTPUT" -nt "$SCRIPT_DIR/fake_stm.h" ]; then
     echo "[build] libpanda_${BOARD}.dylib is up to date"
     ls -la "$OUTPUT"
     exit 0

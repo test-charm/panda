@@ -218,3 +218,15 @@ typedef struct {
 // APB1 is 120MHz, timer clock is 2x = 240MHz
 #define APB1_TIMER_FREQ     240000000U
 #define APB2_TIMER_FREQ     200000000U
+
+// ---- llspi stubs (hardware SPI DMA, not available in e2e) ----
+static inline void llspi_init(void) {}
+static inline void llspi_mosi_dma(uint8_t *addr, int len) { (void)addr; (void)len; }
+static inline void llspi_miso_dma(const uint8_t *addr, int len) { (void)addr; (void)len; }
+
+// ---- hw_type extern (needed by real board/drivers/spi.h before definition) ----
+extern uint8_t hw_type;
+
+// ---- libc forward declarations (needed by real board/drivers/spi.h before board/libc.h) ----
+void *memcpy(void *dest, const void *src, unsigned int len);
+int memcmp(const void *ptr1, const void *ptr2, unsigned int num);

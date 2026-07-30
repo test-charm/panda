@@ -106,7 +106,7 @@ e2e-tests/
 │   │   ├── fdcan_regs.h              # FDCAN 寄存器类型定义
 │   │   ├── libpanda.c               # 假寄存器实例 + JNA 访问器
 │   │   ├── build.sh                 # 编译（支持 BOARD 参数）
-│   │   └── board/drivers/           # e2e 桩文件（interrupts.h — 真实 REGISTER_INTERRUPT ✅ C3）
+│   │   └── board/drivers/           # 仅 2 个必须桩 (fake_siren.h, usb.h); pwm/led/spi/watchdog 直接用真实文件 ✅ Phase H
 │   ├── java/com/panda/e2e/
 │   │   ├── PandaClient.java         # JNA 接口 + StopModeRegs DTO
 │   │   ├── SafetyModeSteps.java     # BDD 步骤定义 + ControlSetup
@@ -228,7 +228,7 @@ BOARD=cuatro cc -std=gnu11 -fPIC -shared -O0 -g \
   -o libpanda_cuatro.dylib src/test/c/libpanda.c
 ```
 
-`-I src/test/c` 中的 stub 头文件提供板级适配（`board/stm32h7/board.h` — 引入真实 `board/boards/*.h` 生产代码，并包含 `common_init_gpio()` / `gpio_uart7_init()` 的真实实现复制自 `peripherals.h`）以及 `lladc.h`（ADC 拦截桩）。`pwm.h` 和 `led.h` 已完成去桩化（Phase G），使用真实生产代码。
+`-I src/test/c` 中的 stub 头文件提供板级适配（`board/stm32h7/board.h` — 引入真实 `board/boards/*.h` 生产代码，并包含 `common_init_gpio()` / `gpio_uart7_init()` 的真实实现复制自 `peripherals.h`）以及 `lladc.h`（ADC 拦截桩）。`pwm.h`、`led.h`、`spi.h`、`simple_watchdog.h` 的 e2e 包装器已删除，所有类型/桩集中在 `fake_stm.h`，真实文件直接使用 ✅ Phase H。
 
 ## 运行命令
 

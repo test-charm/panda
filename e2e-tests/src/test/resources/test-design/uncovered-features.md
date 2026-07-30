@@ -60,7 +60,7 @@ board/provision.h                     — 设备 Provision 读取
 ┌─ board/ 全部 C/H 文件 (~90 个)
 │
 ├── ✅ 已编译为真实代码 (31 个)
-├── ⚠️ 被 e2e 桩替换 (11 个) — 见第三节
+├── ⚠️ 被 e2e 桩替换 (7 个) — 见第三节
 ├── ❌ 被 stm32h7_config.h 切断 — 纯硬件外设 (peripherals.h, clock.h, llfan.h 等)
 ├── 🚫 其他固件目标 (25 个) — 见第七节
 └── 📦 CMSIS/HAL 头 + 工具脚本 — 见第八节
@@ -112,7 +112,6 @@ board/provision.h                     — 设备 Provision 读取
 | `e2e-tests/.../fdcan_regs.h` | 94.1% (160/170) | e2e 桩 |
 | `e2e-tests/.../board/stm32h7/board.h` | 100% (41/41) | e2e 桩 |
 | `e2e-tests/.../board/stm32h7/lladc.h` | 88.9% (8/9) | e2e 桩 |
-| `e2e-tests/.../board/drivers/spi.h` | 66.7% (2/3) | e2e spi.h 包装器 |
 
 ---
 
@@ -145,11 +144,13 @@ libpanda.c (2026-07-29 现状):
   #include "board/stm32h7/llfdcan_declarations.h" ← ✅ 真实代码 (91.3%, Phase H — 包装器已删除)
   #include "board/drivers/uart.h"            ← ✅ 真实代码 (94.8%, Phase H)
   #include "board/drivers/interrupts.h"      ← ✅ 真实代码 (96.2%, Phase H)
-  #include "board/drivers/pwm.h"             ← ✅ 真实代码 (82.2%)
-  #include "board/drivers/led.h"             ← ✅ 真实代码 (96.0%)
+  #include "board/drivers/pwm.h"             ← ✅ 真实代码 (82.2%, 直接用真实文件)
+  #include "board/drivers/led.h"             ← ✅ 真实代码 (96.0%, 直接用真实文件)
   #include "board/drivers/timers.h"          ← ✅ 真实代码 (100%, Phase H)
   #include "board/drivers/usb.h"             ← ⚠️ e2e 桩 (USB endpoint 模拟)
   #include "board/drivers/fake_siren.h"      ← ⚠️ e2e 桩 (声明)
+  #include "board/drivers/simple_watchdog.h" ← ✅ 真实代码 (100%, 直接用真实文件)
+  #include "board/drivers/spi.h"             ← ✅ 真实代码 (94.2%, 直接用真实文件, llspi stubs 在 fake_stm.h)
 ```
 
 ### 3.2 桩文件清单 (15 个, 8 已完成) 与去桩化评估
@@ -162,15 +163,15 @@ libpanda.c (2026-07-29 现状):
 | `stm32h7/llfdcan_declarations.h` | 定义桩 | ✅ 已完成 | 真实文件已有 `#ifndef E2E_TEST` 守卫。`llfdcan.h` 用 `#include "llfdcan_declarations.h"`（相对路径），编译器先查同目录，直接命中真实文件。e2e 包装器多余，已删除。覆盖率 91.3%。 |
 | `stm32h7/sound.h` | 空桩 | ❌ 不可 | 229 行 SAI4/DMA/DAC/DFSDM 外设初始化，无独立业务逻辑。 |
 | `early_init.h` | 空桩 | ❌ 不可 | SCB->VTOR、DBGMCU->IDCODE、jump_to_bootloader()，纯启动流程。 |
-| `drivers/pwm.h` | 空桩 | ✅ 已完成 (Phase G) | 真实代码仅用 `register_set`/`register_set_bits`。扩展 `fake_stm.h` 中 `TIM_TypeDef` 为完整 20 字段布局，修复 `led_init()` 调用链（`jna_panda_init` 中添加）。覆盖率 82.2% (37/45)。 |
-| `drivers/led.h` | 空桩 | ✅ 已完成 (Phase G) | 依赖 `pwm_init`/`pwm_set`。pwm.h 去桩后去桩。修复 `led_init()` 未调用问题（仅 `main.c:281` 调用，e2e 永不执行 `panda_main`）。覆盖率 96.0% (24/25)。 |
+| `drivers/pwm.h` | 空桩 | ✅ 已完成 (Phase G) | 真实代码仅用 `register_set`/`register_set_bits`。e2e 包装器已删除，真实文件直接使用。覆盖率 82.2% (37/45)。 |
+| `drivers/led.h` | 空桩 | ✅ 已完成 (Phase G) | 依赖 `pwm_init`/`pwm_set`。e2e 包装器已删除，真实文件直接使用。覆盖率 96.0% (24/25)。 |
 | `drivers/timers.h` | 空桩 | ✅ 已完成 | 所有类型/宏/桩集中到 `fake_stm.h`（`INTERRUPT_TIMER_IRQ`、`enable_interrupt_timer`、`NVIC_EnableIRQ`）。`init_interrupts(true)` + `microsecond_timer_init()` + `tick_timer_init()` 在 `jna_panda_init()` 中调用。覆盖率 100% (27/27)。 |
 | `drivers/usb.h` | 功能桩 | ❌ 不可 | e2e 专属 USB endpoint 模拟器，非简单桩。真实 usb.h 为完整 USB OTG 驱动 (31KB)。 |
 | `drivers/fake_siren.h` | 声明桩 | ❌ 不可 | 116 行 I2C codec/DMA/TIM7/DAC，深度耦合硬件。 |
 | `drivers/uart.h` | 类型桩 | ✅ 已完成 | `uart_ring` 类型移到 `fake_stm.h`（`void*` 替代 `USART_TypeDef*`），`UART_BUFFER` 宏不再需要 `#ifndef E2E_TEST` 守卫。`libpanda.c` 中手动实例定义已删除，实例由 `UART_BUFFER` 宏自动生成。覆盖率 94% (73/77)。 |
 | `drivers/interrupts.h` | 功能桩 | ✅ 已完成 | `IRQn_Type`、`interrupt` 结构体、`REGISTER_INTERRUPT` 宏移到 `fake_stm.h`。`init_interrupts(true)` 在 `jna_panda_init()` 中调用（镜像真实 `main()`）。覆盖率 96% (51/53, 仅 `interrupt_timer_handler` 内日志未覆盖)。 |
-| `drivers/spi.h` | 委托桩 | ✅ 已完成 | 业务逻辑已是真实代码。仅 llspi 函数 stub 需保留（SPI DMA 硬件寄存器）。覆盖率 94.2% (147/156)。 |
-| `drivers/simple_watchdog.h` | 委托桩 | ✅ 已完成 | 纯委托桩 → 真实代码 100%。 |
+| `drivers/spi.h` | 委托桩 | ✅ 已完成 | e2e 包装器已删除，真实文件直接使用。llspi stubs 移到 `fake_stm.h`。覆盖率 94.2% (147/156)。 |
+| `drivers/simple_watchdog.h` | 委托桩 | ✅ 已完成 | e2e 包装器已删除，真实文件直接使用。覆盖率 100%。 |
 
 ### 3.3 已完成去桩化
 

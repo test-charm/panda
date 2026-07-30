@@ -3,6 +3,7 @@
 > 功能: `led_init()` / `led_set()` / `pwm_init()` / `pwm_set()` — LED PWM 定时器配置
 > 被测接口: 寄存器验证 (TIM3 CR1/ARR/CCMR/CCER/CCR)
 > 覆盖目标: `board/drivers/pwm.h` (37/45) + `board/drivers/led.h` (24/25)
+> Phase H: e2e 包装器已删除，真实 `board/drivers/pwm.h` 和 `board/drivers/led.h` 直接使用（与生产代码完全一致）。
 > Phase: G — pwm.h/led.h 去桩化
 
 ## 1. 被测功能流程图

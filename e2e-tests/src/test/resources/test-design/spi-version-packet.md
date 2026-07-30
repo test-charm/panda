@@ -3,6 +3,7 @@
 > 功能: `spi_version_packet()` in `board/drivers/spi.h` + `crc_checksum()` in `board/crc.h`
 > 被测接口: JNA `jna_spi_version_packet()` (直接调用生产代码)
 > 涉及文件: `board/crc.h` (20 行), `board/drivers/spi.h:44-86` (spi_version_packet)
+> Phase H: e2e 包装器已删除，真实 `board/drivers/spi.h` 直接使用。
 > 合并覆盖: `hw-type.md` + `mcu-uid.md` + `serial.md` (第十三节 B1+B3+B5)
 >   — `bytes[21]` = hw_type (已覆盖), `bytes[9..20]` = UID (已覆盖)
 >   — serial/provision (0xd0) 三个 scenario 已恢复至 feature 文件末尾，覆盖 `provision.h`

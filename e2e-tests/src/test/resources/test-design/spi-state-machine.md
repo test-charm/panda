@@ -3,6 +3,7 @@
 > 功能: `spi_rx_done()` + `spi_tx_done()` + `validate_checksum()` in `board/drivers/spi.h`
 > 被测接口: JNA `jna_spi_rx_done()`, `jna_spi_tx_done()`, `jna_spi_set_state()`, `jna_spi_write_rx_buf()` (直接操作 SPI buffer 并调用生产代码)
 > 涉及文件: `board/drivers/spi.h` (156 行)
+> Phase H: e2e 包装器已删除，真实 `board/drivers/spi.h` 直接使用。llspi stubs 集中在 `fake_stm.h`。
 > 覆盖基线: 147/156 (94.2%), 仅 `spi_init()` 8行 + 防御 print 4行未覆盖
 
 ## 1. 被测功能流程图

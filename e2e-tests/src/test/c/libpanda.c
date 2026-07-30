@@ -7,7 +7,6 @@
 
 #include "fake_stm.h"
 #include "config.h"
-#include <stdbool.h>
 
 // ---- Deps that must be available before firmware headers ----
 #include "opendbc/safety/can.h"
@@ -231,19 +230,6 @@ static bool irq_disabled;
 static bool dsb_called;
 static bool isb_called;
 static bool wfi_entered;
-static bool adc1_deep_powerdown;
-static bool adc2_deep_powerdown;
-static bool hsi48_disabled;
-static bool sram_retention_disabled;
-static bool sbu_exti_configured;
-static bool can_exti_configured;
-static bool pwr_stop_mode_configured;
-static bool voltage_scaling_low_power_set;
-static bool wfi_entered;
-static bool ignition_checked;
-static bool nvic_interrupts_disabled;
-static bool nvic_wakeup_enabled;
-static bool sleepdeep_set;
 
 GPIO_TypeDef dummy_gpio;
 
@@ -369,11 +355,11 @@ void jna_detect_harness_orientation(void) {
 // ---- Function stubs ----
 void fake_siren_set(bool en) { siren_enabled = en; }
 void fake_i2c_siren_set(bool en) { siren_enabled = en; }
-// can_init, can_rx, and process_can now come from real board/drivers/fdcan.h (C3)
-// led_init, led_set, pwm_init, pwm_set — now from real board/drivers/led.h and board/drivers/pwm.h
+// can_init, can_rx, process_can — from real board/drivers/fdcan.h (C3)
+// led_init, led_set, pwm_init, pwm_set — from real board/drivers/led.h and board/drivers/pwm.h
 void usb_irqhandler(void) {}
 void usb_init(void) {}
-// spi_init() now comes from real board/drivers/spi.h (llspi stubs in e2e wrapper)
+// spi_init() — from real board/drivers/spi.h (llspi stubs in fake_stm.h)
 void early_initialization(void) {}
 void clock_init(void) {}
 void peripherals_init(void) {}
@@ -514,8 +500,7 @@ void adc_init(ADC_TypeDef *adc) { (void)adc; }
 #include "board/health.h"
 #include "board/sys/faults.h"
 
-// ---- Watchdog (real production code from board/drivers/simple_watchdog.h) ----
-#include "board/drivers/simple_watchdog.h"
+// simple_watchdog.h is included by board/main.c (line 7), not separately here.
 
 #include "board/libc.h"
 // interrupts.h now included earlier (before interrupts[] array) for real REGISTER_INTERRUPT (C3)
