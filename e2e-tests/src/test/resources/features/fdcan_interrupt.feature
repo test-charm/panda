@@ -337,3 +337,50 @@ Feature: FDCAN Interrupt-Driven Processing (C3)
         canHealth0.totalRxCnt: 1
       }
       """
+
+  # ---- Phase J3: can_send with bad checksum ----
+  # total_tx_checksum_error_cnt (fdcan.h:109-110) was never covered.
+  # can_push_direct() pushes to queue WITHOUT calling can_set_checksum,
+  # so the checksum field stays 0 (bad). process_can() then discovers
+  # the bad checksum and increments the error counter.
+  # Queue mapping: 0=RX, 1=TX bus0, 2=TX bus1, 3=TX bus2.
+
+  Scenario: can_send with bad checksum increments error counter
+    Given exists data:
+      """
+      SetSafetyMode: { param1: 17 }
+      """
+    # Push CAN packet with zero checksum to TX queue for bus 0 (queue 1)
+    When can push raw to queue 1 addr 256 bus 0 data "testdata"
+    # process_can(0) pops from can_queues[0], can_check_checksum fails → +1
+    When process can 0
+    Then control data should be:
+      """
+      : {
+        canHealth0.totalTxChecksumErrorCnt: 1
+      }
+      """
+
+  # ---- Phase J4: FDCAN interrupt handler wrappers ----
+  # Static wrappers at fdcan.h:227-234 were never triggered via IRQ dispatch.
+  # Existing tests call can_rx()/process_can() directly, bypassing the wrappers.
+  # IRQ mapping: FDCAN1=19/21, FDCAN2=20/22, FDCAN3=159/160.
+
+  Scenario: All FDCAN interrupt handler wrappers are callable via IRQ dispatch
+    # FDCAN1 IT0(19)→can_rx(0), IT1(21)→process_can(0)
+    When handle interrupt 19
+    When handle interrupt 21
+    # FDCAN2 IT0(20)→can_rx(1), IT1(22)→process_can(1)
+    When handle interrupt 20
+    When handle interrupt 22
+    # FDCAN3 IT0(159)→can_rx(2), IT1(160)→process_can(2)
+    When handle interrupt 159
+    When handle interrupt 160
+    Then FDCAN interrupt handlers:
+      """
+      : {
+        isInterruptHandlerRegistered: {
+          <<19,21,20,22,159,160>>: true
+        }
+      }
+      """

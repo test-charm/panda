@@ -145,11 +145,47 @@ SPI 驱动去桩策略：
 
 ## 覆盖率
 
-> 数据来源: `run_all_coverage.sh` 合并报告 (cuatro + tres + red)
-> 综合行覆盖率: **91.1%** (1989/2183, 35 files)
+> 数据来源: `run_all_coverage.sh` 合并报告
+> 综合行覆盖率: **92.9%** (2304/2479, 40 files)
 
 | 源文件 | 行覆盖 | 说明 |
 |--------|--------|------|
-| `board/crc.h` | 100% (20/20) | ✅ C1 去桩化 — 纯 CRC-8 算法，通过 spi_version_packet 调用覆盖 |
-| `board/drivers/spi.h` | **94.2%** (147/156) | ✅ Phase F.5 — spi_version_packet + spi_rx_done + spi_tx_done 全状态机覆盖
-| `board/provision.h` | **100%** (7/7) | ✅ 第十三节 B5 — 通过 serial/provision 场景覆盖 (get_provision_chunk + memcmp + unprovisioned 分支) |
+| `board/crc.h` | 100% (20/20) | ✅ C1 去桩化 — 纯 CRC-8 算法 |
+| `board/drivers/spi.h` | **94.2%** (147/156) | ✅ Phase F.5 — spi_rx_done + spi_tx_done 全状态机 |
+| `board/main_comms.h` | **97.0%** (261/269) | ✅ Phase J: 新增 USB 0xc3 MCU UID 命令 |
+| `board/provision.h` | **100%** (8/8) | ✅ 通过 serial/provision 场景覆盖 |
+
+---
+
+## 7. USB 0xc3 MCU UID 命令 (Phase J 新增)
+
+> 被测接口: USB control request 0xc3 (fetch MCU UID)
+
+### 被测功能流程图
+
+```
+USB 0xc3:
+  [controlWrite(0xc3, param1=0, param2=0)]
+            │
+            ▼
+  (void)memcpy(resp, UID_BASE, 12)
+  resp_len = 12
+            │
+            ▼
+  return resp_len → 主机收到 12 字节 UID
+```
+
+### 测试用例
+
+| # | 场景 | 输入 | 验证点 |
+|---|------|------|--------|
+| TC5 | 默认零 UID | request=-61y (0xc3) | respBuffer.len=12, bytes 全零 |
+| TC6 | 自定义 UID | mcuUidBytes="DEADBEEFCAFE12345678FEED" → request=-61y | resp_len=12, bytes[0..11] = 预设值 |
+
+### JNA 接口
+
+| 函数 | 用途 |
+|------|------|
+| `jna_set_mcu_uid(hex, len)` | 预设 fake_uid[] 为自定义值 |
+
+e2e 中 `UID_BASE` 被重定义为 `fake_uid[12]`，memcpy 直接读取内存，无硬件依赖。

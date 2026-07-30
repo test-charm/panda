@@ -1727,3 +1727,70 @@ int jna_spi_get_error_count(void) {
 void jna_spi_reset_error_count(void) {
     spi_error_count = 0U;
 }
+
+// ---- Phase J: Additional JNA wrappers for coverage gaps ----
+
+// J1: GPIO output type — test PUSH_PULL (currently only OPEN_DRAIN is covered)
+void jna_set_gpio_output_type_push_pull(int port_idx, int pin) {
+    GPIO_TypeDef *ports[] = { GPIOA, GPIOB, GPIOC, GPIOD, GPIOE, GPIOF, GPIOG };
+    if ((port_idx >= 0) && (port_idx < 7)) {
+        set_gpio_output_type(ports[port_idx], (unsigned int)pin, OUTPUT_TYPE_PUSH_PULL);
+    }
+}
+
+// J2: harness_init — only called from main(), not by e2e
+void jna_harness_init(void) {
+    harness_init();
+}
+
+// J10: detect_with_pull — called by real board.h for hardware detection,
+// but e2e replaces board.h with a stub that hardcodes board type.
+int jna_detect_with_pull(int port_idx, int pin, int pull_mode) {
+    GPIO_TypeDef *ports[] = { GPIOA, GPIOB, GPIOC, GPIOD, GPIOE, GPIOF, GPIOG };
+    if ((port_idx >= 0) && (port_idx < 7)) {
+        return detect_with_pull(ports[port_idx], pin, pull_mode) ? 1 : 0;
+    }
+    return 0;
+}
+
+// J3: CAN health total_tx_checksum_error_cnt
+int jna_get_can_health_total_tx_checksum_error_cnt(int bus) {
+    if ((bus < 0) || (bus >= PANDA_CAN_CNT)) return 0;
+    return (int)can_health[bus].total_tx_checksum_error_cnt;
+}
+
+// J5: uart ring buffer overwrite test
+static uart_ring jna_test_ring;
+static uint8_t jna_test_ring_rx_buf[8];
+static uint8_t jna_test_ring_tx_buf[8];
+
+void jna_uart_overwrite_init(int fifo_size) {
+    jna_test_ring = (uart_ring){
+        .elems_rx = jna_test_ring_rx_buf,
+        .rx_fifo_size = (uint16_t)fifo_size,
+        .overwrite = true,
+        .r_ptr_rx = 0U,
+        .w_ptr_rx = 0U,
+        .elems_tx = jna_test_ring_tx_buf,
+        .tx_fifo_size = (uint16_t)fifo_size,
+        .r_ptr_tx = 0U,
+        .w_ptr_tx = 0U,
+    };
+}
+
+int jna_uart_put_char_overwrite(char c) {
+    return put_char(&jna_test_ring, c) ? 1 : 0;
+}
+
+// J5: uart ring buffer overwrite test (rx side — injectc)
+int jna_uart_injectc_overwrite(char c) {
+    return injectc(&jna_test_ring, c) ? 1 : 0;
+}
+
+uint16_t jna_uart_get_rx_r_ptr(void) {
+    return jna_test_ring.r_ptr_rx;
+}
+
+uint16_t jna_uart_get_tx_r_ptr(void) {
+    return jna_test_ring.r_ptr_tx;
+}

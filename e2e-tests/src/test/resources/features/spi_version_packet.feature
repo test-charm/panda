@@ -54,6 +54,64 @@ Feature: SPI Version Packet and Device Identity (spi_version_packet + serial + p
       }
       """
 
+  Scenario: USB 0xc3 fetches 12-byte MCU UID from hardware
+    # 0xc3 = 195 unsigned, -61 signed byte
+    When control write:
+      """
+      UsbControlRequest: {
+        request: -61y
+        param1: 0
+        param2: 0
+      }
+      """
+    Then control data should be:
+      """
+      : {
+        respBuffer: {
+          len: 12
+          bytes[0]: 0y
+          bytes[5]: 0y
+          bytes[11]: 0y
+        }
+      }
+      """
+
+  Scenario: USB 0xc3 returns custom UID values when set
+    Given exists data:
+      """
+      ControlSetup: {
+        mcuUidBytes: "DEADBEEFCAFE12345678FEED"
+      }
+      """
+    When control write:
+      """
+      UsbControlRequest: {
+        request: -61y
+        param1: 0
+        param2: 0
+      }
+      """
+    Then control data should be:
+      """
+      : {
+        respBuffer: {
+          len: 12
+          bytes[0]: -34y    # 0xDE
+          bytes[1]: -83y    # 0xAD
+          bytes[2]: -66y    # 0xBE
+          bytes[3]: -17y    # 0xEF
+          bytes[4]: -54y    # 0xCA
+          bytes[5]: -2y     # 0xFE
+          bytes[6]: 18y     # 0x12
+          bytes[7]: 52y     # 0x34
+          bytes[8]: 86y     # 0x56
+          bytes[9]: 120y    # 0x78
+          bytes[10]: -2y    # 0xFE
+          bytes[11]: -19y   # 0xED
+        }
+      }
+      """
+
   # —— Device Serial & Provision (merged from serial.feature, 第十三节 B5) ——
 
   Scenario: Get serial number returns 16-byte device serial for param1 equals 1

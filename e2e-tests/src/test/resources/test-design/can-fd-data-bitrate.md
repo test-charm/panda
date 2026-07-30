@@ -59,26 +59,32 @@ e2e 环境: `data_speeds={0}`, `can_speed=5000`，仅 `param2=0` 有效。
 - 输入: param1=0, param2=1
 - 输出: canfdEnabled0=false, brsEnabled0=false, cccr 不变
 
+### TC4 (J9): 5Mbps 数据速率触发 CAN_SP_DATA_5M
+- 输入: param1=0, param2=-15536 (50000 as unsigned short)
+- 输出: canfdEnabled0=true, brsEnabled0=true, canDataSpeed0=50000
+- 路径: llcan_set_speed → data_speed==50000 → CAN_SP_DATA_5M (75%) 采样点 → llfdcan.h:87 ✅
+
 ## 5. 覆盖检查
 
-| 条件 | TC1 | TC2 | TC3 |
-|------|-----|-----|-----|
-| param1 < 3 (valid bus) | ✅ | — | ✅ |
-| param1 >= 3 (invalid) | — | ✅ | — |
-| is_speed_valid = true | ✅ | — | — |
-| is_speed_valid = false | — | — | ✅ |
+| 条件 | TC1 | TC2 | TC3 | TC4 |
+|------|:--:|:--:|:--:|:--:|
+| param1 < 3 (valid bus) | ✅ | — | ✅ | ✅ |
+| param1 >= 3 (invalid) | — | ✅ | — | — |
+| is_speed_valid = true | ✅ | — | — | ✅ |
+| is_speed_valid = false | — | — | ✅ | — |
+| data_speed == 50000 (5Mbps) | — | — | — | ✅ |
 
-✅ 所有条件分支已覆盖。
+✅ 所有条件分支已覆盖 (Phase J 新增 TC4)。
 
 ## 覆盖率
 
-> 数据来源: `run_all_coverage.sh` 合并报告 (cuatro + tres + red)
-> 综合行覆盖率: **65.1%** (全量), 本功能涉及以下源文件:
+> 数据来源: `run_all_coverage.sh` 合并报告
+> 综合行覆盖率: **92.9%** (全量)
 
 | 源文件 | 行覆盖 | 说明 |
 |--------|--------|------|
-| `main_comms.h` | 93.3% (251/269) | USB 命令处理 |
-| `can_common.h` | 86.9% (93/107) | CAN 通用操作 |
+| `main_comms.h` | 97.0% (261/269) | USB 命令处理 |
+| `llfdcan.h` | 85.1% (137/161) | FDCAN 5Mbps 数据速率路径 (Phase J: J9) |
 
 ---
 

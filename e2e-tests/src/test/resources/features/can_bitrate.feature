@@ -1,13 +1,16 @@
 # language: en
 Feature: CAN Bitrate Configuration
 
+  # Phase J8: Fixed — param2 changed from 0 (invalid) to 5000 (500 kbps, valid speed).
+  # This now actually triggers can_init() and covers lines 239-241 in main_comms.h.
+
   Scenario: Valid bus and speed initializes FDCAN
     When control write:
       """
       UsbControlRequest: {
         request: -34y
         param1: 0
-        param2: 0
+        param2: 5000
       }
       """
     Then control data should be:
@@ -64,6 +67,28 @@ Feature: CAN Bitrate Configuration
           ie: [ 0b0000_1001y, 0b0000_1000y, -128y, 0b0001_1010y ]
           nbtp: [ 0b0000_1111y, 0b0011_1110y, 0b0000_0001y, 0b0001_1110y ]
           dbtp: [ 0b0011_0011y, 0b0000_1110y, 0b0000_0001y, 0b0000_0000y ]
+        }
+      }
+      """
+
+  # Phase J7: Low-speed prescaler path (speed < 2500 → prescaler * 16)
+  # speed=1000 = 100 kbps. Speed < 2500 triggers BITRATE_PRESCALER * 16.
+  Scenario: Low speed triggers prescaler * 16 path
+    When control write:
+      """
+      SetCanBitrate: {
+        param1: 0
+        param2: 1000
+      }
+      """
+    Then control data should be:
+      """
+      : {
+        fdcanRegs[0]: {
+          cccr: [ 0b0010_0000y, 0b0101_0011y ]
+          ie: [ 0b0000_1001y, 0b0000_1000y, -128y, 0b0001_1010y ]
+          nbtp: *
+          dbtp: *
         }
       }
       """

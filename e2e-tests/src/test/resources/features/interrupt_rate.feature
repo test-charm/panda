@@ -68,3 +68,31 @@ Feature: Interrupt handling, rate limiting, and timer ticks
         }
       }
       """
+
+  # Phase J6: interrupt_timer_handler prints rate warning when counter > max_call_rate
+  # Lines 53-54 in interrupts.h: print("Interrupt 0x... fired too often...").
+  # Exceed max_call_rate (10 for IRQ 0), then call interrupt_timer_tick to trigger print.
+  Scenario: interrupt_timer_handler prints when rate exceeded
+    When handle interrupt 0 11 times
+    When interrupt timer tick
+    # Verify call_rate was saved (11) and no crash occurred
+    When control write:
+      """
+      UsbControlRequest: {
+        request: -60y
+        param1: 0y
+        length: 4y
+      }
+      """
+    Then control data should be:
+      """
+      : {
+        respBuffer: {
+          len: 4
+          bytes[0]: 0x0B
+          bytes[1]: 0x00
+          bytes[2]: 0x00
+          bytes[3]: 0x00
+        }
+      }
+      """

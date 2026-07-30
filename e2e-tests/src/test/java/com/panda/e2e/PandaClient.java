@@ -635,6 +635,17 @@ public class PandaClient {
         void jna_spi_tx_done(int reset);
         int jna_spi_get_error_count();
         void jna_spi_reset_error_count();
+
+        // Phase J: additional coverage wrappers
+        void jna_set_gpio_output_type_push_pull(int port_idx, int pin);  // J1
+        void jna_harness_init();                                          // J2
+        int jna_detect_with_pull(int port_idx, int pin, int pull_mode);   // J10
+        int jna_get_can_health_total_tx_checksum_error_cnt(int bus);      // J3
+        void jna_uart_overwrite_init(int fifo_size);                      // J5
+        int jna_uart_put_char_overwrite(byte c);                          // J5
+        int jna_uart_injectc_overwrite(byte c);                          // J5
+        int jna_uart_get_rx_r_ptr();                                      // J5
+        int jna_uart_get_tx_r_ptr();                                      // J5
     }
 
     private static final String ORIGINAL_LIB_PATH = PandaLib.libPath;
@@ -1419,6 +1430,12 @@ public class PandaClient {
         return lib.jna_get_fault_status();
     }
 
+    // Phase J: GPIO register getters for DAL assertions
+    public int getGpiobOtyper()   { return (int) lib.jna_get_reg_GPIOB_OTYPER(); }
+    public int getGpioaOtyper()   { return (int) lib.jna_get_reg_GPIOA_OTYPER(); }
+    public int getGpioaOdr()      { return (int) lib.jna_get_reg_GPIOA_ODR(); }
+    public int getGpiobPupdr()    { return (int) lib.jna_get_reg_GPIOB_PUPDR(); }
+
     public void triggerFault(int fault) {
         lib.jna_trigger_fault(fault);
     }
@@ -1622,6 +1639,7 @@ public class PandaClient {
         private final int canCoreResetCnt;
         private final int totalRxCnt;
         private final int totalFwdCnt;
+        private final int totalTxChecksumErrorCnt;
     }
 
     public CanHealth getCanHealth(int bus) {
@@ -1642,7 +1660,8 @@ public class PandaClient {
                 lib.jna_get_can_health_total_rx_lost_cnt(bus),
                 lib.jna_get_can_health_can_core_reset_cnt(bus),
                 lib.jna_get_can_health_total_rx_cnt(bus),
-                lib.jna_get_can_health_total_fwd_cnt(bus)
+                lib.jna_get_can_health_total_fwd_cnt(bus),
+                lib.jna_get_can_health_total_tx_checksum_error_cnt(bus)
         );
     }
 
@@ -1942,4 +1961,50 @@ public class PandaClient {
     public void setSpiCanTxReady(boolean ready) {
         lib.jna_spi_set_can_tx_ready(ready ? 1 : 0);
     }
+
+    // ---- Phase J: Additional coverage wrappers ----
+
+    // J1: set GPIO output type to PUSH_PULL
+    public void setGpioOutputTypePushPull(int portIdx, int pin) {
+        lib.jna_set_gpio_output_type_push_pull(portIdx, pin);
+    }
+
+    // J2: harness_init
+    public void harnessInit() {
+        lib.jna_harness_init();
+    }
+
+    public int detectWithPull(int portIdx, int pin, int pullMode) {
+        return lib.jna_detect_with_pull(portIdx, pin, pullMode);
+    }
+
+    // J3: CAN health total_tx_checksum_error_cnt
+    public int getCanHealthTotalTxChecksumErrorCnt(int bus) {
+        return lib.jna_get_can_health_total_tx_checksum_error_cnt(bus);
+    }
+
+    // J5: uart overwrite tests
+    public void uartOverwriteInit(int fifoSize) {
+        lib.jna_uart_overwrite_init(fifoSize);
+    }
+
+    public int uartPutCharOverwrite(byte c) {
+        return lib.jna_uart_put_char_overwrite(c);
+    }
+
+    public int uartInjectcOverwrite(byte c) {
+        return lib.jna_uart_injectc_overwrite(c);
+    }
+
+    public int uartGetRxRPtr() {
+        return lib.jna_uart_get_rx_r_ptr();
+    }
+
+    public int uartGetTxRPtr() {
+        return lib.jna_uart_get_tx_r_ptr();
+    }
+
+    // DAL-accessible getters for uart overwrite test assertions
+    public int getUartTxRPtr() { return uartGetTxRPtr(); }
+    public int getUartRxRPtr() { return uartGetRxRPtr(); }
 }

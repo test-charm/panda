@@ -87,31 +87,38 @@ interrupt_timer_handler():  (1 秒定时器 ISR)
 - 输入: USB 0xc4 param1=0
 - 输出: resp_len=4, bytes=[0x05, 0x00, 0x00, 0x00]
 
+### TC5 (J6): 频率超标触发 print 警告
+- 输入: handle_interrupt(0) × 11 (超过 max_call_rate=10)
+- 输入: interrupt_timer_tick() → 触发 interrupt_timer_handler
+- 路径: call_counter(11) > max(10) → print("Interrupt 0x0 fired too often...")
+- 验证: USB 0xc4 param1=0 → resp bytes=[0x0B, 0x00, 0x00, 0x00] ✅ Phase J
+
 ## 5. 覆盖检查
 
-| 代码路径 | TC1 | TC2 | TC3 | TC4 |
-|---------|:--:|:--:|:--:|:--:|
-| init_interrupts(true) → 初始化 163 handler | — | — | ✅ | ✅ |
-| unused_interrupt_handler → fault_occurred(2) | ✅ | — | — | — |
-| handle_interrupt 递增 call_counter | ✅ | ✅ | — | ✅ |
-| handle_interrupt 调用已注册 handler | — | ✅ | — | ✅ |
-| handle_interrupt 频率检查 (call_counter > max) | — | ✅ | — | — |
-| handle_interrupt 频率检查 (call_counter ≤ max) | — | — | — | ✅ |
-| interrupt_timer_handler 重置计数器 | — | — | — | ✅ |
-| interrupt_timer_handler 计算 interrupt_load | — | — | — | ✅ |
-| timer_init() / tick_timer_init() / interrupt_timer_init() | — | — | ✅ | ✅ |
-| microsecond_timer_init() / microsecond_timer_get() | — | — | ✅ | ✅ |
+| 代码路径 | TC1 | TC2 | TC3 | TC4 | TC5 |
+|---------|:--:|:--:|:--:|:--:|:--:|
+| init_interrupts(true) → 初始化 163 handler | — | — | ✅ | ✅ | ✅ |
+| unused_interrupt_handler → fault_occurred(2) | ✅ | — | — | — | — |
+| handle_interrupt 递增 call_counter | ✅ | ✅ | — | ✅ | ✅ |
+| handle_interrupt 调用已注册 handler | — | ✅ | — | ✅ | ✅ |
+| handle_interrupt 频率检查 (call_counter > max) | — | ✅ | — | — | ✅ |
+| handle_interrupt 频率检查 (call_counter ≤ max) | — | — | — | ✅ | — |
+| interrupt_timer_handler 重置计数器 | — | — | — | ✅ | ✅ |
+| interrupt_timer_handler 计算 interrupt_load | — | — | — | ✅ | ✅ |
+| print("fired too often") (J6) | — | — | — | — | ✅ |
+| timer_init() / tick_timer_init() / interrupt_timer_init() | — | — | ✅ | ✅ | ✅ |
+| microsecond_timer_init() / microsecond_timer_get() | — | — | ✅ | ✅ | ✅ |
 
-✅ 所有核心代码路径已覆盖。
+✅ 所有核心代码路径已覆盖 (Phase J 新增 TC5)。
 
 ## 覆盖率
 
-> 数据来源: `run_all_coverage.sh` 合并报告 (cuatro + tres + red)
-> 综合行覆盖率: **~91%** (全量), 本功能涉及以下源文件:
+> 数据来源: `run_all_coverage.sh` 合并报告
+> 综合行覆盖率: **92.9%** (全量)
 
 | 源文件 | 行覆盖 | 说明 |
 |--------|--------|------|
-| `interrupts.h` | 96.2% (51/53) | init_interrupts + handle_interrupt + interrupt_timer_handler + unused_interrupt_handler |
+| `interrupts.h` | 100% (53/53) | ✅ Phase J: J6 rate print 全覆盖 |
 | `timers.h` | 100% (27/27) | timer_init + microsecond_timer_init + interrupt_timer_init + tick_timer_init |
-| `main_comms.h` | 95.5% (257/269) | USB 0xc4 命令处理 (get interrupt call rate) |
+| `main_comms.h` | 97.0% (261/269) | USB 0xc4 命令处理 |
 

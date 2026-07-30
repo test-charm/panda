@@ -196,6 +196,47 @@ public class PandaSteps {
         client.boardSetFanEnabled(en != 0);
     }
 
+    @When("set gpio output type push pull port {int} pin {int}")
+    public void setGpioOutputTypePushPull(int portIdx, int pin) {
+        client.setGpioOutputTypePushPull(portIdx, pin);
+    }
+
+    @When("harness init")
+    public void harnessInit() {
+        client.harnessInit();
+    }
+
+    @When("detect with pull port {int} pin {int} mode {int}")
+    public void detectWithPull(int portIdx, int pin, int mode) {
+        client.detectWithPull(portIdx, pin, mode);
+    }
+
+    @When("uart overwrite init with fifo size {int}")
+    public void uartOverwriteInit(int fifoSize) {
+        client.uartOverwriteInit(fifoSize);
+    }
+
+    @When("uart put char overwrite with {string}")
+    public void uartPutCharOverwrite(String hex) {
+        var bytes = hexToBytes(hex);
+        for (byte b : bytes) {
+            client.uartPutCharOverwrite(b);
+        }
+    }
+
+    @When("uart injectc overwrite with {string}")
+    public void uartInjectcOverwrite(String hex) {
+        var bytes = hexToBytes(hex);
+        for (byte b : bytes) {
+            client.uartInjectcOverwrite(b);
+        }
+    }
+
+    @When("can push raw to queue {int} addr {int} bus {int} data {string}")
+    public void canPushRawToQueue(int queueIdx, int addr, int bus, String data) {
+        client.canPushDirect(queueIdx, addr, data.getBytes(StandardCharsets.UTF_8), (byte) bus);
+    }
+
     @When("can push direct to queue {int}")
     public void canPushDirect(int queueIdx) {
         client.canPushDirectAndStore(queueIdx, 0x100, "any".getBytes(StandardCharsets.UTF_8), (byte) 0);

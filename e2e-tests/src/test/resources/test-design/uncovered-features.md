@@ -1,8 +1,8 @@
 # 端到端测试覆盖分析
 
-> 最后更新: 2026-07-30 (Phase J 缺口分析)
-> Feature 文件: 36 个, 场景总数: 235 (cuatro/tres/red 合并)
-> 综合行覆盖率: **91.2%** (2259/2478 lines), 40 files
+> 最后更新: 2026-07-30 (Phase J 完成)
+> Feature 文件: 38 个, 场景总数: 246 (cuatro/tres/red 合并)
+> 综合行覆盖率: **92.9%** (2304/2479 lines), 40 files
 > 数据来源: `e2e-tests/run_all_coverage.sh` → `e2e-tests/build/coverage/merged.lcov`
 
 ---
@@ -363,6 +363,7 @@ Phase D 后: 80.5% (基线重设, +33 行进入覆盖率)
 Phase E 后: ~83.9%
 Phase F 后: 91.1% (1989/2183) ← 本次整合前
 Phase H 后: ~91% (~2100/~2300, ~40 files) ← 当前
+Phase J 后: **92.9%** (2304/2479, ~40 files) ← 最新 ✅
 ```
 
 ---
@@ -418,13 +419,27 @@ Phase H 后: ~91% (~2100/~2300, ~40 files) ← 当前
 | 板型默认分支 | 8 | `boards/{cuatro,tres,red}.h` default cases | switch-default 路径在不合法输入时 |
 | 防御性 print | 5 | `spi.h:156-157,172-173`, `fdcan.h` | DEBUG 日志，正常流程不触发 |
 
-### 10.4 预期提升
+### 10.4 最终结果 (Phase J 完成)
 
 ```
-当前基线: 91.2% (2259/2478)
-Phase J 完成 (Easy):  ~92.6% (~2295/2478, +36 lines)
-Phase J 完成 (Medium): ~93.3% (~2313/2478, +54 lines)
-理论极限: ~97.9% (2426/2478, 仅 52 行硬件强依赖不可覆盖)
+初始基线:  91.2% (2259/2478, 40 files)
+Phase J 后: 92.9% (2304/2479, 40 files, +45 lines covered)
+
+逐文件提升:
+  harness.h:        90.0% → 100.0% (+7, J2 harness_init)
+  gpio.h:            87.5% → 100.0% (+9, J1 PUSH_PULL + J10 detect_with_pull)
+  uart.h:            97.4% → 100.0% (+2, J5 injectc overwrite)
+  interrupts.h:     96.2% → 100.0% (+2, J6 rate print)
+  fdcan.h:           98.7% → 100.0% (+2, J3 checksum + J4 FDCAN1/2/3 handlers)
+  main_comms.h:     94.1% →  97.0% (+8, J8 0xde fix + 0xc3 MCU UID)
+  llfdcan.h:         83.2% →  85.1% (+3, J7 low speed + J9 5M)
+  llfdcan_declarations.h: 91.3% → 95.7% (+1, J9 side effect)
+
+100% 文件新增: harness.h, gpio.h, uart.h, interrupts.h, fdcan.h
+
+剩余不可覆盖 (~175 lines):
+  main() 启动序列 (81 lines), llfdcan timeout (24 lines), libc delay/assert (10 lines),
+  pwm default 分支 (8 lines), 板型 ADC/default (16 lines), 宏定义/防御 print (36 lines)
 ```
 
 ### 10.5 需关注的回退

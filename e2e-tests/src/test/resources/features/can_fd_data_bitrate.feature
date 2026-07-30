@@ -234,3 +234,29 @@ Feature: CAN FD Configuration (Data Bitrate, Non-ISO Mode, Auto Switching)
        }
       }
       """
+
+  # Phase J9: data_speed=50000 (5 Mbps) triggers CAN_SP_DATA_5M sampling point
+  # in llcan_set_speed (llfdcan.h:87). param2=50000 exceeds signed short range,
+  # so use raw byte encoding via UsbControlRequest with param2=-15536 (0xC350).
+  Scenario: 5Mbps data speed triggers CAN_SP_DATA_5M path
+    When control write:
+      """
+      UsbControlRequest: {
+        request: -7y
+        param1: 0
+        param2: -15536
+      }
+      """
+    Then control data should be:
+      """
+      : {
+        canFdConfig: {
+          canfdEnabled0: true
+          brsEnabled0: true
+          canDataSpeed0: 50000
+        }
+        fdcanRegs[0]: {
+          dbtp: *
+        }
+      }
+      """

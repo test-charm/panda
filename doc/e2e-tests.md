@@ -136,12 +136,14 @@ e2e-tests/
 | 系统复位与 Bootloader | `system_reset_bootloader.feature` | 4 | 合并了 reset_st + bootloader (第十三节 D4+D5) |
 | CAN 通信序列化 | `can_comms.feature` | 14 | USB ep3 out → comms_can_write → rxQueue, USB ep1 in → comms_can_read → usbEp1InBytes (含 overflow 分片 5 场景 + 队列指针回绕 5 场景, Phase D.3 + C1 ✅) |
 | CAN 环形缓冲 | `can_ring_clear.feature` | 4 | rxQueue/txQueue |
-| FDCAN 中断处理 | `fdcan_interrupt.feature` | 13 | process_can → TXBAR/IR/rxQueue, 0xff 守卫, can_rx 全路径 (标准帧/扩展帧/CAN-FD/BRS/FIFO满/转发/IRQ错误/safety_rx_invalid), interrupt_rate 合并 (第十三节 B6) ✅ C3 + E.4 |
-| 中断处理与频率限制 | `interrupt_rate.feature` | 4 | handle_interrupt → unused_handler fault + rate-limit fault, interrupt_timer_handler 重置计数器、USB 0xc4 验证 call_rate ✅ Phase H |
+| FDCAN 中断处理 | `fdcan_interrupt.feature` | 15 | process_can → TXBAR/IR/rxQueue, 0xff 守卫, can_rx 全路径 (标准帧/扩展帧/CAN-FD/BRS/FIFO满/转发/IRQ错误/safety_rx_invalid/checksum error), interrupt_rate 合并, Phase J: J3 bad checksum + J4 all FDCAN handlers ✅ |
+| 中断处理与频率限制 | `interrupt_rate.feature` | 5 | handle_interrupt → unused_handler fault + rate-limit fault, interrupt_timer_handler 重置计数器 + rate print ✅ Phase J: J6 |
+| GPIO 与线束初始化 | `gpio_harness.feature` | 3 | gpio PUSH_PULL (J1) + harness_init relay (J2) + detect_with_pull (J10) ✅ Phase J |
+| UART Ring Buffer | `uart_overwrite.feature` | 2 | put_char + injectc overwrite 模式 ring buffer 覆盖 ✅ Phase J: J5 |
 | libc 工具函数 | `libc.feature` | 4 | lastMemcmpResult / delay 不挂死 |
 | IR 功率 | `ir_power.feature` | 4 | irPwm (TIM1 CCR1) + @red unused 验证 ✅ D.2 |
-| CAN 波特率 | `can_bitrate.feature` | 3 | FDCAN NBTP/CCCR/IE/TXBC/RXF0C |
-| CAN FD 配置 | `can_fd_data_bitrate.feature` | 9 | 合并了 FD 数据波特率 + Non-ISO + 自动切换 (第十三节 D1+D2) |
+| CAN 波特率 | `can_bitrate.feature` | 4 | FDCAN NBTP/CCCR/IE/TXBC/RXF0C (Phase J: J7 低速 prescaler + J8 修复 0xde) |
+| CAN FD 配置 | `can_fd_data_bitrate.feature` | 10 | 合并了 FD 数据波特率 + Non-ISO + 自动切换 (Phase J: J9 5Mbps 数据速率) |
 | 时钟源 | `clock_source.feature` | 9 | clockSource (TIM1/TIM8 CCR) + clockSourceInit (第十三节 C2) |
 | 板级初始化 | `board_init.feature` | 7 | boardInit (GPIO MODER/OTYPER/OSPEEDR/PUPDR/AFR/ODR ×45, PWR_CR3) — N2 完成 |
 | LED PWM 初始化 | `led_pwm.feature` | 6 | ledPwmState (TIM3 CR1/ARR/CCMR1/CCMR2/CCER/CCR1-4) — pwm.h/led.h 去桩化 ✅ |
@@ -159,45 +161,45 @@ e2e-tests/
 | ignition_can 自动复位 | `ignition_can.feature` | 2 | ignitionCan (通过 `jna_set_ignition_can` + `jna_call_tick_handler`) |
 | 线束翻转检测 | `harness_detect.feature` | 8 | harnessStatus (生产 `harness_detect_orientation()` ✅ B5 + ADC 拦截桩) |
 | Tick 路径 | `tick_paths.feature` | 12 | has_fan=false, heartbeat_counter 溢出, safety_mode_cnt 溢出, harness reinit + register_divergence + watchdog (P1 + C4+C5) |
-| SPI Version Packet + Device ID | `spi_version_packet.feature` | 5 | spiVersionResult + serial/provision (第十三节 B1+B3+B5) |
+| SPI Version Packet + Device ID | `spi_version_packet.feature` | 7 | spiVersionResult + serial/provision + USB 0xc3 MCU UID (Phase J) |
 | SPI 状态机 | `spi_state_machine.feature` | 30 | spiStateResult (生产 `spi_rx_done()` + `spi_tx_done()` 全状态覆盖 + endpoint2_write 合并 (第十三节 C6) + uart_read 合并 (第十三节 B8) ✅ Phase F.5) |
 
 ## C 代码覆盖率
 
 > 数据来源: `e2e-tests/run_all_coverage.sh` 合并报告 (cuatro + tres + red)
-> 生成时间: 2026-07-29 (interrupts.h/timers.h/uart.h/llfdcan_declarations.h 去桩化完成)
+> 生成时间: 2026-07-30 (Phase J 完成)
 
 | 源文件 | 行覆盖 | 函数覆盖 | 说明 |
 |--------|--------|---------|------|
-| `board/main_comms.h` | **95.5%** (257/269) | 3/3 | USB 命令处理 |
+| `board/main_comms.h` | **97.0%** (261/269) | 3/3 | USB 命令处理 (Phase J: 新增 0xc3 MCU UID + 修复 0xde) |
 | `board/main.c` | **64.2%** (145/226) | 4/7 | 主循环 + 初始化 |
 | `board/drivers/can_common.h` | **100%** (107/107) | 10/12 | CAN 通用操作 |
-| `board/drivers/gpio.h` | **84.5%** (60/71) | 5/7 | GPIO 控制 |
+| `board/drivers/gpio.h` | **100%** (72/72) | 6/7 | ✅ Phase J: J1 PUSH_PULL + J10 detect_with_pull 全覆盖 |
 | `board/sys/faults.h` | **100%** (20/20) | 2/2 | 故障设置 |
 | `board/libc.h` | **83.9%** (52/62) | 3/5 | memcmp 全覆盖 ✅；delay + assert_fatal(false) 不可覆盖 |
 | `board/drivers/fan.h` | **100%** (27/27) | 3/3 | 风扇 PWM + 冷却 |
 | `board/can_comms.h` | **100%** (76/76) | 4/4 | ✅ Phase D.3 完成 (overflow buffer 分片) |
 | `board/config.h` | **100%** (4/4) | — | ✅ Phase D.1 |
-| `board/boards/unused_funcs.h` | **100%** (23/23) | — | ✅ Phase D.2 (板级 wiring + board-tagged 场景) |
+| `board/boards/unused_funcs.h` | **91.3%** (21/23) | — | unused_init_bootloader 空函数体未调用 |
 | `board/drivers/clock_source.h` | **100%** (40/40) | 2/2 | ✅ N1 完成 |
 | `board/utils.h` | **100%** (10/10) | 1/1 | 工具函数 |
 | `board/sys/power_saving.h` | **96.7%** (89/92) | — | ✅ B1 |
 | `board/drivers/bootkick.h` | **97.9%** (47/48) | — | ✅ B2 |
 | `board/drivers/can_health_pkt.h` | **94.6%** (35/37) | — | ✅ B4 (共享文件) |
-| `board/drivers/harness.h` | — | — | ✅ B5 |
+| `board/drivers/harness.h` | **100%** (70/70) | — | ✅ Phase J: J2 harness_init 全覆盖 |
 | `board/drivers/pwm.h` | **82.2%** (37/45) | 2/2 | ✅ 去桩化 (仅 default 分支 + ch3 llfan 路径未覆盖) |
 | `board/drivers/led.h` | **96.0%** (24/25) | 2/2 | ✅ 去桩化 (仅 LED_RED define 未覆盖) |
-| `board/stm32h7/llfdcan.h` | **83.2%** (134/161) | — | ✅ C3 |
-| `board/drivers/fdcan.h` | **~97%** (~175/181) | — | ✅ C3 + E.4 (can_rx 全路径覆盖, 仅 body_can_rx 3行未覆盖) |
-| `board/boards/cuatro.h` | **83.3%** (55/66) | — | ✅ N2 完成 |
-| `board/boards/tres.h` | **88.0%** (81/92) | — | ✅ N2 完成 |
+| `board/stm32h7/llfdcan.h` | **85.1%** (137/161) | — | ✅ Phase J: J7 低速 + J9 5M (timeout 路径不可覆盖) |
+| `board/drivers/fdcan.h` | **100%** (158/158) | — | ✅ Phase J: J3 checksum error + J4 all FDCAN handlers 全覆盖 |
+| `board/boards/cuatro.h` | **87.9%** (58/66) | — | ✅ N2 完成 |
+| `board/boards/tres.h` | **92.4%** (85/92) | — | ✅ N2 完成 |
 | `board/boards/red.h` | **90.0%** (63/70) | — | ✅ N2 完成 |
-| `board/drivers/spi.h` | **94.2%** (147/156) | — | ✅ Phase F.5 (spi_rx_done + spi_tx_done 全状态机, 仅 spi_init 8行 + 防御 print 4行未覆盖) |
-| `board/drivers/timers.h` | **100%** (27/27) | 4/4 | ✅ Phase H (timer_init, microsecond_timer_init, interrupt_timer_init, tick_timer_init 全覆盖) |
-| `board/drivers/interrupts.h` | **96.2%** (51/53) | 4/4 | ✅ Phase H (init_interrupts, unused_interrupt_handler, handle_interrupt, interrupt_timer_handler 覆盖; 仅打印日志 2 行未覆盖) |
-| `board/drivers/uart.h` | **94.8%** (73/77) | — | ✅ Phase H (UART_BUFFER 直接使用, 无 E2E_TEST 守卫; putch/print/puthx/puth 覆盖; hexdump/puth4 未覆盖) |
-| `board/stm32h7/llfdcan_declarations.h` | **91.3%** (21/23) | — | ✅ Phase H (直接使用真实头文件; CAN_NAME_FROM_CANIF/CAN_NUM_FROM_CANIF 未覆盖) |
-| **合计** | **~91%** (~2100/2300, ~40 files) | — | interrupts.h/timers.h/uart.h/llfdcan_declarations.h 去桩化 ✅ |
+| `board/drivers/spi.h` | **94.2%** (147/156) | — | ✅ Phase F.5 |
+| `board/drivers/timers.h` | **100%** (27/27) | 4/4 | ✅ Phase H |
+| `board/drivers/interrupts.h` | **100%** (53/53) | 4/4 | ✅ Phase J: J6 rate print 全覆盖 |
+| `board/drivers/uart.h` | **100%** (77/77) | — | ✅ Phase J: J5 injectc overwrite 全覆盖 |
+| `board/stm32h7/llfdcan_declarations.h` | **95.7%** (22/23) | — | CAN_NAME_FROM_CANIF FDCAN3 分支不可覆盖 |
+| **合计** | **92.9%** (2304/2479, 40 files) | — | Phase J 完成 ✅ |
 
 ## 设计原则
 
