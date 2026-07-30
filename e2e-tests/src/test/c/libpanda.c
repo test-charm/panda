@@ -720,7 +720,9 @@ void jna_process_wfi_idle(void) {
 // Real board_read_som_gpio (after GPIO macro overrides)
 bool board_read_som_gpio_stub(void) {
 #if defined(E2E_BOARD_TRES)
-    return get_gpio_input(GPIOB, 1);
+    return tres_read_som_gpio();
+#elif defined(E2E_BOARD_CUATRO)
+    return tres_read_som_gpio();
 #elif defined(E2E_BOARD_RED)
     return false;
 #else
@@ -1504,12 +1506,12 @@ void jna_set_gitversion(const char *val) {
     gitversion[len] = '\0';
 }
 void jna_set_som_gpio(int val) {
-#if defined(E2E_BOARD_TRES)
-    // Tres: SOM GPIO is on GPIOB pin 1, active-high
-    if (val) e2e_GPIOB.IDR |= (1U << 1); else e2e_GPIOB.IDR &= ~(1U << 1);
+#if defined(E2E_BOARD_TRES) || defined(E2E_BOARD_CUATRO)
+    // Tres and Cuatro: SOM GPIO is on GPIOC pin 2, active-high (tres_read_som_gpio)
+    if (val) e2e_GPIOC.IDR |= (1U << 2); else e2e_GPIOC.IDR &= ~(1U << 2);
 #else
-    // Cuatro/Red: GPIOC pin 3, active-low
-    if (val) e2e_GPIOC.IDR &= ~(1U << 3); else e2e_GPIOC.IDR |= (1U << 3);
+    // Red: no SOM GPIO, stub always returns false
+    (void)val;
 #endif
 }
 

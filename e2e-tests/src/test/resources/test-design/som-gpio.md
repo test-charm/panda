@@ -24,7 +24,7 @@ read SOM GPIO (0xc6):
 | 因子 | 类型 | 等价类 | 取值 |
 |------|------|--------|------|
 | `request` | uint8 | 0xc6 (唯一) | 0xc6 |
-| `som_gpio_value` (前置) | bool | true (1), false (0) | 1 |
+| `som_gpio_value` (前置) | bool | true (1), false (0) | 1, 0 |
 
 ## 3. 输出因子
 
@@ -40,7 +40,12 @@ read SOM GPIO (0xc6):
 - 输入: request=0xc6
 - 输出: respBuffer.len=1, bytes=[1y]
 
-### TC2 (@red): 预设 SOM GPIO=1 → resp buffer 返回 0 (unused)
+### TC2 (@cuatro @tres): 预设 SOM GPIO=0 → resp buffer 返回 0
+- 前置: `somGpio: 0` (e2e 注入)
+- 输入: request=0xc6
+- 输出: respBuffer.len=1, bytes=[0y]
+
+### TC3 (@red): 预设 SOM GPIO=1 → resp buffer 返回 0 (unused)
 - 前置: `somGpio: 1` + red board (`.read_som_gpio = unused_read_som_gpio`)
 - 输入: request=0xc6
 - 输出: respBuffer.len=1, bytes=[0y]
@@ -48,10 +53,11 @@ read SOM GPIO (0xc6):
 
 ## 5. 覆盖检查
 
-| 条件 | TC1 | TC2 (@red) |
-|------|-----|------------|
-| request == 0xc6, 有 SOM GPIO 硬件 | ✅ | — |
-| request == 0xc6, 无 SOM GPIO (unused) | — | ✅ |
+| 条件 | TC1 | TC2 | TC3 (@red) |
+|------|-----|-----|------------|
+| request == 0xc6, GPIO high (tres_read_som_gpio → true) | ✅ | — | — |
+| request == 0xc6, GPIO low (tres_read_som_gpio → false) | — | ✅ | — |
+| request == 0xc6, 无 SOM GPIO (unused) | — | — | ✅ |
 
 ✅ 所有代码路径 + `unused_read_som_gpio` 已覆盖。
 
@@ -62,6 +68,7 @@ read SOM GPIO (0xc6):
 
 | 源文件 | 行覆盖 | 说明 |
 |--------|--------|------|
+| `tres.h` | 新增覆盖 | `tres_read_som_gpio()` 两分支 ✅ |
 | `main_comms.h` | 95.5% (257/269) | USB 命令处理 |
-| `unused_funcs.h` | 100% (23/23) | ✅ Phase D.2 |
+| `unused_funcs.h` | 100% (23/23) | ✅ |
 
