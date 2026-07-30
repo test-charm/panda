@@ -372,33 +372,29 @@ Phase J 后: **92.9%** (2304/2479, ~40 files) ← 最新 ✅
 
 基于 `e2e-tests/build/coverage/merged.lcov` (91.2%, 2259/2478, 40 files)，逐个分析未覆盖行的可测试性。
 
-### 10.1 可直接补端到端测试 (✅ Easy, ~36 lines)
+### 10.1 可直接补端到端测试 ✅ 已全部完成 (9/9, +34 lines)
 
-预计可提升覆盖率至 **~92.6%**。
+| # | 状态 | 文件 | 行号 | 未覆盖内容 | 实现 |
+|---|------|------|------|-----------|------|
+| J1 | ✅ | `gpio.h` | 42-43 | `OUTPUT_TYPE_PUSH_PULL` (else 分支) | `gpio_harness.feature`: PUSH_PULL 清除 OTYPER bit3 |
+| J2 | ✅ | `harness.h` | 104-118 | `harness_init()` 整函数 | `gpio_harness.feature`: 验证 gpioaOtyper=520, gpioaOdr=520 |
+| J3 | ✅ | `fdcan.h` | 109-110 | `total_tx_checksum_error_cnt` 递增 | `fdcan_interrupt.feature`: can_push_direct (无 checksum) + process_can |
+| J4 | ✅ | `fdcan.h` | 227-234 | FDCAN1/2/3 全部 6 个静态 IRQ 包装器 | `fdcan_interrupt.feature`: handle interrupt 19/21/20/22/159/160 |
+| J5 | ✅ | `uart.h` | 71-72, 93-94 | put_char + injectc overwrite (r_ptr 前移) | `uart_overwrite.feature`: uartTxRPtr=2, uartRxRPtr=2 |
+| J6 | ✅ | `interrupts.h` | 53-54 | 中断频率超标 print | `interrupt_rate.feature`: 11 次 IRQ + interrupt_timer_tick → print |
+| J7 | ✅ | `llfdcan.h` | 73-74 | `prescaler = BITRATE_PRESCALER * 16` (speed < 2500) | `can_bitrate.feature`: 0xde param2=1000 (100kbps) |
+| J8 | ✅ | `main_comms.h` | 239-241 | `0xde` 命令中 `can_init()` 调用 | `can_bitrate.feature`: 修复 param2: 0→5000 |
+| J9 | ✅ | `llfdcan.h` | 87 | `CAN_SP_DATA_5M` (data_speed=50000) | `can_fd_data_bitrate.feature`: 0xf9 param2=-15536 (5Mbps) |
 
-| # | 文件 | 行号 | 未覆盖内容 | 测试方案 |
-|---|------|------|-----------|---------|
-| J1 | `gpio.h` | 42-43 | `OUTPUT_TYPE_PUSH_PULL` (else 分支) | 新增测试调用 `set_gpio_output_type(GPIO, pin, OUTPUT_TYPE_PUSH_PULL)` 后验证 OTYPER 位清零 |
-| J2 | `harness.h` | 104-118 | `harness_init()` 整函数 | 在 `jna_panda_init()` 中添加 `harness_init()` 调用，或通过 JNA 直接调用 |
-| J3 | `fdcan.h` | 109-110 | `total_tx_checksum_error_cnt` 递增 | 发送一条 checksum 错误的 CAN 消息，验证错误计数增加 |
-| J4 | `fdcan.h` | 230-234 | FDCAN2_IT0/IT1, FDCAN3_IT0/IT1 静态 IRQ 包装器 | 注册 FDCAN2/FDCAN3 中断处理函数（当前仅注册 FDCAN1），然后触发 CAN2/CAN3 收发 |
-| J5 | `uart.h` | 71-72, 93-94 | ring buffer overwrite 模式 (r_ptr 前移) | 设置 `uart_ring.overwrite=true`，填满 buffer 后再写入，验证最老字节被丢弃 |
-| J6 | `interrupts.h` | 53-54 | 中断频率超标 print | 设置 `check_interrupt_rate=true`，注入高频中断调用，验证 print 日志 |
-| J7 | `llfdcan.h` | 73-74 | `prescaler = BITRATE_PRESCALER * 16` (speed < 2500) | 用 `0xde` 命令设置速度=1000 (100 kbps)，触发低速 prescaler 路径 |
-| J8 | `main_comms.h` | 239-241 | `0xde` 命令中 `can_init()` 调用 | 当前 `can_bitrate.feature` 使用 `param2: 0` (无效速度)。改为 `param2: 5000` (500 kbps) 触发有效路径 |
-| J9 | `llfdcan.h` | 87 | `CAN_SP_DATA_5M` (data_speed=50000) | 用 `0xf9` 命令设置 `data_speed=50000` (5 Mbps)，触发 5M 采样点路径 |
+### 10.2 有条件可补 — 部分完成 (1/5, +9 lines)
 
-### 10.2 有条件可补 (❓ Medium, ~18 lines)
-
-需要更复杂的状态组合或依赖特定板型。
-
-| # | 文件 | 行号 | 未覆盖内容 | 障碍 |
-|---|------|------|-----------|------|
-| J10 | `gpio.h` | 93-101 | `detect_with_pull()` | 内部函数，被 harness 检测间接调用但 codegen 独立。需直接 JNA 调用 |
-| J11 | `can_health_pkt.h` | 29-30 | `last_data_stored_error` | 需触发 FDCAN DLEC (数据阶段错误)，需要构造特定 CAN 总线错误 |
-| J12 | `pwm.h` | 23-26 | `pwm_init` channel 4 | cuatro/tres 有 channel 4 (fan)，但 llfan 路径在 e2e 桩中被截断 |
-| J13 | `spi.h` | 88-95 | `spi_init()` | 依赖 `llspi_init()` → `llspi_mosi_dma()`，这些在 `fake_stm.h` 中已有桩，可尝试直接调用验证 DMA 初始化参数 |
-| J14 | `power_saving.h` | 39 | `llcan_irq_enable(cans[0])` (flipped harness) | 需先设置 `harness.status = HARNESS_STATUS_FLIPPED`，再进入省电模式 |
+| # | 状态 | 文件 | 行号 | 未覆盖内容 | 障碍 |
+|---|------|------|------|-----------|------|
+| J10 | ✅ | `gpio.h` | 93-101 | `detect_with_pull()` | `gpio_harness.feature`: JNA 直接调用 `detect_with_pull(GPIOF, 7, PULL_UP)` |
+| J11 | ❌ | `can_health_pkt.h` | 29-30 | `last_data_stored_error` | 需触发 FDCAN DLEC (数据阶段错误)，需要构造特定 CAN 总线错误 |
+| J12 | ❌ | `pwm.h` | 23-26 | `pwm_init` channel 4 | cuatro/tres 有 channel 4 (fan)，但 llfan 路径在 e2e 桩中被截断 |
+| J13 | ❌ | `spi.h` | 88-95 | `spi_init()` | 依赖 `llspi_init()` → `llspi_mosi_dma()`，这些在 `fake_stm.h` 中已有桩，可尝试直接调用验证 DMA 初始化参数 |
+| J14 | ❌ | `power_saving.h` | 39 | `llcan_irq_enable(cans[0])` (flipped harness) | 需先设置 `harness.status = HARNESS_STATUS_FLIPPED`，再进入省电模式 |
 
 ### 10.3 不可补 (❌ No, ~165 lines)
 
@@ -408,7 +404,7 @@ Phase J 后: **92.9%** (2304/2479, ~40 files) ← 最新 ✅
 |------|------|-----------|------|
 | `main()` 函数 + 启动初始化 | 81 | `main.c:270-389` | e2e 无主循环，硬件启动序列 |
 | LL 超时/错误路径 | 19 | `llfdcan.h:18-25,40-47,115-118` | 依赖真实硬件时序的超时和 print |
-| 硬件地址/寄存器直接访问 | 7 | `main_comms.h:132-135` (MCU UID @ UID_BASE) | 读取固定硬件地址 |
+| 硬件地址/寄存器直接访问 | ~~7~~→3 | ~~`main_comms.h:132-135` (MCU UID) ✅ 已覆盖~~, 剩余: `llfdcan.h` timeout print | `0xc3` USB 命令已在 e2e 中可用 |
 | 调试/编译条件守卫 | 7 | `main_comms.h:101-107` (ALLOW_DEBUG), `registers.h:39` (DEBUG_FAULTS) | 编译期 `#ifdef` 守卫 |
 | 死代码/不可达分支 | 10 | `pwm.h:27-28,53-54` (default 分支), `main_comms.h:332-336` (default handler) | 仅在无效输入时触发 |
 | 系统复位/硬件崩溃 | 3 | `power_saving.h:120-121` (NVIC_SystemReset) | 调用即终止进程 |
