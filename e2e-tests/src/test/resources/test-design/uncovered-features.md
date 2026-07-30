@@ -1,9 +1,9 @@
 # 端到端测试覆盖分析
 
-> 最后更新: 2026-07-30
+> 最后更新: 2026-07-30 (Phase J 缺口分析)
 > Feature 文件: 36 个, 场景总数: 235 (cuatro/tres/red 合并)
-> 综合行覆盖率: **~91%** (~2100/~2300 lines), ~40 files
-> 数据来源: `e2e-tests/run_all_coverage.sh`
+> 综合行覆盖率: **91.2%** (2259/2478 lines), 40 files
+> 数据来源: `e2e-tests/run_all_coverage.sh` → `e2e-tests/build/coverage/merged.lcov`
 
 ---
 
@@ -74,7 +74,7 @@ board/provision.h                     — 设备 Provision 读取
 
 | 源文件 | 行覆盖 | 说明 |
 |--------|--------|------|
-| `board/main_comms.h` | 95.5% (257/269) | 仅 default handler print + ALLOW_DEBUG 条件未覆盖 |
+| `board/main_comms.h` | 94.1% (253/269) | default handler + ALLOW_DEBUG + MCU UID + 0xde can_init 路径 |
 | `board/main.c` | 64.2% (145/226) | main()/LED fade/debug_ring_callback 硬件依赖，不可提升 |
 | `board/can_comms.h` | 100% (76/76) | ✅ |
 | `board/config.h` | 100% (4/4) | ✅ |
@@ -91,10 +91,10 @@ board/provision.h                     — 设备 Provision 读取
 | `board/drivers/clock_source.h` | 100% (40/40) | ✅ |
 | `board/drivers/registers.h` | 97.8% (44/45) | 仅 hash collision fallback 未覆盖 |
 | `board/drivers/bootkick.h` | 97.9% (47/48) | ✅ |
-| `board/drivers/can_health_pkt.h` | 94.6% (35/37) | ✅ |
-| `board/drivers/gpio.h` | 84.5% (60/71) | set_gpio_analog、restore_gpio 部分路径 |
-| `board/drivers/drivers.h` | 80.0% (4/5) | 1 行未覆盖 |
-| `board/drivers/fdcan.h` | ~97% (~175/181) | ✅ body_can_rx() 仅 PANDA_BODY 固件 |
+| `board/drivers/can_health_pkt.h` | 94.6% (35/37) | data error stored path 未触发 |
+| `board/drivers/gpio.h` | 84.5% (60/71) | OUTPUT_TYPE_PUSH_PULL + detect_with_pull 未覆盖 |
+| `board/drivers/drivers.h` | 100% (5/5) | ✅ (已从 80% 提升) |
+| `board/drivers/fdcan.h` | 94.9% (150/158) | FDCAN2/3 IRQ handlers + checksum error path |
 | `board/drivers/spi.h` | 94.2% (147/156) | ✅ spi_init (8行 DMA) + 防御 print (4行) |
 | `board/drivers/timers.h` | **100%** (27/27) | ✅ Phase H (timer_init, microsecond_timer_init, interrupt_timer_init, tick_timer_init) |
 | `board/drivers/interrupts.h` | **96.2%** (51/53) | ✅ Phase H (init_interrupts, handle_interrupt, interrupt_timer_handler, unused_interrupt_handler) |
@@ -103,11 +103,11 @@ board/provision.h                     — 设备 Provision 读取
 | `board/sys/faults.h` | 100% (20/20) | ✅ |
 | `board/sys/power_saving.h` | 96.7% (89/92) | ✅ |
 | `board/boards/board_declarations.h` | 83.3% (5/6) | 1 行未覆盖 |
-| `board/boards/cuatro.h` | 83.3% (55/66) | GPIO 配置路径部分未调用 |
-| `board/boards/tres.h` | 88.0% (81/92) | GPIO 配置路径部分未调用 |
-| `board/boards/red.h` | 90.0% (63/70) | GPIO 配置路径部分未调用 |
-| `board/boards/unused_funcs.h` | 100% (23/23) | ✅ |
-| `board/stm32h7/llfdcan.h` | 83.2% (134/161) | ✅ 部分 LL 路径未触发 |
+| `board/boards/cuatro.h` | 87.9% (58/66) | set_ir_power default + ADC 读取路径 |
+| `board/boards/tres.h` | 92.4% (85/92) | set_ir_power default + read_som_gpio |
+| `board/boards/red.h` | 90.0% (63/70) | set_ir_power default + set_can_mode default + ADC 读取 |
+| `board/boards/unused_funcs.h` | 91.3% (21/23) | unused_init_bootloader 空函数体 (从未被调用) |
+| `board/stm32h7/llfdcan.h` | 83.2% (134/161) | timeout 路径 (19行) + data_speed 5M + low speed prescaler |
 | `board/stm32h7/llfdcan_declarations.h` | 91.3% (21/23) | ✅ 真实代码 (Phase H) |
 | `e2e-tests/.../fdcan_regs.h` | 94.1% (160/170) | e2e 桩 |
 | `e2e-tests/.../board/stm32h7/board.h` | 100% (41/41) | e2e 桩 |
@@ -128,7 +128,7 @@ libpanda.c (2026-07-29 现状):
   #include "board/libc.h"                    ← ✅ 真实代码 (83.9%)
   #include "board/drivers/registers.h"       ← ✅ 真实代码 (97.8%)
   #include "board/sys/faults.h"              ← ✅ 真实代码 (100%)
-  #include "board/drivers/harness.h"         ← ✅ 真实代码 (100%)
+  #include "board/drivers/harness.h"         ← ✅ 真实代码 (90.0%, harness_init 未在 e2e 调用)
   #include "board/drivers/fdcan.h"           ← ✅ 真实代码 (~97%)
   #include "board/drivers/spi.h"             ← ✅ 真实代码 (94.2%)
   #include "board/drivers/can_health_pkt.h"  ← ✅ 真实代码 (100%)
@@ -364,6 +364,78 @@ Phase E 后: ~83.9%
 Phase F 后: 91.1% (1989/2183) ← 本次整合前
 Phase H 后: ~91% (~2100/~2300, ~40 files) ← 当前
 ```
+
+---
+
+## 十、Phase J: 可补端到端测试缺口分析 (2026-07-30)
+
+基于 `e2e-tests/build/coverage/merged.lcov` (91.2%, 2259/2478, 40 files)，逐个分析未覆盖行的可测试性。
+
+### 10.1 可直接补端到端测试 (✅ Easy, ~36 lines)
+
+预计可提升覆盖率至 **~92.6%**。
+
+| # | 文件 | 行号 | 未覆盖内容 | 测试方案 |
+|---|------|------|-----------|---------|
+| J1 | `gpio.h` | 42-43 | `OUTPUT_TYPE_PUSH_PULL` (else 分支) | 新增测试调用 `set_gpio_output_type(GPIO, pin, OUTPUT_TYPE_PUSH_PULL)` 后验证 OTYPER 位清零 |
+| J2 | `harness.h` | 104-118 | `harness_init()` 整函数 | 在 `jna_panda_init()` 中添加 `harness_init()` 调用，或通过 JNA 直接调用 |
+| J3 | `fdcan.h` | 109-110 | `total_tx_checksum_error_cnt` 递增 | 发送一条 checksum 错误的 CAN 消息，验证错误计数增加 |
+| J4 | `fdcan.h` | 230-234 | FDCAN2_IT0/IT1, FDCAN3_IT0/IT1 静态 IRQ 包装器 | 注册 FDCAN2/FDCAN3 中断处理函数（当前仅注册 FDCAN1），然后触发 CAN2/CAN3 收发 |
+| J5 | `uart.h` | 71-72, 93-94 | ring buffer overwrite 模式 (r_ptr 前移) | 设置 `uart_ring.overwrite=true`，填满 buffer 后再写入，验证最老字节被丢弃 |
+| J6 | `interrupts.h` | 53-54 | 中断频率超标 print | 设置 `check_interrupt_rate=true`，注入高频中断调用，验证 print 日志 |
+| J7 | `llfdcan.h` | 73-74 | `prescaler = BITRATE_PRESCALER * 16` (speed < 2500) | 用 `0xde` 命令设置速度=1000 (100 kbps)，触发低速 prescaler 路径 |
+| J8 | `main_comms.h` | 239-241 | `0xde` 命令中 `can_init()` 调用 | 当前 `can_bitrate.feature` 使用 `param2: 0` (无效速度)。改为 `param2: 5000` (500 kbps) 触发有效路径 |
+| J9 | `llfdcan.h` | 87 | `CAN_SP_DATA_5M` (data_speed=50000) | 用 `0xf9` 命令设置 `data_speed=50000` (5 Mbps)，触发 5M 采样点路径 |
+
+### 10.2 有条件可补 (❓ Medium, ~18 lines)
+
+需要更复杂的状态组合或依赖特定板型。
+
+| # | 文件 | 行号 | 未覆盖内容 | 障碍 |
+|---|------|------|-----------|------|
+| J10 | `gpio.h` | 93-101 | `detect_with_pull()` | 内部函数，被 harness 检测间接调用但 codegen 独立。需直接 JNA 调用 |
+| J11 | `can_health_pkt.h` | 29-30 | `last_data_stored_error` | 需触发 FDCAN DLEC (数据阶段错误)，需要构造特定 CAN 总线错误 |
+| J12 | `pwm.h` | 23-26 | `pwm_init` channel 4 | cuatro/tres 有 channel 4 (fan)，但 llfan 路径在 e2e 桩中被截断 |
+| J13 | `spi.h` | 88-95 | `spi_init()` | 依赖 `llspi_init()` → `llspi_mosi_dma()`，这些在 `fake_stm.h` 中已有桩，可尝试直接调用验证 DMA 初始化参数 |
+| J14 | `power_saving.h` | 39 | `llcan_irq_enable(cans[0])` (flipped harness) | 需先设置 `harness.status = HARNESS_STATUS_FLIPPED`，再进入省电模式 |
+
+### 10.3 不可补 (❌ No, ~165 lines)
+
+硬件依赖、编译条件或架构限制。
+
+| 类别 | 行数 | 代表性文件 | 原因 |
+|------|------|-----------|------|
+| `main()` 函数 + 启动初始化 | 81 | `main.c:270-389` | e2e 无主循环，硬件启动序列 |
+| LL 超时/错误路径 | 19 | `llfdcan.h:18-25,40-47,115-118` | 依赖真实硬件时序的超时和 print |
+| 硬件地址/寄存器直接访问 | 7 | `main_comms.h:132-135` (MCU UID @ UID_BASE) | 读取固定硬件地址 |
+| 调试/编译条件守卫 | 7 | `main_comms.h:101-107` (ALLOW_DEBUG), `registers.h:39` (DEBUG_FAULTS) | 编译期 `#ifdef` 守卫 |
+| 死代码/不可达分支 | 10 | `pwm.h:27-28,53-54` (default 分支), `main_comms.h:332-336` (default handler) | 仅在无效输入时触发 |
+| 系统复位/硬件崩溃 | 3 | `power_saving.h:120-121` (NVIC_SystemReset) | 调用即终止进程 |
+| 忙等待/无限循环 | 10 | `libc.h:3-8,12-17` (delay, assert_fatal) | e2e 中无限循环导致超时 |
+| ADC/电压读取 | 8 | `boards/cuatro.h:28-34`, `red.h:70-72` | 依赖 ADC 外设，e2e 中始终返回 0 |
+| 预处理器宏定义 | 3 | `board_declarations.h:51`, `led.h:2`, `llfdcan_declarations.h:10` | `#define` 不被计入执行覆盖 |
+| 未调用函数 | 4 | `unused_funcs.h:3-4`, `llfdcan_declarations.h:39` | `unused_init_bootloader` 从未被调用, FDCAN3 三元分支 |
+| 板型默认分支 | 8 | `boards/{cuatro,tres,red}.h` default cases | switch-default 路径在不合法输入时 |
+| 防御性 print | 5 | `spi.h:156-157,172-173`, `fdcan.h` | DEBUG 日志，正常流程不触发 |
+
+### 10.4 预期提升
+
+```
+当前基线: 91.2% (2259/2478)
+Phase J 完成 (Easy):  ~92.6% (~2295/2478, +36 lines)
+Phase J 完成 (Medium): ~93.3% (~2313/2478, +54 lines)
+理论极限: ~97.9% (2426/2478, 仅 52 行硬件强依赖不可覆盖)
+```
+
+### 10.5 需关注的回退
+
+以下文件覆盖率较上次记录下降：
+
+| 文件 | 上次 | 当前 | 变化 | 原因 |
+|------|------|------|------|------|
+| `harness.h` | 100% (70/70) | 90.0% (63/70) | -7 | `run_all_coverage.sh` 不再将 `harness.h` 从 ignore regex 排除，`harness_init()` 仅在 `main.c` 中调用，e2e 不执行 main() |
+| `unused_funcs.h` | 100% (23/23) | 91.3% (21/23) | -2 | `unused_init_bootloader` 函数体 (空函数) 在合并多板 LCOV 后显式为未覆盖 |
+| `drivers.h` | 80.0% (4/5) | 100% (5/5) | +1 | ✅ 提升 |
 
 ---
 
