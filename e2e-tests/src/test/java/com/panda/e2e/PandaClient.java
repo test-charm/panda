@@ -49,8 +49,6 @@ public class PandaClient {
 
         boolean jna_can_pop_tx(int queueIdx, int[] outAddr, byte[] outReturned, byte[] outData, byte[] outLen, byte[] outExtended, byte[] outFd);
 
-        void jna_can_clear_all();
-
         // CAN queue state manipulation for coverage testing
         void jna_set_can_queue_state(int queueIdx, int wPtr, int rPtr);
 

@@ -861,16 +861,6 @@ bool jna_can_pop_tx(int queue_idx, uint32_t *out_addr, uint8_t *out_returned, ui
     return false;
 }
 
-// Clear all CAN queues (reset read/write pointers)
-void jna_can_clear_all(void) {
-    can_rx_q.w_ptr = 0U;
-    can_rx_q.r_ptr = 0U;
-    for (int i = 0; i < PANDA_CAN_CNT; i++) {
-        can_queues[i]->w_ptr = 0U;
-        can_queues[i]->r_ptr = 0U;
-    }
-}
-
 // ---- JNA API: FDCAN register inspection ----
 void jna_reset_fdcan(void) {
     // BSS + data-segment init + can_init() handle all reset.
