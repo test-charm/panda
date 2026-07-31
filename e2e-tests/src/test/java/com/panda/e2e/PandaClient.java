@@ -96,9 +96,9 @@ public class PandaClient {
 
         // FDCAN RX FIFO injection for can_rx() path coverage (E.4)
         void jna_fdcan_write_rx_fifo(int canNumber, int elementIndex,
-                                      int extended, int addr,
-                                      int canfdFrame, int brsFrame,
-                                      byte dataLenCode, byte[] data);
+                                     int extended, int addr,
+                                     int canfdFrame, int brsFrame,
+                                     byte dataLenCode, byte[] data);
 
         void jna_set_fdcan_rxf0s(int canNumber, int val);
 
@@ -281,13 +281,21 @@ public class PandaClient {
 
         // ---- TIM3 (LED PWM) ----
         int jna_get_TIM3_CR1();
+
         int jna_get_TIM3_ARR();
+
         int jna_get_TIM3_CCMR1();
+
         int jna_get_TIM3_CCMR2();
+
         int jna_get_TIM3_CCER();
+
         int jna_get_TIM3_CCR1();
+
         int jna_get_TIM3_CCR2();
+
         int jna_get_TIM3_CCR3();
+
         int jna_get_TIM3_CCR4();
 
         // GPIO AFR register getters
@@ -372,9 +380,13 @@ public class PandaClient {
         int jna_get_interrupt_call_rate_max(int irqn);
 
         void jna_handle_interrupt(int irqn);
+
         void jna_interrupt_timer_tick();
+
         float jna_get_interrupt_load();
+
         int jna_get_interrupt_call_counter(int irqn);
+
         int jna_is_unused_handler(int irqn);
 
 
@@ -438,7 +450,9 @@ public class PandaClient {
 
         // Direct calls to real board readout functions (for coverage testing)
         int jna_cuatro_read_voltage_mV();
+
         int jna_cuatro_read_current_mA();
+
         int jna_red_read_voltage_mV();
 
         // Direct state setters (bypass firmware pipeline)
@@ -449,6 +463,7 @@ public class PandaClient {
         void jna_set_heartbeat_disabled(int val);
 
         int jna_get_nvic_reset_count();
+
         void jna_reset_nvic_count();
 
 
@@ -634,28 +649,48 @@ public class PandaClient {
 
         // SPI state machine (Phase F.5)
         int jna_spi_get_state();
+
         void jna_spi_set_state(int state);
+
         int jna_spi_get_can_tx_ready();
+
         void jna_spi_set_can_tx_ready(int ready);
+
         void jna_spi_write_rx_buf(byte[] data, int offset, int len);
+
         void jna_spi_read_tx_buf(byte[] out, int len);
+
         int jna_spi_rx_done();
+
         void jna_spi_tx_done(int reset);
+
         int jna_spi_get_error_count();
+
         void jna_spi_reset_error_count();
 
         // Phase J: additional coverage wrappers
         void jna_set_gpio_output_type_push_pull(int port_idx, int pin);  // J1
+
         void jna_harness_init();                                          // J2
+
         int jna_detect_with_pull(int port_idx, int pin, int pull_mode);   // J10
+
         void jna_spi_init();                                              // J13
+
         void jna_pwm_init_channel_3();                                   // J12b
+
         void jna_enter_stop_mode_ignition_on();                          // J12c
+
         int jna_get_can_health_total_tx_checksum_error_cnt(int bus);      // J3
+
         void jna_uart_overwrite_init(int fifo_size);                      // J5
+
         int jna_uart_put_char_overwrite(byte c);                          // J5
+
         int jna_uart_injectc_overwrite(byte c);                          // J5
+
         int jna_uart_get_rx_r_ptr();                                      // J5
+
         int jna_uart_get_tx_r_ptr();                                      // J5
     }
 
@@ -718,10 +753,6 @@ public class PandaClient {
                     outExtended[0] != 0, outFd[0] != 0));
         }
         return AdaptiveList.staticList(canMessages);
-    }
-
-    public void clearCanQueues() {
-        lib.jna_can_clear_all();
     }
 
     // ---- CAN queue state manipulation for coverage testing ----
@@ -1442,10 +1473,21 @@ public class PandaClient {
     }
 
     // Phase J: GPIO register getters for DAL assertions
-    public int getGpiobOtyper()   { return (int) lib.jna_get_reg_GPIOB_OTYPER(); }
-    public int getGpioaOtyper()   { return (int) lib.jna_get_reg_GPIOA_OTYPER(); }
-    public int getGpioaOdr()      { return (int) lib.jna_get_reg_GPIOA_ODR(); }
-    public int getGpiobPupdr()    { return (int) lib.jna_get_reg_GPIOB_PUPDR(); }
+    public int getGpiobOtyper() {
+        return (int) lib.jna_get_reg_GPIOB_OTYPER();
+    }
+
+    public int getGpioaOtyper() {
+        return (int) lib.jna_get_reg_GPIOA_OTYPER();
+    }
+
+    public int getGpioaOdr() {
+        return (int) lib.jna_get_reg_GPIOA_ODR();
+    }
+
+    public int getGpiobPupdr() {
+        return (int) lib.jna_get_reg_GPIOB_PUPDR();
+    }
 
     public void triggerFault(int fault) {
         lib.jna_trigger_fault(fault);
@@ -2051,6 +2093,11 @@ public class PandaClient {
     }
 
     // DAL-accessible getters for uart overwrite test assertions
-    public int getUartTxRPtr() { return uartGetTxRPtr(); }
-    public int getUartRxRPtr() { return uartGetRxRPtr(); }
+    public int getUartTxRPtr() {
+        return uartGetTxRPtr();
+    }
+
+    public int getUartRxRPtr() {
+        return uartGetRxRPtr();
+    }
 }

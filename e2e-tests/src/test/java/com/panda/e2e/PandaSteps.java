@@ -65,11 +65,6 @@ public class PandaSteps {
         client.processWfiIdle();
     }
 
-    @When("tick siren")
-    public void tickSiren() {
-        client.tickSiren();
-    }
-
     @When("trigger fault {int}")
     public void triggerFault(int fault) {
         client.triggerFault(fault);
@@ -322,11 +317,6 @@ public class PandaSteps {
 
     // ---- SPI state machine steps (Phase F.5) ----
 
-    @When("spi rx done")
-    public void spiRxDone() {
-        client.spiRxDone();
-    }
-
     @When("spi tx done")
     public void spiTxDone() {
         client.spiTxDone(false);
@@ -337,29 +327,9 @@ public class PandaSteps {
         client.spiTxDone(true);
     }
 
-    @When("spi write rx buf offset {int} with hex: {string}")
-    public void spiWriteRxBuf(int offset, String hexExpression) {
-        client.spiWriteRxBuf(hexToBytes(hexExpression), offset);
-    }
-
     @When("spi set state {int}")
     public void spiSetState(int state) {
         client.setSpiState(state);
-    }
-
-    @When("spi set can tx ready")
-    public void spiSetCanTxReady() {
-        client.setSpiCanTxReady(true);
-    }
-
-    @When("spi clear can tx ready")
-    public void spiClearCanTxReady() {
-        client.setSpiCanTxReady(false);
-    }
-
-    @When("spi reset error count")
-    public void spiResetErrorCount() {
-        client.resetSpiErrorCount();
     }
 
     @When("spi init")
