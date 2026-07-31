@@ -22,6 +22,7 @@
 // ---- NVIC stubs (overridden later in libpanda.c for tracking) ----
 #define NVIC_EnableIRQ(x)  ((void)(x))
 #define NVIC_DisableIRQ(x) ((void)(x))
+#define NVIC_ClearPendingIRQ(x) ((void)(x))
 
 // =============================================================================
 //  interrupts.h dependencies
@@ -117,7 +118,7 @@ typedef struct {
   uint32_t CNT;     // 0x24
   uint32_t PSC;     // 0x28
   uint32_t ARR;     // 0x2C
-  uint32_t _pad1;   // 0x30 (RCR)
+  uint32_t RCR;     // 0x30 — Repetition Counter (needed by body BLDC)
   uint32_t CCR1;    // 0x34
   uint32_t CCR2;    // 0x38
   uint32_t CCR3;    // 0x3C
@@ -153,8 +154,10 @@ typedef struct {
 #define TIM_CCER_CC2E       (1U << 4)
 #define TIM_CCER_CC3E       (1U << 8)
 #define TIM_CCER_CC4E       (1U << 12)
-#define TIM_CCER_CC2NE      (1U << 2)
-#define TIM_CCER_CC3NE      (1U << 4)
+#define TIM_CCER_CC1NE      (1U << 2)   // body BLDC complementary output (correct bit 2)
+#define TIM_CCER_CC2NE      (1U << 2)   // (unchanged from original fake_stm.h)
+#define TIM_CCER_CC3NE      (1U << 4)   // (unchanged from original fake_stm.h)
+#define TIM_SR_UIF          (1U << 0)   // Update interrupt flag
 #define TIM_DIER_UIE        (1U << 0)
 #define TIM_DIER_CC1IE      (1U << 1)
 #define TIM_BDTR_MOE        (1U << 15)
@@ -163,6 +166,7 @@ typedef struct {
 #define TIM_SMCR_TS_Pos     4U
 #define TIM_CR2_MMS_Pos     4U
 #define TIM_CR1_CEN         (1U << 0)
+#define TIM_CR1_CMS_0       (1U << 5)   // Center-aligned mode 1 (body BLDC)
 #define TIM_CR1_ARPE        (1U << 7)
 #define TIM_CCMR1_OC1M_Pos  4U
 #define TIM_CCMR1_OC1M_1    (1U << 5)
@@ -185,6 +189,14 @@ typedef struct {
 // ---- STM32H7 IRQ numbers (any value OK — NVIC_DisableIRQ is no-op) ----
 #define TIM1_UP_TIM10_IRQn  25
 #define TIM1_CC_IRQn        27
+#define TIM8_UP_TIM13_IRQn  44   // needed by body BLDC
+#define EXTI15_10_IRQn      40   // needed by body ignition/charging
+#define FDCAN1_IT0_IRQn     100
+#define FDCAN1_IT1_IRQn     101
+#define FDCAN2_IT0_IRQn     102
+#define FDCAN2_IT1_IRQn     103
+#define FDCAN3_IT0_IRQn     104
+#define FDCAN3_IT1_IRQn     105
 
 // ---- GPIO alternate function constants ----
 #define GPIO_AF1_TIM1       1U
@@ -208,6 +220,8 @@ typedef struct {
 #define GPIO_OSPEEDR_OSPEED12    (0x3UL << 24)
 #define GPIO_OSPEEDR_OSPEED13    (0x3UL << 26)
 #define GPIO_OSPEEDR_OSPEED14    (0x3UL << 28)
+#define GPIO_OSPEEDR_OSPEED5     (0x3UL << 10)    // body DotStar CLK/DATA pins (PB3, PB5)
+#define GPIO_OSPEEDR_OSPEED5_Msk (0x3UL << 10)
 
 // ---- PWR register bit macros (needed by tres_init) ----
 #define PWR_CR3_USBREGEN         (1UL << 25)
@@ -216,6 +230,9 @@ typedef struct {
 
 // ---- APB2 timer frequency (200 MHz for STM32H725) ----
 // APB1 is 120MHz, timer clock is 2x = 240MHz
+#define CORE_FREQ           240U     // in MHz (needed by body BLDC)
+#define APB1_FREQ           (CORE_FREQ/4U)
+#define APB2_FREQ           (CORE_FREQ/4U)
 #define APB1_TIMER_FREQ     240000000U
 #define APB2_TIMER_FREQ     200000000U
 

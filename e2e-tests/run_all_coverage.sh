@@ -7,6 +7,7 @@
 #   2. @cuatro tests                  → board=cuatro
 #   3. @tres-only tests               → board=tres
 #   4. @red-only tests                → board=red
+#   5. @body tests                    → board=body
 #
 # Then merges per-board coverage data into a single combined report.
 #
@@ -44,18 +45,18 @@ log_step()  { echo -e "\n${CYAN}━━━ $* ━━━${NC}"; }
 # ---------------------------------------------------------------------------
 log_step "Phase 0: Building coverage native libs for all boards"
 
-for BOARD in cuatro tres red; do
+for BOARD in cuatro tres red body; do
     log_info "Building libpanda_${BOARD}.dylib (coverage)..."
     COVERAGE=1 bash "$C_DIR/build.sh" "$BOARD"
 done
-log_ok "All 3 coverage dylibs built."
+log_ok "All 4 coverage dylibs built."
 
 # ---------------------------------------------------------------------------
 # Clean + prepare
 # ---------------------------------------------------------------------------
 log_step "Preparing coverage output directories"
 rm -rf "$COVERAGE_DIR"
-mkdir -p "$PROFRAW_DIR"/{cuatro,tres,red}
+mkdir -p "$PROFRAW_DIR"/{cuatro,tres,red,body}
 
 # ---------------------------------------------------------------------------
 # Helper: run cucumber with coverage, save profraw
@@ -93,7 +94,7 @@ log_info "Phase 1/4: General tests (no board tag)"
 run_coverage \
     "General tests" \
     "cuatro" \
-    "not @cuatro and not @tres and not @red" \
+    "not @cuatro and not @tres and not @red and not @body" \
     "$PROFRAW_DIR/cuatro/general.profraw"
 
 # ---------------------------------------------------------------------------
@@ -129,11 +130,22 @@ run_coverage \
     "@red and not @cuatro and not @tres" \
     "$PROFRAW_DIR/red/red_specific.profraw"
 
+# ---------------------------------------------------------------------------
+# Phase 5: @body tests
+# ---------------------------------------------------------------------------
+log_info "Phase 5/5: @body tests"
+
+run_coverage \
+    "@body tests" \
+    "body" \
+    "@body" \
+    "$PROFRAW_DIR/body/body.profraw"
+
 # ===========================================================================
 # Coverage Merge Phase
 # ===========================================================================
 
-IGNORE_REGEX='\.venv/|fake_stm\.h|libpanda\.c|stm32h7_config\.h'
+IGNORE_REGEX='\.venv/|fake_stm\.h|libpanda\.c|libpanda_body\.c|stm32h7_config\.h|bldc/bldc\.h'
 
 # ---------------------------------------------------------------------------
 # Phase 5: Per-board profraw → profdata → lcov
@@ -142,7 +154,7 @@ log_step "Phase 5: Per-board coverage merge (profraw → lcov)"
 
 ALL_LCOV=()
 
-for BOARD in cuatro tres red; do
+for BOARD in cuatro tres red body; do
     BOARD_PROFRAW_DIR="$PROFRAW_DIR/$BOARD"
     PROFDATA="$COVERAGE_DIR/${BOARD}.profdata"
     LCOV_FILE="$COVERAGE_DIR/${BOARD}.lcov"
@@ -207,7 +219,7 @@ echo -e "${GREEN}  All E2E Tests + Combined Coverage — Complete${NC}"
 echo -e "${GREEN}═══════════════════════════════════════════════════════════${NC}"
 echo ""
 echo -e "  Profraw files:   $PROFRAW_DIR/"
-echo -e "  Per-board LCOV:  $COVERAGE_DIR/{cuatro,tres,red}.lcov"
+echo -e "  Per-board LCOV:  $COVERAGE_DIR/{cuatro,tres,red,body}.lcov"
 echo -e "  Merged LCOV:     $MERGED_LCOV"
 echo -e "  HTML Report:     $HTML_DIR/index.html"
 echo ""
