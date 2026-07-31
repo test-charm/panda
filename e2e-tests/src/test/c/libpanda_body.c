@@ -259,7 +259,7 @@ const uint8_t gitversion[19] = "e2e-test-00000000";
 
 // ---- FULL body main.c ----
 // Prevent real bldc.h from being included (has Simulink word-size checks).
-// Our e2e stub at bldc/bldc.h (found via -I $SCRIPT_DIR) provides the override.
+// Our e2e stub at board/body/bldc/bldc.h (found via -I $SCRIPT_DIR) provides the override.
 #define BLDC_H
 #define main body_main
 #include "board/body/main.c"
