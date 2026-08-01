@@ -300,8 +300,9 @@ void jna_panda_init(void) {
   nvic_reset_call_count = 0;
   enter_bootloader_mode = 0;
 
-  // bldc_init() is called in body_main() startup (line 117).
-  // Call it here so all body tests get BLDC coverage automatically.
+  // bldc_init() and dotstar_init() are called in body_main() startup (line 116-117).
+  // Call them here so all body tests get full startup coverage automatically.
+  dotstar_init();
   bldc_init();
 }
 
@@ -354,3 +355,37 @@ unsigned int jna_body_get_tim8_ccr3(void) { return LEFT_TIM->CCR3; }
 unsigned int jna_body_get_tim1_ccr1(void) { return RIGHT_TIM->CCR1; }
 unsigned int jna_body_get_tim1_ccr2(void) { return RIGHT_TIM->CCR2; }
 unsigned int jna_body_get_tim1_ccr3(void) { return RIGHT_TIM->CCR3; }
+
+// ---- JNA: DotStar LED driver (B10-B12) ----
+void jna_dotstar_init(void) { dotstar_init(); }
+void jna_dotstar_fill(unsigned int r, unsigned int g, unsigned int b) {
+  dotstar_fill((uint8_t)r, (uint8_t)g, (uint8_t)b);
+}
+void jna_dotstar_show(void) { dotstar_show(); }
+void jna_dotstar_set_pixel(unsigned int index, unsigned int r, unsigned int g, unsigned int b) {
+  dotstar_set_pixel((uint16_t)index, (uint8_t)r, (uint8_t)g, (uint8_t)b);
+}
+void jna_dotstar_set_global_brightness(unsigned int brightness) {
+  dotstar_set_global_brightness((uint8_t)brightness);
+}
+void jna_dotstar_run_rainbow(unsigned int now_us) { dotstar_run_rainbow((uint32_t)now_us); }
+void jna_dotstar_apply_breathe(unsigned int r, unsigned int g, unsigned int b,
+                                unsigned int now_us, unsigned int cycle_us) {
+  dotstar_rgb_t color = {.r = (uint8_t)r, .g = (uint8_t)g, .b = (uint8_t)b};
+  dotstar_apply_breathe(color, (uint32_t)now_us, (uint32_t)cycle_us);
+}
+
+unsigned int jna_dotstar_get_pixel_r(unsigned int index) {
+  if (index >= DOTSTAR_LED_COUNT) return 0;
+  return dotstar_state.pixels[index].r;
+}
+unsigned int jna_dotstar_get_pixel_g(unsigned int index) {
+  if (index >= DOTSTAR_LED_COUNT) return 0;
+  return dotstar_state.pixels[index].g;
+}
+unsigned int jna_dotstar_get_pixel_b(unsigned int index) {
+  if (index >= DOTSTAR_LED_COUNT) return 0;
+  return dotstar_state.pixels[index].b;
+}
+unsigned int jna_dotstar_get_brightness(void) { return dotstar_state.global_brightness; }
+unsigned int jna_dotstar_is_initialized(void) { return dotstar_state.initialized ? 1U : 0U; }

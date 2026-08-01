@@ -85,6 +85,21 @@ public class BodyPandaClient {
         int jna_body_get_tim1_ccr3();
 
         void jna_panda_init();
+
+        // ---- DotStar LED driver (B10-B12) ----
+        void jna_dotstar_init();
+        void jna_dotstar_fill(int r, int g, int b);
+        void jna_dotstar_show();
+        void jna_dotstar_set_pixel(int index, int r, int g, int b);
+        void jna_dotstar_set_global_brightness(int brightness);
+        void jna_dotstar_run_rainbow(int now_us);
+        void jna_dotstar_apply_breathe(int r, int g, int b, int now_us, int cycle_us);
+
+        int jna_dotstar_get_pixel_r(int index);
+        int jna_dotstar_get_pixel_g(int index);
+        int jna_dotstar_get_pixel_b(int index);
+        int jna_dotstar_get_brightness();
+        int jna_dotstar_is_initialized();
     }
 
     // ---- Inner data classes (used by jfactory specs) ----
@@ -244,6 +259,39 @@ public class BodyPandaClient {
     public boolean isRightPwmActive() {
         return getTim1Ccr1() != 0 || getTim1Ccr2() != 0 || getTim1Ccr3() != 0;
     }
+
+    // ---- DotStar LED driver (B10-B12) ----
+
+    public void dotstarFill(int r, int g, int b) { lib.jna_dotstar_fill(r, g, b); }
+    public void dotstarShow() { lib.jna_dotstar_show(); }
+    public void dotstarSetPixel(int index, int r, int g, int b) { lib.jna_dotstar_set_pixel(index, r, g, b); }
+    public void dotstarSetGlobalBrightness(int brightness) { lib.jna_dotstar_set_global_brightness(brightness); }
+    public void dotstarRunRainbow(int nowUs) { lib.jna_dotstar_run_rainbow(nowUs); }
+    public void dotstarApplyBreathe(int r, int g, int b, int nowUs, int cycleUs) {
+        lib.jna_dotstar_apply_breathe(r, g, b, nowUs, cycleUs);
+    }
+
+    /**
+     * Nested object for DAL property resolution: {@code dotstar.initialized}, {@code dotstar.pixel0R}, etc.
+     */
+    @Getter
+    public class DotstarState {
+        public boolean isInitialized() { return lib.jna_dotstar_is_initialized() != 0; }
+        public int getBrightness() { return lib.jna_dotstar_get_brightness(); }
+        public int getPixel0R() { return lib.jna_dotstar_get_pixel_r(0); }
+        public int getPixel0G() { return lib.jna_dotstar_get_pixel_g(0); }
+        public int getPixel0B() { return lib.jna_dotstar_get_pixel_b(0); }
+        public int getPixel3R() { return lib.jna_dotstar_get_pixel_r(3); }
+        public int getPixel3G() { return lib.jna_dotstar_get_pixel_g(3); }
+        public int getPixel3B() { return lib.jna_dotstar_get_pixel_b(3); }
+        public int getPixel9R() { return lib.jna_dotstar_get_pixel_r(9); }
+        public int getPixel9G() { return lib.jna_dotstar_get_pixel_g(9); }
+        public int getPixel9B() { return lib.jna_dotstar_get_pixel_b(9); }
+    }
+
+    private final DotstarState dotstar = new DotstarState();
+
+    public DotstarState getDotstar() { return dotstar; }
 
     // ---- Public API ----
 

@@ -105,6 +105,15 @@ body 固件使用独立的 C 入口 `libpanda_body.c`（而非 `libpanda.c`）�
 | `jna_body_skip_calibration()` | 跳过 ADC 校准阶段, 设置非零偏移值 (B9 ✅) |
 | `jna_body_set_motor_speeds(l, r)` / `jna_body_set_enable_motors_val(e)` | 设置 `rpm_left`/`rpm_right`/`enable_motors` (B9 ✅) |
 | `jna_body_get_tim8_ccr1/2/3()` / `jna_body_get_tim1_ccr1/2/3()` | 读取 TIM8/TIM1 CCR1/2/3 (PWM 占空比验证, B9 ✅) |
+| `jna_dotstar_fill(r,g,b)` | 调用 `dotstar_fill()` (填充全部像素, B10 ✅) |
+| `jna_dotstar_show()` | 调用 `dotstar_show()` (发送 SPI 帧, B10 ✅) |
+| `jna_dotstar_set_pixel(idx,r,g,b)` | 调用 `dotstar_set_pixel()` (设置单个像素, B10b ✅) |
+| `jna_dotstar_set_global_brightness(b)` | 调用 `dotstar_set_global_brightness()` (设置全局亮度, B10c ✅) |
+| `jna_dotstar_run_rainbow(now_us)` | 调用 `dotstar_run_rainbow()` (彩虹动画, B11 ✅) |
+| `jna_dotstar_apply_breathe(r,g,b,now,cycle)` | 调用 `dotstar_apply_breathe()` (呼吸效果, B12 ✅) |
+| `jna_dotstar_get_pixel_r/g/b(idx)` | 读取 `dotstar_state.pixels[idx]` (像素颜色验证, B10-B12) |
+| `jna_dotstar_get_brightness()` | 读取 `dotstar_state.global_brightness` (亮度验证, B10c/B11/B12b) |
+| `jna_dotstar_is_initialized()` | 读取 `dotstar_state.initialized` (初始化验证, B10) |
 
 ## 目录结构
 
@@ -129,7 +138,7 @@ e2e-tests/
 │   │   └── bldc/                     # （已清理，实际使用 board/body/bldc/）
 │   ├── java/com/panda/e2e/
 │   │   ├── PandaClient.java          # JNA 接口 (panda)
-│       │   ├── BodyPandaClient.java      # JNA 接口 (body: USB 命令 + bldc_init + TIM 寄存器读取)
+│       │   ├── BodyPandaClient.java      # JNA 接口 (body: USB 命令 + bldc_init + dotstar + TIM 寄存器读取)
 │   │   ├── PandaSteps.java           # BDD 步骤定义 (panda)
 │       │   ├── BodyCommandsStepDefs.java # BDD 步骤定义 (body: control write, bldc init, verify)
 │   │   ├── ApplicationSteps.java     # @Before setUp
@@ -140,7 +149,7 @@ e2e-tests/
 │   │       ├── CanSendRequests.java  # CAN 发送 spec
 │   │       └── ...
 │   └── resources/
-│       ├── features/                 # 39 个 feature 文件（含 body_commands/body_shared_commands/body_bldc）
+│       ├── features/                 # 42 个 feature 文件（含 body_commands/body_shared_commands/body_bldc/body_dotstar）
 │       └── test-design/              # 测试设计文档
 ```
 
@@ -192,11 +201,12 @@ e2e-tests/
 | Body 电机命令 | `body_commands.feature` | 5 | rpmLeft/rpmRight/motorEnabled (0xb3/0xb4 通过 `board/body/main_comms.h`) |
 | Body 共享命令 | `body_shared_commands.feature` | 8 | hwType/respBuffer/nvicResetCount/enterBootloaderMode (0xc1/0xd1/0xd3/0xd4/0xd6/0xd8/0xdd, B1-B7 全部覆盖) |
 | **Body BLDC** | `body_bldc.feature` | 2 | B8: bldc_init() 自动调用，验证 TIM8/TIM1 CEN; B9: bldc_step() → BLDC_controller_step() FOC 算法，验证 TIM8/TIM1 CCR1/2/3 PWM 输出 |
+| **Body DotStar** | `body_dotstar.feature` | 6 | B10: dotstar_init() 在 jna_panda_init() 中自动调用 + dotstar_fill/show/set_pixel/brightness; B11: dotstar_run_rainbow() 彩虹动画; B12: dotstar_apply_breathe() 三角波呼吸效果 |
 
 ## C 代码覆盖率
 
 > 数据来源: `e2e-tests/run_all_coverage.sh` 合并报告 (cuatro + tres + red + body)
-> 生成时间: 2026-08-01 (B9: bldc_step → BLDC_controller_step FOC 算法)
+> 生成时间: 2026-08-01 (B12: dotstar LED driver B10-B12)
 > IGNORE_REGEX: 已排除 e2e stub (`bldc.h`, `stm32h7xx.h`)
 
 | 源文件 | 行覆盖 | 函数覆盖 | 说明 |
@@ -206,7 +216,7 @@ e2e-tests/
 | `board/body/main_comms.h` | **86.4%** (57/66) | — | ✅ body 共享命令 B1-B7 完成 (8/9 case 覆盖) |
 | `board/body/main.c` | **0%** (0/96) | — | ⏳ body 主循环待覆盖 (B18-B20) |
 | `board/body/can.h` | **0%** (0/92) | — | ⏳ body CAN 待覆盖 (B13-B17) |
-| `board/body/dotstar.h` | **0%** (0/158) | — | ⏳ body DotStar LED 待覆盖 (B10-B12) |
+| `board/body/dotstar.h` | **~95%** (~150/158) | — | ✅ B10-B12: dotstar_init/fill/set_pixel/brightness/rainbow/breathe 全覆盖 |
 | `board/body/bldc/BLDC_controller.c` | **~45%** (~570/1274) | — | ✅ B8: `bldc_init()` → `BLDC_controller_initialize()` ×2; ✅ B9: `bldc_step()` → `BLDC_controller_step()` FOC 算法 (PI 调节器/Clark-Park/SVPWM/速度环) |
 | `board/drivers/can_common.h` | **100%** (107/107) | 10/12 | CAN 通用操作 |
 | `board/drivers/gpio.h` | **100%** (72/72) | 6/7 | ✅ Phase J: J1 PUSH_PULL + J10 detect_with_pull 全覆盖 |
@@ -235,8 +245,8 @@ e2e-tests/
 | `board/drivers/uart.h` | **100%** (77/77) | — | ✅ Phase J: J5 injectc overwrite 全覆盖 |
 | `board/stm32h7/llfdcan_declarations.h` | **95.7%** (22/23) | — | CAN_NAME_FROM_CANIF FDCAN3 分支不可覆盖 |
 | **合计 (panda)** | **92.7%** (2340/2525, 40 files) | — | panda 固件 (cuatro+tres+red) |
-| **合计 (body)**  | **~45%** (~790/1762, 9 files)  | — | body 固件 (B1-B9: main_comms.h + bldc_init + bldc_step FOC) |
-| **合计 (全)**    | **~70%** (~3130/4287, 49 files) | — | 全板合并 (待 re-run 覆盖率) |
+| **合计 (body)**  | **~52%** (~940/1762, 9 files)  | — | body 固件 (B1-B12: main_comms.h + bldc_init + bldc_step FOC + dotstar LED) |
+| **合计 (全)**    | **~72%** (~3280/4287, 49 files) | — | 全板合并 (待 re-run 覆盖率) |
 
 ## 设计原则
 

@@ -200,7 +200,8 @@ bldc_step()
 ```c
 void body_main(void) {
   // ... 硬件初始化 (clock, peripherals, USB, interrupts, enable_fpu) ...
-  bldc_init();           // line 117
+  dotstar_init();         // line 116
+  bldc_init();            // line 117
   // ... 主循环 while(1):
   //   tick_handler()     // line 128 → 含 bldc_step() 调用 (TIM8 中断)
   //   comms_endpoint2_write → can_tx_comms_resume_usb  // line 131
@@ -208,7 +209,7 @@ void body_main(void) {
 }
 ```
 
-e2e 环境：`jna_panda_init()` 模拟固件启动，调用 `bldc_init()`。`bldc_step()` 通过独立的 `jna_bldc_step()` JNA 入口调用，模拟 TIM8 更新中断触发的 FOC 算法执行。
+e2e 环境：`jna_panda_init()` 模拟固件启动，依次调用 `dotstar_init()` 和 `bldc_init()`（与生产固件顺序一致）。`bldc_step()` 通过独立的 `jna_bldc_step()` JNA 入口调用，模拟 TIM8 更新中断触发的 FOC 算法执行。
 
 ### 6.1 B8: bldc_init — 初始化覆盖
 
