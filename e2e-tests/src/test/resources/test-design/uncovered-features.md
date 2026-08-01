@@ -65,17 +65,23 @@ Body 固件通过独立的 `libpanda_body.c` 编译 `board/body/main.c`（Phase 
 - `-I /path/to/panda/board/body` (body 子目录)
 - 编译宏: `-DPANDA_BODY` (激活 body 条件编译路径)
 
-进入覆盖率的 body 固件文件（5 个）：
+进入覆盖率的 body 固件文件（6 个，均有可执行代码）：
 
 ```
-board/body/main.c                     — Body 主固件逻辑
-board/body/main_comms.h               — Body USB 命令处理
-board/body/can.h                      — Body CAN 通信 (电机/状态/电池帧)
-board/body/dotstar.h                  — DotStar APA102 LED 驱动
-board/body/bldc/bldc_defs.h           — BLDC 电机常量定义
+board/body/main.c                     — Body 主固件逻辑 (main/tick_handler/exti15_10_handler/bldc_tim8_handler)
+board/body/main_comms.h               — Body USB 命令处理 (comms_control_handler 9 个 case + comms_endpoint2_write)
+board/body/can.h                      — Body CAN 通信 (8 个函数: 发送/接收/初始化/周期)
+board/body/dotstar.h                  — DotStar APA102 LED 驱动 (12 个函数: 初始化/像素/彩虹/呼吸效果)
+board/body/boards/board_body.h        — Body 板级初始化 (board_body_init + board_body struct)
+board/body/boards/board_declarations.h — Body 板级声明 (HW_TYPE_BODY + GPIO/CAN/DotStar 引脚定义)
 ```
 
-> Body 依赖的 `board/body/bldc/bldc.h` (BLDC Simulink 自动代码) 因 macOS LP64 字长不匹配，在 e2e 中被 `board/body/bldc/bldc.h` 桩替换。
+仅宏定义、无可执行代码而未进入覆盖率的 body 文件：
+```
+board/body/bldc/bldc_defs.h           — BLDC 电机常量 (#define 宏，不计入行覆盖)
+```
+
+> Body 依赖的 `board/body/bldc/bldc.h` (BLDC Simulink 自动代码) 因 macOS LP64 字长不匹配，在 e2e 中被 `e2e-tests/src/test/c/board/body/bldc/bldc.h` 桩替换。该桩在 `run_all_coverage.sh` 的 `IGNORE_REGEX` 中被 `bldc/bldc\.h` 规则排除出覆盖率。
 
 ### 1.3 未进入覆盖率的文件
 
@@ -139,14 +145,18 @@ board/body/bldc/bldc_defs.h           — BLDC 电机常量定义
 ### 2.2 Body 固件覆盖率
 
 > Body 固件通过 `libpanda_body.c` 独立编译，覆盖率由 `run_all_coverage.sh` 合并采集。
+> 现有 `@body` 测试仅通过 JNA 调用 `jna_body_control_write()` → `comms_control_handler()`，从未执行 `body_main()` 主循环。
 
-| 源文件 | 说明 |
-|--------|------|
-| `board/body/main_comms.h` | ✅ USB 命令处理 (0xb3/0xb4/0xc1/0xd6/0xdd) |
-| `board/body/main.c` | Body 主循环 (USB 命令路径覆盖，GPIO 初始化未覆盖) |
-| `board/body/can.h` | Body CAN 通信 (电机/状态/电池帧，周期性发送未覆盖) |
-| `board/body/dotstar.h` | DotStar LED 驱动 (部分覆盖) |
-| `board/body/bldc/bldc_defs.h` | BLDC 电机常量 (通过 bldc.h 桩间接覆盖) |
+| 源文件 | 行覆盖 | 说明 |
+|--------|--------|------|
+| `board/body/main_comms.h` | ~30% | 仅 0xb3/0xb4/0xc1 3 个 case 被覆盖；0xd1(含 2 个子分支 bootloader/softloader)、0xd3、0xd4、0xd6、0xd8、0xdd 及 `comms_endpoint2_write` 均未覆盖 |
+| `board/body/main.c` | 0% | `body_main()` 未执行：主循环（dotstar 彩虹/呼吸/电机启停逻辑）、`tick_handler()`（CAN 健康检查+LED 翻转）、`exti15_10_handler()`（点火消抖+充电检测）、`bldc_tim8_handler()`、`enable_fpu()`、`__initialize_hardware_early()`、`debug_ring_callback()` 全部未覆盖 |
+| `board/body/can.h` | 0% | 全部 8 个函数未覆盖：`body_can_send_motor_speeds()`、`body_can_send_var_values()`、`body_can_send_body_data()`、`body_can_process_target()`、`body_can_rx()`、`body_can_init()`、`body_can_periodic()`、`body_can_send_motor_speeds` 中的 0x222 v2 ID 帧 |
+| `board/body/dotstar.h` | 0% | 全部 12 个函数未覆盖：`dotstar_show()`、`dotstar_init()`、`dotstar_set_pixel()`、`dotstar_fill()`、`dotstar_set_global_brightness()`、`dotstar_hue_to_rgb()`、`dotstar_run_rainbow()`、`dotstar_apply_breathe()` 及低层 `dotstar_set_clk()`、`dotstar_set_data()`、`dotstar_write_byte()`、`dotstar_latch_len()`、`dotstar_send_start_frame()`、`dotstar_send_end_frame()` |
+| `board/body/boards/board_body.h` | 0% | `board_body_init()`（GPIO/CAN/EXTI/电源初始化）仅在 `body_main()` 中调用，未执行 |
+| `board/body/boards/board_declarations.h` | — | 仅 `#define` 宏，无可执行代码 |
+
+> **根因**：`libpanda_body.c` 提供了 JNA 入口函数 `jna_body_control_write()` / `jna_body_get_rpm_left()` 等来调用 `comms_control_handler()` 和读取全局变量，但从未提供调用 `body_main()` 的入口。所有通过 `body_main()` 主循环才能触达的代码路径（CAN 周期发送、LED 效果、中断处理、板级初始化）因此全部未覆盖。
 
 ---
 
@@ -200,18 +210,21 @@ libpanda_body.c (Phase K, 2026-07-31):
   #include "config.h"                         ← ✅ 真实代码 (构建配置)
   #include "board/stm32h7/stm32h7_config.h"   ← ⚠️ e2e 桩 (CMSIS 切断 + include 转发)
   #include "fdcan_regs.h"                     ← ⚠️ e2e 桩 (FDCAN 寄存器类型)
-  #include "board/drivers/gpio.h"             ← ✅ 真实代码
-  #include "board/body/boards/board_body.h"   ← ✅ 真实代码 (board_body struct)
+  #include "board/drivers/gpio.h"             ← ✅ 真实代码 (84.5%)
+  #include "board/body/boards/board_declarations.h" ← ✅ 真实代码 (body 引脚/HW_TYPE_BODY 宏定义)
+  #include "board/body/boards/board_body.h"   ← ✅ 真实代码 (board_body struct + board_body_init)
   #include "board/libc.h"                     ← ✅ 真实代码 (delay, memcpy)
-  #include "board/drivers/led.h"              ← ✅ 真实代码 (PWM LED)
-  #include "board/drivers/pwm.h"              ← ✅ 真实代码 (PWM 定时器)
-  #include "board/stm32h7/llfdcan.h"          ← ✅ 真实代码 (FDCAN 寄存器)
-  #include "board/drivers/fdcan.h"            ← ✅ 真实代码 (FDCAN 高层)
-  #include "board/drivers/interrupts.h"       ← ✅ 真实代码 (中断处理)
+  #include "board/drivers/led.h"              ← ✅ 真实代码 (PWM LED, 96.0%)
+  #include "board/drivers/pwm.h"              ← ✅ 真实代码 (PWM 定时器, 82.2%)
+  #include "board/stm32h7/llfdcan.h"          ← ✅ 真实代码 (FDCAN 寄存器, 83.2%)
+  #include "board/drivers/fdcan.h"            ← ✅ 真实代码 (FDCAN 高层, 94.9%)
+  #include "board/drivers/interrupts.h"       ← ✅ 真实代码 (中断处理, 96.2%)
   #include "board/stm32h7/lladc.h"            ← ⚠️ e2e 桩 (ADC 拦截)
-  #include "board/body/bldc/bldc.h"           ← ⚠️ e2e 桩 (BLDC Simulink 桩, macOS LP64 不兼容)
-  #include "board/body/main.c"                ← ✅ 完整 body 固件
+  #include "board/body/bldc/bldc.h"           ← ⚠️ e2e 桩 (BLDC Simulink 桩, macOS LP64 不兼容, -I 优先级路径 → 覆盖排除)
+  #include "board/body/main.c"                ← ✅ 完整 body 固件 (通过 #define BLDC_H 跳过真实 bldc.h)
 ```
+
+> **未被包含的真实 body 文件**：`board/body/can.h`、`board/body/dotstar.h` 通过 `board/body/main.c` 的 `#include` 间接进入编译，其 `static inline` 函数直接归属到对应头文件的覆盖率中。`board/body/bldc/bldc_defs.h` 仅含 `#define` 宏，无可执行代码。
 
 ### 3.2 桩文件清单 (15 个, 8 已完成) 与去桩化评估
 
@@ -345,15 +358,21 @@ libpanda_body.c (Phase K, 2026-07-31):
 - **Bootstub**: 3 个刷写命令未覆盖 (0xb0 echo, 0xb1 unlock, 0xb2 erase)，需独立 e2e 环境
 - **Jungle 固件**: 8 个命令未覆盖，需独立 e2e 环境
 
-### 4.3 Body 固件 — `board/body/main_comms.h` (✅ 已覆盖)
+### 4.3 Body 固件 — `board/body/main_comms.h` (3/9 已覆盖)
 
-| 命令 | 功能 | Feature |
-|------|------|---------|
-| 0xb3 | 电机转速 | `body_commands.feature` |
-| 0xb4 | 电机启停 | `body_commands.feature` |
-| 0xc1 | 硬件类型 | `body_shared_commands.feature` |
-| 0xd6 | 固件版本 | `body_shared_commands.feature` (隐式，通过 refreshState 覆盖) |
-| 0xdd | 数据包版本 | `body_shared_commands.feature` (隐式，通过 refreshState 覆盖) |
+> `comms_control_handler()` 共有 9 个 case（不含 default），现有测试仅覆盖 3 个。`comms_endpoint2_write()`（空实现）也未覆盖。
+
+| 命令 | 功能 | 状态 | Feature |
+|------|------|------|---------|
+| 0xb3 | 设置电机转速 | ✅ 已覆盖 | `body_commands.feature` |
+| 0xb4 | 电机启停 | ✅ 已覆盖 | `body_commands.feature` |
+| 0xc1 | 获取硬件类型 | ✅ 已覆盖 | `body_shared_commands.feature` |
+| 0xd1 | 进入 bootloader / softloader | ❌ 未覆盖 | 含 2 个子分支 (param1=0 bootloader, param1=1 softloader, default) |
+| 0xd3 | 签名字节 (offset=0, 64B) | ❌ 未覆盖 | 读取 `_app_start[0]` + offset 位置的前 64 字节 |
+| 0xd4 | 签名字节 (offset=64, 64B) | ❌ 未覆盖 | 读取 `_app_start[0]` + offset 位置的后 64 字节 |
+| 0xd6 | 固件版本 (`gitversion`) | ❌ 未覆盖 | 返回 18 字节 gitversion 字符串 |
+| 0xd8 | 系统复位 (NVIC_SystemReset) | ❌ 未覆盖 | 直接触发 NVIC_SystemReset() |
+| 0xdd | 数据包版本哈希 | ❌ 未覆盖 | 返回 `{HEALTH_PACKET_VERSION, CAN_PACKET_VERSION_HASH}` 8 字节 |
 
 ---
 
@@ -385,13 +404,36 @@ libpanda_body.c (Phase K, 2026-07-31):
 
 ### 5.2 Body 固件主循环
 
-Body 固件 (`board/body/main.c`) 的 `main()` 主循环为简单轮询模式，无 tick handler FSM。当前 e2e 覆盖的是 USB 命令处理路径（`comms_control_handler`），主循环的 LED 呼吸、CAN 周期性发送因无硬件主循环而未覆盖。覆盖要点：
+Body 固件 (`board/body/main.c`) 的 `body_main()` 主循环为简单轮询模式（无 tick handler FSM），执行如下逻辑：
 
-| 功能 | 覆盖方式 |
-|------|---------|
-| USB 命令 (0xb3/0xb4) | `jna_body_control_write` → `comms_control_handler` |
-| 全局状态读取 | `jna_body_get_rpm_left/right/enable_motors` / `jna_body_get_hw_type` |
-| 电机控制逻辑 | 通过命令写入 + 状态回读验证（`rpmLeft`/`rpmRight`/`motorEnabled`） |
+```
+while (true) {
+  充电中?  → motor_set_enable(false) + dotstar_apply_breathe(橙色)  ──→ dotstar_show()
+  点火中?  → dotstar_run_rainbow                                    ──→ dotstar_show()
+  否则     → dotstar_apply_breathe(绿色)                             ──→ dotstar_show()
+  点火中?  → motor_set_enable(true) + body_can_periodic()
+  否则     → motor_set_enable(false)
+}
+```
+
+**当前状态：全部未覆盖 (0%)**。`libpanda_body.c` 仅提供 `jna_body_control_write()` / `jna_body_get_*()` 入口，未提供调用 `body_main()` 的 JNA 入口。
+
+| 代码路径 | 所在文件 | 说明 |
+|---------|---------|------|
+| `body_main()` 主循环 | `board/body/main.c:89-144` | 初始化序列（中断/时钟/USB/CAN/DotStar/BLDC）+ while(true) 轮询。未执行 |
+| `tick_handler()` | `board/body/main.c:50-61` | CAN 健康检查（`transmit_error_cnt >= 128` → `llcan_init`）+ LED 翻转 + `tick_count++`。未覆盖 |
+| `exti15_10_handler()` | `board/body/main.c:63-87` | 充电检测（`CHARGING_DETECT_PIN` 边沿）+ 点火消抖（200ms 防抖 → 翻转 ignition → GPIO 输出）。未覆盖 |
+| `bldc_tim8_handler()` | `board/body/main.c:43-48` | TIM8 更新中断 → `bldc_step()`（BLDC 电机一步）。e2e 桩为 no-op。未覆盖 |
+| `enable_fpu()` | `board/body/main.c:34-36` | FPU 使能（`SCB->CPACR`），body 专用。未覆盖 |
+| `__initialize_hardware_early()` | `board/body/main.c:38-41` | 调用 `enable_fpu()` + `early_initialization()`。未覆盖 |
+| `debug_ring_callback()` | `board/body/main.c:27-32` | UART 调试回环（`get_char` → `injectc`）。未覆盖 |
+| `dotstar_run_rainbow()` | `board/body/dotstar.h:164-179` | 彩虹效果（HSV 颜色轮 + 呼吸亮度）。仅通过 `body_main()` 调用的 body 专用函数。未覆盖 |
+| `dotstar_apply_breathe()` | `board/body/dotstar.h:181-210` | 呼吸效果（线性三角波亮度）。未覆盖 |
+| `body_can_periodic()` | `board/body/can.h:91-118` | 周期 CAN 发送（10ms 间隔）：电机转速帧 + 变量值帧 + 电池数据帧 + 0x222 v2 ID 帧。仅通过 `body_main()` 调用。未覆盖 |
+| `body_can_init()` | `board/body/can.h:82-89` | CAN 初始化（safety hooks + CAN transceiver + can_init_all）。仅通过 `body_main()` 调用。未覆盖 |
+| `board_body_init()` | `board/body/boards/board_body.h:3-40` | GPIO/CAN 引脚/EXTI 中断/电源初始化。仅通过 `body_main()` → `current_board->init()` 调用。未覆盖 |
+
+> **可覆盖路径**：若要覆盖上述代码，需要在 `libpanda_body.c` 中新增 `jna_body_main_init()` / `jna_body_main_tick()` 等 JNA 入口，在测试中按需调用 `body_main()` 的初始化序列和主循环片段。中断处理函数可通过 `REGISTER_INTERRUPT` → 手动触发中断号来覆盖。
 
 ---
 
