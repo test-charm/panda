@@ -148,20 +148,27 @@ dotstar_apply_breathe(color, now_us, cycle_us)
 
 ## 6. 与生产固件的关系
 
-在生产固件 `board/body/main.c` 第 116 行：
+在生产固件 `board/body/main.c` 第 116 行之后，LED 动画由 `body_main()` 的 while 循环分支驱动：
 ```c
 void body_main(void) {
   // ... 硬件初始化 ...
   body_can_init();        // ← line 115
   dotstar_init();         // ← line 116
   bldc_init();            // ← line 117
-  // ... 主循环 while(1):
-  //   tick_handler()     // line 128 → dotstar_run_rainbow(uptime_cnt*125000)
-  //   ...
+  while (true) {
+    if (plug_charging) {
+      dotstar_apply_breathe(...);   // 橙色呼吸
+    } else if (ignition) {
+      dotstar_run_rainbow(now);     // 彩虹动画
+    } else {
+      dotstar_apply_breathe(...);   // 绿色呼吸
+    }
+    dotstar_show();
+  }
 }
 ```
 
-e2e 环境：`jna_panda_init()` 模拟固件启动，按 `body_can_init()` → `dotstar_init()` → `bldc_init()` 顺序执行（与生产固件顺序一致）。`dotstar_run_rainbow()` 和 `dotstar_apply_breathe()` 通过独立 JNA 入口调用，模拟主循环中的 LED 动画更新。
+e2e 环境：`jna_panda_init()` 模拟固件启动，按 `body_can_init()` → `dotstar_init()` → `bldc_init()` 顺序执行（与生产固件顺序一致）。`dotstar_run_rainbow()` 和 `dotstar_apply_breathe()` 通过独立 JNA 入口直接调用，等价模拟主循环中的 LED 动画更新；`body_main.feature` 当前只覆盖中断路径，还未直接驱动这些 while-loop 分支。
 
 ## 覆盖率
 

@@ -459,6 +459,86 @@ unsigned int jna_body_is_can_transceiver_enabled(void) {
   return ((pin_mode == MODE_OUTPUT) && (pin_level == 0U)) ? 1U : 0U;
 }
 
+void jna_body_call_tick_handler(void) {
+  TICK_TIMER->SR = 1U;
+  tick_handler();
+}
+
+void jna_body_set_can0_transmit_error_cnt(int count) {
+  can_health[0].transmit_error_cnt = (uint8_t)count;
+}
+
+void jna_body_set_can0_ile(int value) {
+  fake_fdcan[0].ILE = (uint32_t)value;
+}
+
+unsigned int jna_body_get_can0_ile(void) {
+  return fake_fdcan[0].ILE;
+}
+
+unsigned int jna_body_get_tick_count(void) {
+  return tick_count;
+}
+
+unsigned int jna_body_get_red_led_output(void) {
+  return (GPIOA->ODR >> 10U) & 0x1U;
+}
+
+void jna_body_set_charging_detect(int present) {
+  if (present != 0) {
+    CHARGING_DETECT_PORT->IDR |= (1U << CHARGING_DETECT_PIN);
+  } else {
+    CHARGING_DETECT_PORT->IDR &= ~(1U << CHARGING_DETECT_PIN);
+  }
+}
+
+void jna_body_set_ignition_pressed(int pressed) {
+  if (pressed != 0) {
+    IGNITION_SW_PORT->IDR &= ~(1U << IGNITION_SW_PIN);
+  } else {
+    IGNITION_SW_PORT->IDR |= (1U << IGNITION_SW_PIN);
+  }
+}
+
+void jna_body_trigger_charging_exti(void) {
+  EXTI->PR1 = (1U << CHARGING_DETECT_PIN);
+  exti15_10_handler();
+}
+
+void jna_body_trigger_ignition_exti(void) {
+  EXTI->PR1 = (1U << IGNITION_SW_PIN);
+  exti15_10_handler();
+}
+
+unsigned int jna_body_get_plug_charging(void) {
+  return plug_charging ? 1U : 0U;
+}
+
+unsigned int jna_body_get_ignition(void) {
+  return ignition ? 1U : 0U;
+}
+
+unsigned int jna_body_get_ignition_press_timestamp_us(void) {
+  return ignition_press_timestamp_us;
+}
+
+unsigned int jna_body_get_ignition_output(void) {
+  return (OBDC_IGNITION_ON_PORT->ODR >> OBDC_IGNITION_ON_PIN) & 0x1U;
+}
+
+void jna_body_trigger_tim8_irq(void) {
+  LEFT_TIM->SR = TIM_SR_UIF;
+  bldc_tim8_handler();
+}
+
+unsigned int jna_body_get_tim8_sr(void) {
+  return LEFT_TIM->SR;
+}
+
+int jna_body_get_left_dc_pha_a(void) {
+  return rtY_Left.DC_phaA;
+}
+
 bool jna_body_can_pop_tx(uint32_t *out_addr, uint8_t *out_returned, uint8_t *out_data, uint8_t *out_len,
                          uint8_t *out_extended, uint8_t *out_fd) {
   CANPacket_t pkt;

@@ -120,6 +120,12 @@ body 固件使用独立的 C 入口 `libpanda_body.c`（而非 `libpanda.c`）�
 | `jna_dotstar_get_pixel_r/g/b(idx)` | 读取 `dotstar_state.pixels[idx]` (像素颜色验证, B10-B12) |
 | `jna_dotstar_get_brightness()` | 读取 `dotstar_state.global_brightness` (亮度验证, B10c/B11/B12b) |
 | `jna_dotstar_is_initialized()` | 读取 `dotstar_state.initialized` (初始化验证, B10) |
+| `jna_body_call_tick_handler()` | 置位 `TICK_TIMER->SR=1` 后调用 body `tick_handler()` (B18 ✅) |
+| `jna_body_set_can0_transmit_error_cnt()` / `jna_body_set_can0_ile()` / `jna_body_get_can0_ile()` | 预置并观察 body CAN0 reset 条件 (B18 ✅) |
+| `jna_body_set_charging_detect()` / `jna_body_trigger_charging_exti()` | 模拟 charging EXTI 输入并触发 `exti15_10_handler()` (B19 ✅) |
+| `jna_body_set_ignition_pressed()` / `jna_body_trigger_ignition_exti()` | 模拟点火按键低电平与 EXTI 触发，覆盖 200ms 防抖逻辑 (B19 ✅) |
+| `jna_body_get_plug_charging()` / `jna_body_get_ignition()` / `jna_body_get_ignition_press_timestamp_us()` / `jna_body_get_ignition_output()` | 观察 charging/ignition 中断后的状态变化 (B19 ✅) |
+| `jna_body_trigger_tim8_irq()` / `jna_body_get_tim8_sr()` | 触发 TIM8 update IRQ，覆盖 `bldc_tim8_handler()` 与 UIF 清除路径 (B20 ✅) |
 
 ## 目录结构
 
@@ -140,23 +146,23 @@ e2e-tests/
 │   │   │   ├── drivers/              # 仅 2 个必须桩 (fake_siren.h, usb.h)
 │   │   │   ├── stm32h7/              # board.h / lladc.h ADC 拦截桩
 │   │   │   ├── obj/gitversion.h      # 固件版本桩
-│   │   │   └── body/bldc/bldc.h      # BLDC Simulink 桩（body）
+│   │   │   └── body/bldc/bldc.h      # BLDC 兼容包装器（include 真实 BLDC_controller）
 │   │   └── bldc/                     # （已清理，实际使用 board/body/bldc/）
 │   ├── java/com/panda/e2e/
 │   │   ├── PandaClient.java          # JNA 接口 (panda)
-│       │   ├── BodyPandaClient.java      # JNA 接口 (body: USB 命令 + CAN + BLDC + dotstar + TIM/队列读取)
+│       │   ├── BodyPandaClient.java      # JNA 接口 (body: USB 命令 + CAN + BLDC + dotstar + main 中断路径)
 │   │   ├── PandaSteps.java           # BDD 步骤定义 (panda)
-│       │   ├── BodyCommandsStepDefs.java # BDD 步骤定义 (body: control write, CAN, BLDC, dotstar, verify)
+│       │   ├── BodyCommandsStepDefs.java # BDD 步骤定义 (body: control write, CAN, BLDC, dotstar, interrupts, verify)
 │   │   ├── ApplicationSteps.java     # @Before setUp
 │   │   └── spec/
 │   │       ├── UsbControlRequests.java   # 33 个 USB 控制请求 spec (panda)
-│       │       ├── BodyUsbControlRequests.java # 5 个 USB 控制请求 spec + BodyControlSetup (body)
+│   │       ├── BodyUsbControlRequests.java # 5 个 USB 控制请求 spec + BodyControlSetup (body)
 │   │       ├── ControlSetups.java    # 前置数据 spec (panda)
 │   │       ├── CanSendRequests.java  # CAN 发送 spec
 │   │       └── ...
 │   └── resources/
-│       ├── features/                 # 43 个 feature 文件（含 body_commands/body_shared_commands/body_bldc/body_can/body_dotstar）
-│       └── test-design/              # 测试设计文档
+│       ├── features/                 # 44 个 feature 文件（含 body_commands/body_shared_commands/body_bldc/body_can/body_dotstar/body_main）
+│       └── test-design/              # 52 份测试设计文档（含 body-main.md）
 ```
 
 ## 被测功能覆盖
@@ -209,11 +215,12 @@ e2e-tests/
 | **Body BLDC** | `body_bldc.feature` | 2 | B8/B13: `jna_panda_init()` 启动路径自动调用 `body_can_init()` + `bldc_init()`，验证 CAN 初始化状态 + TIM8/TIM1 CEN；B9: `bldc_step()` → `BLDC_controller_step()` FOC 算法，验证 TIM8/TIM1 CCR1/2/3 PWM 输出 |
 | **Body CAN** | `body_can.feature` | 4 | B14-B17: 0x201/0x202/0x203 发送 helper、0x250 目标转速接收、100ms 超时归零、10ms 周期发送节流；通过 `rxQueue` 回显帧 + `bodyCan` 状态 + `rpmLeft/rpmRight` 验证 |
 | **Body DotStar** | `body_dotstar.feature` | 6 | B10: `dotstar_init()` 在 `jna_panda_init()` 启动路径中自动调用（前置会先执行 `body_can_init()`）+ dotstar_fill/show/set_pixel/brightness；B11: dotstar_run_rainbow() 彩虹动画；B12: dotstar_apply_breathe() 三角波呼吸效果 |
+| **Body Main 中断路径** | `body_main.feature` | 3 | B18-B20: `tick_handler()` CAN reset + 红灯翻转、`exti15_10_handler()` 充电/点火防抖、`bldc_tim8_handler()` → `bldc_step()` IRQ 路径；通过 `tickCount` / `can0Ile` / `plugCharging` / `ignition*` / `tim8Sr` / PWM 状态验证 |
 
 ## C 代码覆盖率
 
 > 数据来源: panda 侧为 `e2e-tests/run_all_coverage.sh` 合并报告；body 侧已用 `COVERAGE=1 ./gradlew cucumberCoverage -Pboard=body -Ptags='@body'` 重新校正
-> 生成时间: 2026-08-01 (已包含 B13-B17 body CAN)
+> 生成时间: 2026-08-01 (已包含 B18-B20 body main interrupt paths)
 > IGNORE_REGEX: 已排除 e2e stub (`bldc.h`, `stm32h7xx.h`)
 
 | 源文件 | 行覆盖 | 函数覆盖 | 说明 |
@@ -221,7 +228,7 @@ e2e-tests/
 | `board/main_comms.h` | **97.0%** (261/269) | 3/3 | USB 命令处理 (Phase J: 新增 0xc3 MCU UID + 修复 0xde) |
 | `board/main.c` | **64.2%** (145/226) | 4/7 | 主循环 + 初始化 |
 | `board/body/main_comms.h` | **86.4%** (57/66) | 1/2 | ✅ body 共享命令 B1-B7 完成 (8/9 case 覆盖；0xde 仍未实现) |
-| `board/body/main.c` | **0%** (0/96) | — | ⏳ body 主循环待覆盖 (B18-B20) |
+| `board/body/main.c` | **40.6%** (39/96) | 3/7 | ✅ B18-B20 已覆盖 `tick_handler()` / `exti15_10_handler()` / `bldc_tim8_handler()`；剩余为 `body_main()` 初始化/while 循环与早期硬件 helper |
 | `board/body/boards/board_body.h` | **0%** (0/27) | 0/1 | ⏳ `board_body_init()` 仍仅在 `body_main()` 中调用，待 B21 |
 | `board/body/can.h` | **100%** (82/82) | 7/7 | ✅ B13-B17 完成：`body_can_init()`（经 `jna_panda_init()` 启动路径）、发送 helper、RX 目标解析、超时归零、10ms 周期发送 |
 | `board/body/dotstar.h` | **91.0%** (141/155) | 14/14 | ✅ B10-B12：dotstar_init/fill/set_pixel/brightness/rainbow/breathe 高覆盖；未命中的主要是未初始化防御分支 |
@@ -253,7 +260,7 @@ e2e-tests/
 | `board/drivers/uart.h` | **100%** (77/77) | — | ✅ Phase J: J5 injectc overwrite 全覆盖 |
 | `board/stm32h7/llfdcan_declarations.h` | **95.7%** (22/23) | — | CAN_NAME_FROM_CANIF FDCAN3 分支不可覆盖 |
 | **合计 (panda)** | **92.7%** (2340/2525, 40 files) | — | panda 固件 (cuatro+tres+red) |
-| **合计 (body)**  | **待 full-suite re-run** | — | 最新 body 单板覆盖已包含 B13-B17；上述 body 文件行覆盖率已逐项校正 |
+| **合计 (body)**  | **单板关键文件已重测** | — | 最新 body 单板覆盖已包含 B18-B20；与 panda 的全板合并总计仍待下次 `run_all_coverage.sh` 刷新 |
 | **合计 (全)**    | **待 full-suite re-run** | — | 全板合并总计需在下次 `run_all_coverage.sh` 后刷新 |
 
 ## 设计原则

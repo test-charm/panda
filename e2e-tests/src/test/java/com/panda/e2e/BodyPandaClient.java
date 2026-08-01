@@ -113,6 +113,23 @@ public class BodyPandaClient {
         int jna_body_get_can_loopback();
         int jna_body_is_body_safety_mode();
         int jna_body_is_can_transceiver_enabled();
+        void jna_body_call_tick_handler();
+        void jna_body_set_can0_transmit_error_cnt(int count);
+        void jna_body_set_can0_ile(int value);
+        int jna_body_get_can0_ile();
+        int jna_body_get_tick_count();
+        int jna_body_get_red_led_output();
+        void jna_body_set_charging_detect(int present);
+        void jna_body_set_ignition_pressed(int pressed);
+        void jna_body_trigger_charging_exti();
+        void jna_body_trigger_ignition_exti();
+        int jna_body_get_plug_charging();
+        int jna_body_get_ignition();
+        int jna_body_get_ignition_press_timestamp_us();
+        int jna_body_get_ignition_output();
+        void jna_body_trigger_tim8_irq();
+        int jna_body_get_tim8_sr();
+        int jna_body_get_left_dc_pha_a();
         boolean jna_body_can_pop_tx(int[] outAddr, byte[] outReturned, byte[] outData, byte[] outLen, byte[] outExtended, byte[] outFd);
         boolean jna_body_can_pop_rx(int[] outAddr, byte[] outBus, byte[] outRejected, byte[] outReturned, byte[] outData, byte[] outLen, byte[] outExtended, byte[] outFd);
     }
@@ -359,6 +376,38 @@ public class BodyPandaClient {
         lib.jna_body_can_periodic(nowUs, ignition ? 1 : 0, plugCharging ? 1 : 0);
     }
 
+    public void callTickHandler() {
+        lib.jna_body_call_tick_handler();
+    }
+
+    public void setCan0TransmitErrorCount(int count) {
+        lib.jna_body_set_can0_transmit_error_cnt(count);
+    }
+
+    public void setCan0Ile(int value) {
+        lib.jna_body_set_can0_ile(value);
+    }
+
+    public void setChargingDetect(boolean present) {
+        lib.jna_body_set_charging_detect(present ? 1 : 0);
+    }
+
+    public void setIgnitionPressed(boolean pressed) {
+        lib.jna_body_set_ignition_pressed(pressed ? 1 : 0);
+    }
+
+    public void triggerChargingExti() {
+        lib.jna_body_trigger_charging_exti();
+    }
+
+    public void triggerIgnitionExti() {
+        lib.jna_body_trigger_ignition_exti();
+    }
+
+    public void triggerTim8UpdateInterrupt() {
+        lib.jna_body_trigger_tim8_irq();
+    }
+
     @Getter
     public class BodyCanState {
         public boolean isCanSilent() { return lib.jna_body_get_can_silent() != 0; }
@@ -371,6 +420,16 @@ public class BodyPandaClient {
     private final BodyCanState bodyCan = new BodyCanState();
 
     public BodyCanState getBodyCan() { return bodyCan; }
+
+    public int getTickCount() { return lib.jna_body_get_tick_count(); }
+    public int getCan0Ile() { return lib.jna_body_get_can0_ile(); }
+    public boolean isRedLedOn() { return lib.jna_body_get_red_led_output() != 0; }
+    public boolean isPlugCharging() { return lib.jna_body_get_plug_charging() != 0; }
+    public boolean isIgnition() { return lib.jna_body_get_ignition() != 0; }
+    public int getIgnitionPressTimestampUs() { return lib.jna_body_get_ignition_press_timestamp_us(); }
+    public boolean isIgnitionOutputOn() { return lib.jna_body_get_ignition_output() != 0; }
+    public int getTim8Sr() { return lib.jna_body_get_tim8_sr(); }
+    public int getLeftDcPhaA() { return lib.jna_body_get_left_dc_pha_a(); }
 
     public AdaptiveList<PandaClient.CanMessage> getTxQueue() {
         if (txQueueSnapshot != null) {

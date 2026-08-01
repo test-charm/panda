@@ -3,7 +3,7 @@
 > 功能: `bldc_init()` + `bldc_step()` in `e2e-tests/src/test/c/board/body/bldc/bldc.h` (e2e 兼容包装器)
 > 被测接口: `jna_panda_init()` → `body_can_init()` + `dotstar_init()` + `bldc_init()` (B8/B13 启动路径); `jna_bldc_step()` → `bldc_step()` (B9)
 > 固件目标: body (`board/body/main.c`)
-> 已完成: B8 + B9，且 B13 已合并到启动场景 (2026-08-01)
+> 已完成: B8 + B9，B13 已合并到启动场景，B20 已由 `body_main.feature` 交叉验证 TIM8 IRQ 路径 (2026-08-01)
 
 ## 1. 被测功能流程图
 
@@ -227,14 +227,13 @@ void body_main(void) {
   body_can_init();        // line 115
   dotstar_init();         // line 116
   bldc_init();            // line 117
-  // ... 主循环 while(1):
-  //   tick_handler()     // line 128 → 含 bldc_step() 调用 (TIM8 中断)
-  //   comms_endpoint2_write → can_tx_comms_resume_usb  // line 131
-  //   interrupt check    // line 134
+  // ... TIM8 update IRQ:
+  //   bldc_tim8_handler() → bldc_step()
+  // ... 主循环 while(1): 只负责 LED / 电机使能 / body_can_periodic
 }
 ```
 
-e2e 环境：`jna_panda_init()` 模拟固件启动，依次调用 `body_can_init()`、`dotstar_init()`、`bldc_init()`（与生产固件顺序一致）。`bldc_step()` 通过独立的 `jna_bldc_step()` JNA 入口调用，模拟 TIM8 更新中断触发的 FOC 算法执行。
+e2e 环境：`jna_panda_init()` 模拟固件启动，依次调用 `body_can_init()`、`dotstar_init()`、`bldc_init()`（与生产固件顺序一致）。`bldc_step()` 既可通过独立的 `jna_bldc_step()` 直接调用（`body_bldc.feature`，B9），也可通过 `jna_body_trigger_tim8_irq()` 走真实 TIM8 中断路径（`body_main.feature`，B20）。
 
 ### 6.1 B8/B13: 启动路径初始化覆盖
 

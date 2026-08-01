@@ -82,6 +82,11 @@ public class BodyCommandsStepDefs {
         bodyClient.bodyCanSetMicrosecondTimer(nowUs);
     }
 
+    @When("body set microsecond timer to {int}")
+    public void bodySetMicrosecondTimer(int nowUs) {
+        bodyClient.bodyCanSetMicrosecondTimer(nowUs);
+    }
+
     @When("body can receive target: left = {int} rpm, right = {int} rpm")
     public void bodyCanReceiveTarget(int leftRpm, int rightRpm) {
         bodyClient.bodyCanReceiveTarget(leftRpm, rightRpm);
@@ -90,6 +95,46 @@ public class BodyCommandsStepDefs {
     @When("body can periodic: now_us = {int}, ignition = {word}, charging = {word}")
     public void bodyCanPeriodic(int nowUs, String ignition, String charging) {
         bodyClient.bodyCanPeriodic(nowUs, "true".equals(ignition), "true".equals(charging));
+    }
+
+    @When("body tick handler")
+    public void bodyTickHandler() {
+        bodyClient.callTickHandler();
+    }
+
+    @When("body set CAN0 transmit error count to {int}")
+    public void bodySetCan0TransmitErrorCount(int count) {
+        bodyClient.setCan0TransmitErrorCount(count);
+    }
+
+    @When("body set CAN0 ILE to {int}")
+    public void bodySetCan0Ile(int value) {
+        bodyClient.setCan0Ile(value);
+    }
+
+    @When("body set charging detect to {word}")
+    public void bodySetChargingDetect(String present) {
+        bodyClient.setChargingDetect("true".equals(present));
+    }
+
+    @When("body set ignition pressed to {word}")
+    public void bodySetIgnitionPressed(String pressed) {
+        bodyClient.setIgnitionPressed("true".equals(pressed));
+    }
+
+    @When("body trigger charging EXTI")
+    public void bodyTriggerChargingExti() {
+        bodyClient.triggerChargingExti();
+    }
+
+    @When("body trigger ignition EXTI")
+    public void bodyTriggerIgnitionExti() {
+        bodyClient.triggerIgnitionExti();
+    }
+
+    @When("body trigger TIM8 update interrupt")
+    public void bodyTriggerTim8UpdateInterrupt() {
+        bodyClient.triggerTim8UpdateInterrupt();
     }
 
     @Then("body control data should be:")
