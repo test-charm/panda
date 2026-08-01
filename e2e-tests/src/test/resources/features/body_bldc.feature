@@ -2,12 +2,27 @@
 @body
 Feature: Body Firmware BLDC Motor Control
 
-  Scenario: B8/B13 — startup initializes BLDC PWM and body CAN
+  Scenario: B8/B13/B21 — startup initializes board GPIO, BLDC PWM, and body CAN
     Then body control data should be:
       """
       : {
         leftTimerEnabled: true
         rightTimerEnabled: true
+        canRxMode: 2
+        canTxMode: 2
+        canRxAf: 9
+        canTxAf: 9
+        obdcPowerMode: 1
+        gpuPowerMode: 1
+        ignitionOutputMode: 1
+        chargingDetectPupdr: 1
+        exticr3: 8224
+        extiImr1: 40960
+        extiRtsr1: 40960
+        extiFtsr1: 40960
+        obdcPowerOn: true
+        gpuPowerOn: false
+        ignitionOutputOn: false
         bodyCan: {
           canSilent: false
           canLoopback: false

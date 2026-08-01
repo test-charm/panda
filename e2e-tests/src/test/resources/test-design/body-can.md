@@ -1,7 +1,7 @@
 # Body CAN 通信 — 测试设计文档
 
 > 功能: `body_can_*()` in `board/body/can.h`
-> 被测接口: `jna_panda_init()` → `body_can_init()` (B13 启动路径); `jna_body_can_send_*()` / `jna_body_can_receive_target()` / `jna_body_can_periodic()` (B14-B17)
+> 被测接口: `jna_panda_init()` → `board_body_init()` → `body_can_init()` (B13/B21 启动路径); `jna_body_can_send_*()` / `jna_body_can_receive_target()` / `jna_body_can_periodic()` (B14-B17)
 > 固件目标: body (`board/body/main.c`)
 > 已完成: B13-B17 (2026-08-01)
 
@@ -52,7 +52,7 @@ body_can_periodic(now, ignition, charging)
 ```
 
 > **e2e 特性**: `can_send(..., skip_tx_hook=true)` 会立即 `process_can()`，并把发送出去的帧以 `returned=true` 的形式回灌到 `rxQueue`。因此 B14/B17 在测试中断言的是 `rxQueue`，不是硬件 TX FIFO。
-> **B13 融合方式**: `body_can_init()` 已并入 `body_bldc.feature` 的启动场景 `B8/B13`，不再保留单独 feature 场景。
+> **B13 融合方式**: `body_can_init()` 已并入 `body_bldc.feature` 的启动场景 `B8/B13/B21`，不再保留单独 feature 场景。
 
 ## 2. 输入因子
 
@@ -85,7 +85,7 @@ body_can_periodic(now, ignition, charging)
 
 ## 4. 测试用例
 
-### TC1 (B13, 合并到 body_bldc.feature): 启动时完成 body CAN 初始化
+### TC1 (B13/B21, 合并到 body_bldc.feature): 启动时完成 board/body CAN 初始化
 - 前置: 无（`jna_panda_init()` 自动执行）
 - 输出:
   - `bodyCan.canSilent=false`
@@ -175,7 +175,7 @@ void body_main(void) {
 ```
 
 e2e 环境中：
-1. `jna_panda_init()` 模拟启动序列，先覆盖 `body_can_init()`
+1. `jna_panda_init()` 模拟启动序列，先覆盖 `board_body_init()`，再覆盖 `body_can_init()`
 2. `body_can_send_*()` / `body_can_rx()` / `body_can_periodic()` 通过独立 JNA 入口直接调用
 3. 这样无需执行 `while(true)` 主循环，也能覆盖 CAN 子系统全部可测逻辑
 

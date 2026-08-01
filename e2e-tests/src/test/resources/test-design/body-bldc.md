@@ -1,7 +1,7 @@
 # Body BLDC 电机控制 — 测试设计文档
 
-> 功能: `bldc_init()` + `bldc_step()` in `e2e-tests/src/test/c/board/body/bldc/bldc.h` (e2e 兼容包装器)
-> 被测接口: `jna_panda_init()` → `body_can_init()` + `dotstar_init()` + `bldc_init()` (B8/B13 启动路径); `jna_bldc_step()` → `bldc_step()` (B9)
+> 功能: `board_body_init()` + `bldc_init()` + `bldc_step()` in body 固件启动路径
+> 被测接口: `jna_panda_init()` → `board_body_init()` + `body_can_init()` + `dotstar_init()` + `bldc_init()` (B8/B13/B21 启动路径); `jna_bldc_step()` → `bldc_step()` (B9)
 > 固件目标: body (`board/body/main.c`)
 > 已完成: B8 + B9，B13 已合并到启动场景，B20 已由 `body_main.feature` 交叉验证 TIM8 IRQ 路径 (2026-08-01)
 
@@ -9,6 +9,15 @@
 
 ```
 jna_panda_init() (body 固件启动模拟)
+     │
+     ▼
+board_body_init()
+     │
+     ├─ CAN GPIO alternate / no-pull
+     ├─ EXTI13 / EXTI15 rising+falling + unmask
+     ├─ OBDC power on = 1
+     ├─ GPU power on = 0
+     └─ ignition output = 0
      │
      ▼
 body_can_init()
@@ -51,7 +60,7 @@ bldc_init()
      └─ RIGHT_TIM (TIM1) 配置: 同 TIM8
 ```
 
-> **关键验证点**: 启动后 `body_can_init()` 与 `bldc_init()` 都应生效：`bodyCan.canSilent=false` / `bodyCan.canLoopback=false` / `bodyCan.bodySafetyHooksSet=true` / `bodyCan.canTransceiverEnabled=true`，且 LEFT_TIM->CR1 / RIGHT_TIM->CR1 的 `TIM_CR1_CEN` (bit 0) 应置位。
+> **关键验证点**: 启动后 `board_body_init()`、`body_can_init()` 与 `bldc_init()` 都应生效：`bodyCan.canSilent=false` / `bodyCan.canLoopback=false` / `bodyCan.bodySafetyHooksSet=true` / `bodyCan.canTransceiverEnabled=true`，`EXTI`/`SYSCFG`/电源寄存器已配置，且 LEFT_TIM->CR1 / RIGHT_TIM->CR1 的 `TIM_CR1_CEN` (bit 0) 应置位。
 
 ## 2. 输入因子
 
@@ -81,23 +90,28 @@ bldc_init()
 
 ## 4. 测试用例
 
-### TC1 (B8/B13): 启动时完成 body CAN 初始化并设置 TIM8/TIM1 PWM
-- 前置: 无（`jna_panda_init()` 在库加载时自动按启动顺序调用 `body_can_init()` → `dotstar_init()` → `bldc_init()`）
+### TC1 (B8/B13/B21): 启动时完成 board/body CAN 初始化并设置 TIM8/TIM1 PWM
+- 前置: 无（`jna_panda_init()` 在库加载时自动按启动顺序调用 `board_body_init()` → `body_can_init()` → `dotstar_init()` → `bldc_init()`）
 - 输入: 无（所有 body 场景共享此初始化）
 - 输出:
+  - `exticr3=8224`, `extiImr1=40960`, `extiRtsr1=40960`, `extiFtsr1=40960`
+  - `obdcPowerOn=true`, `gpuPowerOn=false`, `ignitionOutputOn=false`
   - `bodyCan.canSilent=false`
   - `bodyCan.canLoopback=false`
   - `bodyCan.bodySafetyHooksSet=true`
   - `bodyCan.canTransceiverEnabled=true`
   - `leftTimerEnabled=true`, `rightTimerEnabled=true`
 - 验证方式: 读取 `TIM8->CR1 & TIM_CR1_CEN` / `TIM1->CR1 & TIM_CR1_CEN`
-- 覆盖: `body_can_init()` 启动路径 + `bldc_init()` 完整路径 + `BLDC_controller_initialize()` ×2
+- 覆盖: `board_body_init()` + `body_can_init()` 启动路径 + `bldc_init()` 完整路径 + `BLDC_controller_initialize()` ×2
 
 ## 5. 覆盖检查
 
 | 条件 | TC1 |
 |------|-----|
 | `body_can_init()` 启动调用 | ✅ |
+| `board_body_init()` 启动调用 | ✅ |
+| EXTI / SYSCFG 初始化 | ✅ |
+| OBDC/GPU/IGNITION 电源 GPIO 初始化 | ✅ |
 | `can_silent=false` / `can_loopback=false` | ✅ |
 | `set_safety_hooks(SAFETY_BODY)` | ✅ |
 | CAN 收发器使能 GPIO | ✅ |
@@ -108,7 +122,7 @@ bldc_init()
 | GPIO Hall 传感器配置 | ✅ (寄存器操作自动覆盖) |
 | TIM PWM 寄存器配置 | ✅ (ARR/EEC/CCMR/BDTR 操作自动覆盖) |
 
-✅ B8/B13: 启动场景同时覆盖 `body_can_init()` 与 `bldc_init()`。`BLDC_controller_initialize()` 及参数数据结构引用已通过编译器链接自动进入覆盖率。
+✅ B8/B13/B21: 启动场景同时覆盖 `board_body_init()`、`body_can_init()` 与 `bldc_init()`。`BLDC_controller_initialize()` 及参数数据结构引用已通过编译器链接自动进入覆盖率。
 
 ---
 
@@ -224,6 +238,7 @@ bldc_step()
 ```c
 void body_main(void) {
   // ... 硬件初始化 (clock, peripherals, USB, interrupts, enable_fpu) ...
+  current_board->init();  // line 99, 即 board_body_init()
   body_can_init();        // line 115
   dotstar_init();         // line 116
   bldc_init();            // line 117
@@ -233,7 +248,7 @@ void body_main(void) {
 }
 ```
 
-e2e 环境：`jna_panda_init()` 模拟固件启动，依次调用 `body_can_init()`、`dotstar_init()`、`bldc_init()`（与生产固件顺序一致）。`bldc_step()` 既可通过独立的 `jna_bldc_step()` 直接调用（`body_bldc.feature`，B9），也可通过 `jna_body_trigger_tim8_irq()` 走真实 TIM8 中断路径（`body_main.feature`，B20）。
+e2e 环境：`jna_panda_init()` 模拟固件启动，依次调用 `board_body_init()`、`body_can_init()`、`dotstar_init()`、`bldc_init()`（与生产固件顺序一致）。`bldc_step()` 既可通过独立的 `jna_bldc_step()` 直接调用（`body_bldc.feature`，B9），也可通过 `jna_body_trigger_tim8_irq()` 走真实 TIM8 中断路径（`body_main.feature`，B20）。
 
 ### 6.1 B8/B13: 启动路径初始化覆盖
 

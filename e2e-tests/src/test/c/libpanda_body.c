@@ -307,9 +307,17 @@ void jna_panda_init(void) {
   nvic_reset_call_count = 0;
   enter_bootloader_mode = 0;
   e2e_microsecond_timer = 0U;
+  current_board = &board_body;
 
-  // body_main() startup initializes CAN, DotStar, then BLDC.
+  e2e_GPIOB = (GPIO_TypeDef){0};
+  e2e_GPIOC = (GPIO_TypeDef){0};
+  e2e_GPIOD = (GPIO_TypeDef){0};
+  e2e_SYSCFG = (struct e2e_SYSCFG_Regs){0};
+  e2e_EXTI = (struct e2e_EXTI_Regs){0};
+
+  // body_main() startup initializes board GPIO/EXTI, then CAN, DotStar, and BLDC.
   // Mirror that startup path here so each body scenario begins from firmware init state.
+  board_body_init();
   body_can_init();
   dotstar_init();
   bldc_init();
@@ -457,6 +465,62 @@ unsigned int jna_body_is_can_transceiver_enabled(void) {
   const unsigned int pin_mode = (CAN_TRANSCEIVER_EN_PORT->MODER >> (CAN_TRANSCEIVER_EN_PIN * 2U)) & 0x3U;
   const unsigned int pin_level = (CAN_TRANSCEIVER_EN_PORT->ODR >> CAN_TRANSCEIVER_EN_PIN) & 0x1U;
   return ((pin_mode == MODE_OUTPUT) && (pin_level == 0U)) ? 1U : 0U;
+}
+
+unsigned int jna_body_get_exticr3(void) {
+  return SYSCFG->EXTICR[3];
+}
+
+unsigned int jna_body_get_exti_imr1(void) {
+  return EXTI->IMR1;
+}
+
+unsigned int jna_body_get_exti_rtsr1(void) {
+  return EXTI->RTSR1;
+}
+
+unsigned int jna_body_get_exti_ftsr1(void) {
+  return EXTI->FTSR1;
+}
+
+unsigned int jna_body_get_charging_detect_pupdr(void) {
+  return (CHARGING_DETECT_PORT->PUPDR >> (CHARGING_DETECT_PIN * 2U)) & 0x3U;
+}
+
+unsigned int jna_body_get_can_rx_mode(void) {
+  return (CAN_RX_PORT->MODER >> (CAN_RX_PIN * 2U)) & 0x3U;
+}
+
+unsigned int jna_body_get_can_tx_mode(void) {
+  return (CAN_TX_PORT->MODER >> (CAN_TX_PIN * 2U)) & 0x3U;
+}
+
+unsigned int jna_body_get_can_rx_af(void) {
+  return (CAN_RX_PORT->AFR[CAN_RX_PIN >> 3U] >> ((CAN_RX_PIN & 7U) * 4U)) & 0xFU;
+}
+
+unsigned int jna_body_get_can_tx_af(void) {
+  return (CAN_TX_PORT->AFR[CAN_TX_PIN >> 3U] >> ((CAN_TX_PIN & 7U) * 4U)) & 0xFU;
+}
+
+unsigned int jna_body_get_obdc_power_mode(void) {
+  return (OBDC_POWER_ON_PORT->MODER >> (OBDC_POWER_ON_PIN * 2U)) & 0x3U;
+}
+
+unsigned int jna_body_get_gpu_power_mode(void) {
+  return (GPU_POWER_ON_PORT->MODER >> (GPU_POWER_ON_PIN * 2U)) & 0x3U;
+}
+
+unsigned int jna_body_get_ignition_output_mode(void) {
+  return (OBDC_IGNITION_ON_PORT->MODER >> (OBDC_IGNITION_ON_PIN * 2U)) & 0x3U;
+}
+
+unsigned int jna_body_get_obdc_power_output(void) {
+  return (OBDC_POWER_ON_PORT->ODR >> OBDC_POWER_ON_PIN) & 0x1U;
+}
+
+unsigned int jna_body_get_gpu_power_output(void) {
+  return (GPU_POWER_ON_PORT->ODR >> GPU_POWER_ON_PIN) & 0x1U;
 }
 
 void jna_body_call_tick_handler(void) {

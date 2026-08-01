@@ -113,6 +113,20 @@ public class BodyPandaClient {
         int jna_body_get_can_loopback();
         int jna_body_is_body_safety_mode();
         int jna_body_is_can_transceiver_enabled();
+        int jna_body_get_exticr3();
+        int jna_body_get_exti_imr1();
+        int jna_body_get_exti_rtsr1();
+        int jna_body_get_exti_ftsr1();
+        int jna_body_get_charging_detect_pupdr();
+        int jna_body_get_can_rx_mode();
+        int jna_body_get_can_tx_mode();
+        int jna_body_get_can_rx_af();
+        int jna_body_get_can_tx_af();
+        int jna_body_get_obdc_power_mode();
+        int jna_body_get_gpu_power_mode();
+        int jna_body_get_ignition_output_mode();
+        int jna_body_get_obdc_power_output();
+        int jna_body_get_gpu_power_output();
         void jna_body_call_tick_handler();
         void jna_body_set_can0_transmit_error_cnt(int count);
         void jna_body_set_can0_ile(int value);
@@ -422,6 +436,20 @@ public class BodyPandaClient {
     public BodyCanState getBodyCan() { return bodyCan; }
 
     public int getTickCount() { return lib.jna_body_get_tick_count(); }
+    public int getExticr3() { return lib.jna_body_get_exticr3(); }
+    public int getExtiImr1() { return lib.jna_body_get_exti_imr1(); }
+    public int getExtiRtsr1() { return lib.jna_body_get_exti_rtsr1(); }
+    public int getExtiFtsr1() { return lib.jna_body_get_exti_ftsr1(); }
+    public int getChargingDetectPupdr() { return lib.jna_body_get_charging_detect_pupdr(); }
+    public int getCanRxMode() { return lib.jna_body_get_can_rx_mode(); }
+    public int getCanTxMode() { return lib.jna_body_get_can_tx_mode(); }
+    public int getCanRxAf() { return lib.jna_body_get_can_rx_af(); }
+    public int getCanTxAf() { return lib.jna_body_get_can_tx_af(); }
+    public int getObdcPowerMode() { return lib.jna_body_get_obdc_power_mode(); }
+    public int getGpuPowerMode() { return lib.jna_body_get_gpu_power_mode(); }
+    public int getIgnitionOutputMode() { return lib.jna_body_get_ignition_output_mode(); }
+    public boolean isObdcPowerOn() { return lib.jna_body_get_obdc_power_output() != 0; }
+    public boolean isGpuPowerOn() { return lib.jna_body_get_gpu_power_output() != 0; }
     public int getCan0Ile() { return lib.jna_body_get_can0_ile(); }
     public boolean isRedLedOn() { return lib.jna_body_get_red_led_output() != 0; }
     public boolean isPlugCharging() { return lib.jna_body_get_plug_charging() != 0; }

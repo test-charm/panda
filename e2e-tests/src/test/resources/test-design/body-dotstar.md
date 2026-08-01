@@ -1,7 +1,7 @@
 # Body DotStar LED 驱动 — 测试设计文档
 
 > 功能: `dotstar_init()` + `dotstar_fill()` + `dotstar_set_pixel()` + `dotstar_set_global_brightness()` + `dotstar_run_rainbow()` + `dotstar_apply_breathe()` in `board/body/dotstar.h`
-> 被测接口: `jna_panda_init()` → `body_can_init()` → `dotstar_init()` (启动路径); JNA 直接调用 `dotstar_fill` / `dotstar_show` / `dotstar_set_pixel` / `dotstar_set_global_brightness` / `dotstar_run_rainbow` / `dotstar_apply_breathe`
+> 被测接口: `jna_panda_init()` → `board_body_init()` → `body_can_init()` → `dotstar_init()` (启动路径); JNA 直接调用 `dotstar_fill` / `dotstar_show` / `dotstar_set_pixel` / `dotstar_set_global_brightness` / `dotstar_run_rainbow` / `dotstar_apply_breathe`
 > 固件目标: body (`board/body/main.c`)
 > 已完成: B10 + B11 + B12 (2026-08-01)
 
@@ -168,7 +168,7 @@ void body_main(void) {
 }
 ```
 
-e2e 环境：`jna_panda_init()` 模拟固件启动，按 `body_can_init()` → `dotstar_init()` → `bldc_init()` 顺序执行（与生产固件顺序一致）。`dotstar_run_rainbow()` 和 `dotstar_apply_breathe()` 通过独立 JNA 入口直接调用，等价模拟主循环中的 LED 动画更新；`body_main.feature` 当前只覆盖中断路径，还未直接驱动这些 while-loop 分支。
+e2e 环境：`jna_panda_init()` 模拟固件启动，按 `board_body_init()` → `body_can_init()` → `dotstar_init()` → `bldc_init()` 顺序执行（与生产固件顺序一致）。`dotstar_run_rainbow()` 和 `dotstar_apply_breathe()` 通过独立 JNA 入口直接调用，等价模拟主循环中的 LED 动画更新；`body_main.feature` 当前只覆盖中断路径，还未直接驱动这些 while-loop 分支。
 
 ## 覆盖率
 

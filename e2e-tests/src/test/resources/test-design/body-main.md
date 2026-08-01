@@ -159,7 +159,7 @@ REGISTER_INTERRUPT(TIM8_UP_TIM13_IRQn, bldc_tim8_handler, ...)
 REGISTER_INTERRUPT(TICK_TIMER_IRQ, tick_handler, ...)
 ```
 
-e2e 环境不执行 `while (true)` 主循环，但通过独立 JNA 入口直接驱动这些中断处理函数，因此可以在不引入无限循环的前提下验证 `board/body/main.c` 的可测逻辑。`board_body_init()` 与 `body_main()` 初始化序列仍属于后续 B21 范围。
+e2e 环境不执行 `while (true)` 主循环，但通过独立 JNA 入口直接驱动这些中断处理函数，因此可以在不引入无限循环的前提下验证 `board/body/main.c` 的可测逻辑。`board_body_init()` 已并入 `jna_panda_init()` 启动路径，由 `body_bldc.feature` 的启动场景覆盖；当前剩余空白主要是 `body_main()` 初始化序列与 while 主循环。
 
 ## 覆盖率
 
