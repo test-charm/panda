@@ -53,12 +53,54 @@ public class BodyUsbControlRequests {
         public int codeLen;
         public String signatureChunk0;
         public String signatureChunk1;
+        public int ctrlModeReq;
+        public int ctrlTypeSel;
+        public int phaseSelection;
+        public int cruiseEnabled;
+        public int cruiseTarget;
+        public int fieldWeakEnabled;
+        public int schedulerReady;
+        public int seedControlMode;
+        public int hallLeftA;
+        public int hallLeftB;
+        public int hallLeftC;
+        public int hallRightA;
+        public int hallRightB;
+        public int hallRightC;
+        public int adcLeftPhaA;
+        public int adcLeftPhaC;
+        public int adcLeftDc;
+        public int adcRightPhaA;
+        public int adcRightPhaC;
+        public int adcRightDc;
+        public int adcBattery;
 
         @Override
         public void main() {
             property("codeLen").defaultValue(0);
             property("signatureChunk0").defaultValue(null);
             property("signatureChunk1").defaultValue(null);
+            property("ctrlModeReq").defaultValue(-1);
+            property("ctrlTypeSel").defaultValue(-1);
+            property("phaseSelection").defaultValue(-1);
+            property("cruiseEnabled").defaultValue(-1);
+            property("cruiseTarget").defaultValue(Integer.MIN_VALUE);
+            property("fieldWeakEnabled").defaultValue(-1);
+            property("schedulerReady").defaultValue(-1);
+            property("seedControlMode").defaultValue(-1);
+            property("hallLeftA").defaultValue(-1);
+            property("hallLeftB").defaultValue(-1);
+            property("hallLeftC").defaultValue(-1);
+            property("hallRightA").defaultValue(-1);
+            property("hallRightB").defaultValue(-1);
+            property("hallRightC").defaultValue(-1);
+            property("adcLeftPhaA").defaultValue(-1);
+            property("adcLeftPhaC").defaultValue(-1);
+            property("adcLeftDc").defaultValue(-1);
+            property("adcRightPhaA").defaultValue(-1);
+            property("adcRightPhaC").defaultValue(-1);
+            property("adcRightDc").defaultValue(-1);
+            property("adcBattery").defaultValue(-1);
         }
     }
 }

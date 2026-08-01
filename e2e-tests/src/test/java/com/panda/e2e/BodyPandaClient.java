@@ -84,6 +84,62 @@ public class BodyPandaClient {
 
         int jna_body_get_tim1_ccr3();
 
+        int jna_body_is_left_output_enabled();
+
+        int jna_body_is_right_output_enabled();
+
+        int jna_body_get_left_input_target();
+
+        int jna_body_get_right_input_target();
+
+        void jna_body_set_ctrl_mode_req(int mode);
+
+        void jna_body_set_ctrl_type_sel(int ctrlType);
+
+        void jna_body_set_phase_selection(int phaseSelection);
+
+        void jna_body_set_cruise_enabled(int enabled);
+
+        void jna_body_set_cruise_target(int targetRpm);
+
+        void jna_body_set_field_weak_enabled(int enabled);
+
+        void jna_body_set_scheduler_ready(int ready);
+
+        void jna_body_seed_control_mode(int mode);
+
+        void jna_body_set_hall_states(int leftA, int leftB, int leftC, int rightA, int rightB, int rightC);
+
+        void jna_body_set_adc_raw_values(int leftA, int leftC, int leftDc, int rightA, int rightC, int rightDc, int battery);
+
+        int jna_body_get_left_ctrl_mode();
+
+        int jna_body_get_right_ctrl_mode();
+
+        int jna_body_get_left_ctrl_type();
+
+        int jna_body_get_right_ctrl_type();
+
+        int jna_body_get_left_phase_selection();
+
+        int jna_body_get_right_phase_selection();
+
+        int jna_body_get_left_iq();
+
+        int jna_body_get_right_iq();
+
+        int jna_body_get_left_id();
+
+        int jna_body_get_right_id();
+
+        int jna_body_get_left_electrical_angle();
+
+        int jna_body_get_right_electrical_angle();
+
+        int jna_body_get_left_err_code();
+
+        int jna_body_get_right_err_code();
+
         void jna_panda_init();
 
         // ---- DotStar LED driver (B10-B12) ----
@@ -300,6 +356,38 @@ public class BodyPandaClient {
     public int getTim1Ccr1() { return lib.jna_body_get_tim1_ccr1(); }
     public int getTim1Ccr2() { return lib.jna_body_get_tim1_ccr2(); }
     public int getTim1Ccr3() { return lib.jna_body_get_tim1_ccr3(); }
+    public boolean isLeftOutputEnabled() { return lib.jna_body_is_left_output_enabled() != 0; }
+    public boolean isRightOutputEnabled() { return lib.jna_body_is_right_output_enabled() != 0; }
+    public int getLeftInputTarget() { return lib.jna_body_get_left_input_target(); }
+    public int getRightInputTarget() { return lib.jna_body_get_right_input_target(); }
+    public void setCtrlModeReq(int mode) { lib.jna_body_set_ctrl_mode_req(mode); }
+    public void setCtrlTypeSel(int ctrlType) { lib.jna_body_set_ctrl_type_sel(ctrlType); }
+    public void setPhaseSelection(int phaseSelection) { lib.jna_body_set_phase_selection(phaseSelection); }
+    public void setCruiseEnabled(boolean enabled) { lib.jna_body_set_cruise_enabled(enabled ? 1 : 0); }
+    public void setCruiseTarget(int targetRpm) { lib.jna_body_set_cruise_target(targetRpm); }
+    public void setFieldWeakEnabled(boolean enabled) { lib.jna_body_set_field_weak_enabled(enabled ? 1 : 0); }
+    public void setSchedulerReady(boolean ready) { lib.jna_body_set_scheduler_ready(ready ? 1 : 0); }
+    public void seedControlMode(int mode) { lib.jna_body_seed_control_mode(mode); }
+    public void setHallStates(boolean leftA, boolean leftB, boolean leftC, boolean rightA, boolean rightB, boolean rightC) {
+        lib.jna_body_set_hall_states(leftA ? 1 : 0, leftB ? 1 : 0, leftC ? 1 : 0, rightA ? 1 : 0, rightB ? 1 : 0, rightC ? 1 : 0);
+    }
+    public void setAdcRawValues(int leftA, int leftC, int leftDc, int rightA, int rightC, int rightDc, int battery) {
+        lib.jna_body_set_adc_raw_values(leftA, leftC, leftDc, rightA, rightC, rightDc, battery);
+    }
+    public int getLeftCtrlMode() { return lib.jna_body_get_left_ctrl_mode(); }
+    public int getRightCtrlMode() { return lib.jna_body_get_right_ctrl_mode(); }
+    public int getLeftCtrlType() { return lib.jna_body_get_left_ctrl_type(); }
+    public int getRightCtrlType() { return lib.jna_body_get_right_ctrl_type(); }
+    public int getLeftPhaseSelection() { return lib.jna_body_get_left_phase_selection(); }
+    public int getRightPhaseSelection() { return lib.jna_body_get_right_phase_selection(); }
+    public int getLeftIq() { return lib.jna_body_get_left_iq(); }
+    public int getRightIq() { return lib.jna_body_get_right_iq(); }
+    public int getLeftId() { return lib.jna_body_get_left_id(); }
+    public int getRightId() { return lib.jna_body_get_right_id(); }
+    public int getLeftElectricalAngle() { return lib.jna_body_get_left_electrical_angle(); }
+    public int getRightElectricalAngle() { return lib.jna_body_get_right_electrical_angle(); }
+    public int getLeftErrCode() { return lib.jna_body_get_left_err_code(); }
+    public int getRightErrCode() { return lib.jna_body_get_right_err_code(); }
 
     /**
      * B9: True if any TIM8 CCR register has a non-zero PWM value.

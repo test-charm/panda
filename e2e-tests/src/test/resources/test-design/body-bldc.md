@@ -206,7 +206,7 @@ bldc_step()
 - 输出: `leftPwmActive=true`, `rightPwmActive=true`
 - 验证方式: 读取 `TIM8->CCR1/CCR2/CCR3` 和 `TIM1->CCR1/CCR2/CCR3`，验证至少一个通道非零
 - 覆盖: `bldc_step()` 完整路径 + `BLDC_controller_step()` ×2 (PI 调节器/Clark-Park 变换/SVPWM/速度环)
-- 对应 feature: `body_bldc.feature` B9 场景
+- 对应 feature: `body_bldc.feature` B9 场景；更深的控制器分支见 `body_bldc_controller.feature`
 
 ### 7.5 覆盖检查
 
@@ -248,7 +248,7 @@ void body_main(void) {
 }
 ```
 
-e2e 环境：`jna_panda_init()` 模拟固件启动，依次调用 `board_body_init()`、`body_can_init()`、`dotstar_init()`、`bldc_init()`（与生产固件顺序一致）。`bldc_step()` 既可通过独立的 `jna_bldc_step()` 直接调用（`body_bldc.feature`，B9），也可通过 `jna_body_trigger_tim8_irq()` 走真实 TIM8 中断路径（`body_main.feature`，B20）。
+e2e 环境：`jna_panda_init()` 模拟固件启动，依次调用 `board_body_init()`、`body_can_init()`、`dotstar_init()`、`bldc_init()`（与生产固件顺序一致）。`bldc_step()` 既可通过独立的 `jna_bldc_step()` 直接调用（`body_bldc.feature`，B9），也可通过 `jna_body_trigger_tim8_irq()` 走真实 TIM8 中断路径（`body_main.feature`，B20）；更深层的 BLDC 控制器模式切换与查表分支则由 `body_bldc_controller.feature` 覆盖。
 
 ### 6.1 B8/B13: 启动路径初始化覆盖
 
@@ -260,5 +260,5 @@ e2e 环境：`jna_panda_init()` 模拟固件启动，依次调用 `board_body_in
 | 源文件 | 行覆盖 | 说明 |
 |--------|--------|------|
 | `board/body/bldc/bldc.h` | ✅ bldc_init() + bldc_step() | BLDC 初始化 + TIM PWM 配置 (B8/B13 启动路径的一部分) + FOC 算法 (B9) |
-| `board/body/bldc/BLDC_controller.c` | 38.45% (486/1264) | BLDC_controller_initialize() ×2 + BLDC_controller_step() ×2 FOC 算法 (PI/Clark-Park/SVPWM/速度环) |
+| `board/body/bldc/BLDC_controller.c` | 53.0% (675/1274, merged) | 在 B8/B9 基础上，`body_bldc_controller.feature` 继续补到 steady-state speed loop、`SPD/TRQ/OPEN`、`Clarke_PhasesAB/BC` 与 `SIN_Method` |
 | `board/body/bldc/BLDC_controller_data.c` | 隐式覆盖 | rtConstP 查表数据 + rtP_Left 参数结构体通过模型指针引用进入覆盖率 |

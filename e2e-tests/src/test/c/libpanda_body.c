@@ -152,6 +152,8 @@ bool can_loopback;
 // LED_BLUE stub (fdcan.h uses it under PANDA_BODY)
 #define LED_BLUE 1
 
+int e2e_ctrl_mode_req_override = -1;
+
 // body_can_rx forward decl (fdcan.h calls this under #ifdef PANDA_BODY)
 void body_can_rx(CANPacket_t *msg);
 
@@ -202,13 +204,29 @@ struct harness_t harness;
 uint16_t e2e_adc_ch8_mV;
 uint16_t e2e_adc_ch3_mV;
 uint16_t e2e_adc_ch2_mV;
+uint16_t e2e_adc_left_pha_a_raw;
+uint16_t e2e_adc_left_pha_c_raw;
+uint16_t e2e_adc_left_dc_raw;
+uint16_t e2e_adc_right_pha_a_raw;
+uint16_t e2e_adc_right_pha_c_raw;
+uint16_t e2e_adc_right_dc_raw;
+uint16_t e2e_adc_battery_raw;
 
 // ADC_TypeDef: alias for our fake ADC struct so ADC1/ADC2 are compatible
 typedef struct e2e_ADC_Regs ADC_TypeDef;
 
 // The e2e lladc.h provides adc_get_mV but not adc_get_raw or adc_init.
 // Provide these as non-static (the real lladc.h is prevented by our guard).
-static inline uint16_t adc_get_raw(const adc_signal_t *sig) { (void)sig; return 0; }
+static inline uint16_t adc_get_raw(const adc_signal_t *sig) {
+  if ((sig->adc == ADC2) && (sig->channel == 10U)) return e2e_adc_left_pha_a_raw;
+  if ((sig->adc == ADC2) && (sig->channel == 11U)) return e2e_adc_left_pha_c_raw;
+  if ((sig->adc == ADC2) && (sig->channel == 18U)) return e2e_adc_left_dc_raw;
+  if ((sig->adc == ADC1) && (sig->channel == 7U)) return e2e_adc_right_pha_a_raw;
+  if ((sig->adc == ADC1) && (sig->channel == 15U)) return e2e_adc_right_pha_c_raw;
+  if ((sig->adc == ADC1) && (sig->channel == 5U)) return e2e_adc_right_dc_raw;
+  if ((sig->adc == ADC1) && (sig->channel == 4U)) return e2e_adc_battery_raw;
+  return 0U;
+}
 static inline void adc_init(ADC_TypeDef *adc) { (void)adc; }
 #endif
 
@@ -307,13 +325,29 @@ void jna_panda_init(void) {
   nvic_reset_call_count = 0;
   enter_bootloader_mode = 0;
   e2e_microsecond_timer = 0U;
+  e2e_ctrl_mode_req_override = -1;
   current_board = &board_body;
 
+  e2e_GPIOA = (GPIO_TypeDef){0};
   e2e_GPIOB = (GPIO_TypeDef){0};
   e2e_GPIOC = (GPIO_TypeDef){0};
   e2e_GPIOD = (GPIO_TypeDef){0};
+  e2e_GPIOE = (GPIO_TypeDef){0};
+  e2e_GPIOF = (GPIO_TypeDef){0};
+  e2e_GPIOG = (GPIO_TypeDef){0};
+  e2e_ADC1 = (struct e2e_ADC_Regs){0};
+  e2e_ADC2 = (struct e2e_ADC_Regs){0};
   e2e_SYSCFG = (struct e2e_SYSCFG_Regs){0};
   e2e_EXTI = (struct e2e_EXTI_Regs){0};
+  e2e_TIM1 = (TIM_TypeDef){0};
+  e2e_TIM8 = (TIM_TypeDef){0};
+  e2e_adc_left_pha_a_raw = 0U;
+  e2e_adc_left_pha_c_raw = 0U;
+  e2e_adc_left_dc_raw = 0U;
+  e2e_adc_right_pha_a_raw = 0U;
+  e2e_adc_right_pha_c_raw = 0U;
+  e2e_adc_right_dc_raw = 0U;
+  e2e_adc_battery_raw = 0U;
 
   // body_main() startup initializes board GPIO/EXTI, then CAN, DotStar, and BLDC.
   // Mirror that startup path here so each body scenario begins from firmware init state.
@@ -372,6 +406,65 @@ unsigned int jna_body_get_tim8_ccr3(void) { return LEFT_TIM->CCR3; }
 unsigned int jna_body_get_tim1_ccr1(void) { return RIGHT_TIM->CCR1; }
 unsigned int jna_body_get_tim1_ccr2(void) { return RIGHT_TIM->CCR2; }
 unsigned int jna_body_get_tim1_ccr3(void) { return RIGHT_TIM->CCR3; }
+unsigned int jna_body_is_left_output_enabled(void) { return (LEFT_TIM->BDTR & TIM_BDTR_MOE) != 0U; }
+unsigned int jna_body_is_right_output_enabled(void) { return (RIGHT_TIM->BDTR & TIM_BDTR_MOE) != 0U; }
+int jna_body_get_left_input_target(void) { return rtU_Left.r_inpTgt; }
+int jna_body_get_right_input_target(void) { return rtU_Right.r_inpTgt; }
+void jna_body_set_ctrl_mode_req(int mode) { e2e_ctrl_mode_req_override = mode; }
+void jna_body_set_ctrl_type_sel(int ctrl_type) { rtP_Left.z_ctrlTypSel = (uint8_t)ctrl_type; rtP_Right.z_ctrlTypSel = (uint8_t)ctrl_type; }
+void jna_body_set_phase_selection(int phase_selection) { rtP_Left.z_selPhaCurMeasABC = (uint8_t)phase_selection; rtP_Right.z_selPhaCurMeasABC = (uint8_t)phase_selection; }
+void jna_body_set_cruise_enabled(int enabled) { rtP_Left.b_cruiseCtrlEna = enabled != 0; rtP_Right.b_cruiseCtrlEna = enabled != 0; }
+void jna_body_set_cruise_target(int target_rpm) { rtP_Left.n_cruiseMotTgt = (int16_t)target_rpm; rtP_Right.n_cruiseMotTgt = (int16_t)target_rpm; }
+void jna_body_set_field_weak_enabled(int enabled) { rtP_Left.b_fieldWeakEna = enabled != 0; rtP_Right.b_fieldWeakEna = enabled != 0; }
+void jna_body_set_scheduler_ready(int ready) { rtDW_Left.UnitDelay6_DSTATE = ready != 0; rtDW_Right.UnitDelay6_DSTATE = ready != 0; }
+void jna_body_seed_control_mode(int mode) {
+  DW *controllers[2] = {&rtDW_Left, &rtDW_Right};
+  for (int i = 0; i < 2; i++) {
+    controllers[i]->is_active_c1_BLDC_controller = 1U;
+    if (mode == 0) {
+      controllers[i]->is_c1_BLDC_controller = IN_OPEN;
+      controllers[i]->is_ACTIVE = IN_NO_ACTIVE_CHILD;
+      controllers[i]->z_ctrlMod = OPEN_MODE;
+    } else {
+      controllers[i]->is_c1_BLDC_controller = IN_ACTIVE;
+      controllers[i]->is_ACTIVE = (uint8_t)mode;
+      controllers[i]->z_ctrlMod = (mode == IN_SPEED_MODE) ? SPD_MODE : (mode == IN_TORQUE_MODE) ? TRQ_MODE : VLT_MODE;
+    }
+  }
+}
+void jna_body_set_hall_states(int left_a, int left_b, int left_c, int right_a, int right_b, int right_c) {
+  e2e_GPIOB.IDR &= ~((1U << 6) | (1U << 7) | (1U << 8));
+  e2e_GPIOA.IDR &= ~((1U << 0) | (1U << 1) | (1U << 2));
+  if (left_a == 0) e2e_GPIOB.IDR |= (1U << 6);
+  if (left_b == 0) e2e_GPIOB.IDR |= (1U << 7);
+  if (left_c == 0) e2e_GPIOB.IDR |= (1U << 8);
+  if (right_a == 0) e2e_GPIOA.IDR |= (1U << 0);
+  if (right_b == 0) e2e_GPIOA.IDR |= (1U << 1);
+  if (right_c == 0) e2e_GPIOA.IDR |= (1U << 2);
+}
+void jna_body_set_adc_raw_values(int left_a, int left_c, int left_dc, int right_a, int right_c, int right_dc, int battery) {
+  e2e_adc_left_pha_a_raw = (uint16_t)left_a;
+  e2e_adc_left_pha_c_raw = (uint16_t)left_c;
+  e2e_adc_left_dc_raw = (uint16_t)left_dc;
+  e2e_adc_right_pha_a_raw = (uint16_t)right_a;
+  e2e_adc_right_pha_c_raw = (uint16_t)right_c;
+  e2e_adc_right_dc_raw = (uint16_t)right_dc;
+  e2e_adc_battery_raw = (uint16_t)battery;
+}
+int jna_body_get_left_ctrl_mode(void) { return rtDW_Left.z_ctrlMod; }
+int jna_body_get_right_ctrl_mode(void) { return rtDW_Right.z_ctrlMod; }
+int jna_body_get_left_ctrl_type(void) { return rtP_Left.z_ctrlTypSel; }
+int jna_body_get_right_ctrl_type(void) { return rtP_Right.z_ctrlTypSel; }
+int jna_body_get_left_phase_selection(void) { return rtP_Left.z_selPhaCurMeasABC; }
+int jna_body_get_right_phase_selection(void) { return rtP_Right.z_selPhaCurMeasABC; }
+int jna_body_get_left_iq(void) { return rtY_Left.iq; }
+int jna_body_get_right_iq(void) { return rtY_Right.iq; }
+int jna_body_get_left_id(void) { return rtY_Left.id; }
+int jna_body_get_right_id(void) { return rtY_Right.id; }
+int jna_body_get_left_electrical_angle(void) { return rtY_Left.a_elecAngle; }
+int jna_body_get_right_electrical_angle(void) { return rtY_Right.a_elecAngle; }
+int jna_body_get_left_err_code(void) { return rtY_Left.z_errCode; }
+int jna_body_get_right_err_code(void) { return rtY_Right.z_errCode; }
 
 // ---- JNA: DotStar LED driver (B10-B12) ----
 void jna_dotstar_init(void) { dotstar_init(); }

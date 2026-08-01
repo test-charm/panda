@@ -62,6 +62,7 @@
 extern volatile int rpm_left;
 extern volatile int rpm_right;
 extern volatile bool enable_motors;
+extern int e2e_ctrl_mode_req_override;
 
 // ============================================================================
 // Battery globals — defined here (matching real bldc.h).
@@ -252,6 +253,8 @@ void bldc_init(void) {
 }
 
 void bldc_step(void) {
+  uint8_t ctrl_mode_req = (e2e_ctrl_mode_req_override >= 0) ? (uint8_t)e2e_ctrl_mode_req_override : CTRL_MOD_REQ;
+
   // Calibrate ADC offsets for the first few cycles
   if (offsetcount < 2000) {  // calibrate ADC offsets
     offsetcount++;
@@ -319,7 +322,7 @@ void bldc_step(void) {
 
   // ========================= LEFT MOTOR ===========================
   rtU_Left.b_motEna      = enableFin;
-  rtU_Left.z_ctrlModReq  = CTRL_MOD_REQ; // Speed Mode
+  rtU_Left.z_ctrlModReq  = ctrl_mode_req;
   int deadband_rpm_left = rpm_left;
   if (ABS(deadband_rpm_left) < RPM_DEADBAND) {
     deadband_rpm_left = 0;
@@ -342,7 +345,7 @@ void bldc_step(void) {
 
   // ========================= RIGHT MOTOR ===========================
   rtU_Right.b_motEna      = enableFin;
-  rtU_Right.z_ctrlModReq  = CTRL_MOD_REQ; // Speed Mode
+  rtU_Right.z_ctrlModReq  = ctrl_mode_req;
   int deadband_rpm_right = rpm_right;
   if (ABS(deadband_rpm_right) < RPM_DEADBAND) {
     deadband_rpm_right = 0;

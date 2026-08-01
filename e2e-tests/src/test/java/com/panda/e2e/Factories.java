@@ -238,6 +238,54 @@ public class Factories {
             if (setup.signatureChunk1 != null) {
                 client.setSignatureChunk(1, hexToBytes(setup.signatureChunk1));
             }
+            if (setup.ctrlModeReq != -1) {
+                client.setCtrlModeReq(setup.ctrlModeReq);
+            }
+            if (setup.ctrlTypeSel != -1) {
+                client.setCtrlTypeSel(setup.ctrlTypeSel);
+            }
+            if (setup.phaseSelection != -1) {
+                client.setPhaseSelection(setup.phaseSelection);
+            }
+            if (setup.cruiseEnabled != -1) {
+                client.setCruiseEnabled(setup.cruiseEnabled != 0);
+            }
+            if (setup.cruiseTarget != Integer.MIN_VALUE) {
+                client.setCruiseTarget(setup.cruiseTarget);
+            }
+            if (setup.fieldWeakEnabled != -1) {
+                client.setFieldWeakEnabled(setup.fieldWeakEnabled != 0);
+            }
+            if (setup.schedulerReady != -1) {
+                client.setSchedulerReady(setup.schedulerReady != 0);
+            }
+            if (setup.seedControlMode != -1) {
+                client.seedControlMode(setup.seedControlMode);
+            }
+            if (setup.hallLeftA != -1 || setup.hallLeftB != -1 || setup.hallLeftC != -1 ||
+                    setup.hallRightA != -1 || setup.hallRightB != -1 || setup.hallRightC != -1) {
+                client.setHallStates(
+                        setup.hallLeftA != 0,
+                        setup.hallLeftB != 0,
+                        setup.hallLeftC != 0,
+                        setup.hallRightA != 0,
+                        setup.hallRightB != 0,
+                        setup.hallRightC != 0
+                );
+            }
+            if (setup.adcLeftPhaA != -1 || setup.adcLeftPhaC != -1 || setup.adcLeftDc != -1
+                    || setup.adcRightPhaA != -1 || setup.adcRightPhaC != -1 || setup.adcRightDc != -1
+                    || setup.adcBattery != -1) {
+                client.setAdcRawValues(
+                        Math.max(setup.adcLeftPhaA, 0),
+                        Math.max(setup.adcLeftPhaC, 0),
+                        Math.max(setup.adcLeftDc, 0),
+                        Math.max(setup.adcRightPhaA, 0),
+                        Math.max(setup.adcRightPhaC, 0),
+                        Math.max(setup.adcRightDc, 0),
+                        Math.max(setup.adcBattery, 0)
+                );
+            }
         }
     }
 }

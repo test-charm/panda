@@ -106,6 +106,12 @@ body 固件使用独立的 C 入口 `libpanda_body.c`（而非 `libpanda.c`）�
 | `jna_body_skip_calibration()` | 跳过 ADC 校准阶段, 设置非零偏移值 (B9 ✅) |
 | `jna_body_set_motor_speeds(l, r)` / `jna_body_set_enable_motors_val(e)` | 设置 `rpm_left`/`rpm_right`/`enable_motors` (B9 ✅) |
 | `jna_body_get_tim8_ccr1/2/3()` / `jna_body_get_tim1_ccr1/2/3()` | 读取 TIM8/TIM1 CCR1/2/3 (PWM 占空比验证, B9 ✅) |
+| `jna_body_set_ctrl_mode_req()` / `jna_body_get_left/right_ctrl_mode()` | 注入控制模式请求并观察 `OPEN/SPD/TRQ` 状态迁移 (`body_bldc_controller.feature`) |
+| `jna_body_set_ctrl_type_sel()` / `jna_body_get_left/right_ctrl_type()` | 切换 `FOC_CTRL / SIN_CTRL`，覆盖 `SIN_Method` 分支 |
+| `jna_body_set_phase_selection()` / `jna_body_get_left/right_phase_selection()` | 切换 `Clarke_PhasesAB / BC / AC` 路径 |
+| `jna_body_set_scheduler_ready()` / `jna_body_seed_control_mode()` | 直接把控制器推入 steady-state / 预置模式机前态，覆盖深层模式切换 |
+| `jna_body_set_hall_states()` / `jna_body_set_adc_raw_values()` | 注入 Hall 与 ADC 原始输入，扩展 BLDC 控制器分支覆盖 |
+| `jna_body_get_left/right_iq/id/a_elecAngle/z_errCode()` | 读取 FOC 内部输出量，供深层控制器场景断言 |
 | `jna_body_can_send_motor_speeds()` / `jna_body_can_send_var_values()` / `jna_body_can_send_body_data()` | 直接调用 body CAN 发送 helper，验证 0x201/0x202/0x203 帧内容 (B14 ✅) |
 | `jna_body_can_receive_target()` | 构造并注入 0x250 目标转速帧，覆盖 `body_can_rx()` / `body_can_process_target()` (B15 ✅) |
 | `jna_body_can_periodic(now, ignition, charging)` | 调用 `body_can_periodic()`，覆盖超时归零与 10ms 周期发送 (B16-B17 ✅) |
@@ -161,8 +167,8 @@ e2e-tests/
 │   │       ├── CanSendRequests.java  # CAN 发送 spec
 │   │       └── ...
 │   └── resources/
-│       ├── features/                 # 44 个 feature 文件（含 body_commands/body_shared_commands/body_bldc/body_can/body_dotstar/body_main）
-│       └── test-design/              # 52 份测试设计文档（含 body-main.md）
+│       ├── features/                 # 45 个 feature 文件（含 body_bldc_controller）
+│       └── test-design/              # 53 份测试设计文档（含 body-bldc-controller.md）
 ```
 
 ## 被测功能覆盖
@@ -213,6 +219,7 @@ e2e-tests/
 | Body 电机命令 | `body_commands.feature` | 5 | rpmLeft/rpmRight/motorEnabled (0xb3/0xb4 通过 `board/body/main_comms.h`) |
 | Body 共享命令 | `body_shared_commands.feature` | 8 | hwType/respBuffer/nvicResetCount/enterBootloaderMode (0xc1/0xd1/0xd3/0xd4/0xd6/0xd8/0xdd, B1-B7 全部覆盖) |
 | **Body BLDC** | `body_bldc.feature` | 2 | B8/B13: `jna_panda_init()` 启动路径自动调用 `body_can_init()` + `bldc_init()`，验证 CAN 初始化状态 + TIM8/TIM1 CEN；B9: `bldc_step()` → `BLDC_controller_step()` FOC 算法，验证 TIM8/TIM1 CCR1/2/3 PWM 输出 |
+| **Body BLDC Controller** | `body_bldc_controller.feature` | 12 | 额外覆盖校准早返回、deadband、钳位、steady-state speed loop、`SPD/TRQ/OPEN` 模式切换、`Clarke_PhasesAB/BC`、`SIN_Method` |
 | **Body CAN** | `body_can.feature` | 4 | B14-B17: 0x201/0x202/0x203 发送 helper、0x250 目标转速接收、100ms 超时归零、10ms 周期发送节流；通过 `rxQueue` 回显帧 + `bodyCan` 状态 + `rpmLeft/rpmRight` 验证 |
 | **Body DotStar** | `body_dotstar.feature` | 6 | B10: `dotstar_init()` 在 `jna_panda_init()` 启动路径中自动调用（前置会先执行 `body_can_init()`）+ dotstar_fill/show/set_pixel/brightness；B11: dotstar_run_rainbow() 彩虹动画；B12: dotstar_apply_breathe() 三角波呼吸效果 |
 | **Body Main 中断路径** | `body_main.feature` | 3 | B18-B20: `tick_handler()` CAN reset + 红灯翻转、`exti15_10_handler()` 充电/点火防抖、`bldc_tim8_handler()` → `bldc_step()` IRQ 路径；通过 `tickCount` / `can0Ile` / `plugCharging` / `ignition*` / `tim8Sr` / PWM 状态验证 |
@@ -229,10 +236,10 @@ e2e-tests/
 | `board/main.c` | **64.2%** (145/226) | 4/7 | 主循环 + 初始化 |
 | `board/body/main_comms.h` | **86.4%** (57/66) | 1/2 | ✅ body 共享命令 B1-B7 完成 (8/9 case 覆盖；0xde 仍未实现) |
 | `board/body/main.c` | **40.6%** (39/96) | 3/7 | ✅ B18-B20 已覆盖 `tick_handler()` / `exti15_10_handler()` / `bldc_tim8_handler()`；剩余为 `body_main()` 初始化/while 循环与早期硬件 helper |
-| `board/body/boards/board_body.h` | **0%** (0/27) | 0/1 | ⏳ `board_body_init()` 仍仅在 `body_main()` 中调用，待 B21 |
+| `board/body/boards/board_body.h` | **100.0%** (27/27) | 1/1 | ✅ 已通过 `jna_panda_init()` 启动子路径与 `body_bldc.feature` 启动场景覆盖 `board_body_init()` |
 | `board/body/can.h` | **100%** (82/82) | 7/7 | ✅ B13-B17 完成：`body_can_init()`（经 `jna_panda_init()` 启动路径）、发送 helper、RX 目标解析、超时归零、10ms 周期发送 |
 | `board/body/dotstar.h` | **91.0%** (141/155) | 14/14 | ✅ B10-B12：dotstar_init/fill/set_pixel/brightness/rainbow/breathe 高覆盖；未命中的主要是未初始化防御分支 |
-| `board/body/bldc/BLDC_controller.c` | **38.5%** (486/1264) | 16/26 | ✅ B8/B9：`bldc_init()` → `BLDC_controller_initialize()` ×2；`bldc_step()` → `BLDC_controller_step()` FOC 算法 (PI 调节器/Clark-Park/SVPWM/速度环) |
+| `board/body/bldc/BLDC_controller.c` | **53.0%** (675/1274) | 19/26 | ✅ 在 B8/B9 基础上，`body_bldc_controller.feature` 继续覆盖 steady-state speed loop、`SPD/TRQ/OPEN` 模式切换、`Clarke_PhasesAB/BC` 与 `SIN_Method` |
 | `board/drivers/can_common.h` | **100%** (107/107) | 10/12 | CAN 通用操作 |
 | `board/drivers/gpio.h` | **100%** (72/72) | 6/7 | ✅ Phase J: J1 PUSH_PULL + J10 detect_with_pull 全覆盖 |
 | `board/sys/faults.h` | **100%** (20/20) | 2/2 | 故障设置 |
