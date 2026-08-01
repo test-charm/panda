@@ -63,6 +63,27 @@ public class BodyPandaClient {
 
         int jna_body_get_tim1_arr();
 
+        // B9: bldc_step / FOC algorithm
+        void jna_bldc_step();
+
+        void jna_body_skip_calibration();
+
+        void jna_body_set_motor_speeds(int left, int right);
+
+        void jna_body_set_enable_motors_val(int enable);
+
+        int jna_body_get_tim8_ccr1();
+
+        int jna_body_get_tim8_ccr2();
+
+        int jna_body_get_tim8_ccr3();
+
+        int jna_body_get_tim1_ccr1();
+
+        int jna_body_get_tim1_ccr2();
+
+        int jna_body_get_tim1_ccr3();
+
         void jna_panda_init();
     }
 
@@ -177,6 +198,51 @@ public class BodyPandaClient {
 
     public boolean isRightTimerEnabled() {
         return (lib.jna_body_get_tim1_cr1() & TIM_CR1_CEN) != 0;
+    }
+
+    // ---- BLDC motor control (B9): FOC step ----
+
+    /**
+     * B9: Skip ADC calibration phase so bldc_step executes the FOC algorithm.
+     */
+    public void bldcSkipCalibration() {
+        lib.jna_body_skip_calibration();
+    }
+
+    /**
+     * B9: Execute one FOC step (bldc_step).
+     */
+    public void bldcStep() {
+        lib.jna_bldc_step();
+    }
+
+    /**
+     * B9: Set motor speed targets and enable motors.
+     */
+    public void setMotorSpeeds(int leftRpm, int rightRpm, boolean enable) {
+        lib.jna_body_set_motor_speeds(leftRpm, rightRpm);
+        lib.jna_body_set_enable_motors_val(enable ? 1 : 0);
+    }
+
+    public int getTim8Ccr1() { return lib.jna_body_get_tim8_ccr1(); }
+    public int getTim8Ccr2() { return lib.jna_body_get_tim8_ccr2(); }
+    public int getTim8Ccr3() { return lib.jna_body_get_tim8_ccr3(); }
+    public int getTim1Ccr1() { return lib.jna_body_get_tim1_ccr1(); }
+    public int getTim1Ccr2() { return lib.jna_body_get_tim1_ccr2(); }
+    public int getTim1Ccr3() { return lib.jna_body_get_tim1_ccr3(); }
+
+    /**
+     * B9: True if any TIM8 CCR register has a non-zero PWM value.
+     */
+    public boolean isLeftPwmActive() {
+        return getTim8Ccr1() != 0 || getTim8Ccr2() != 0 || getTim8Ccr3() != 0;
+    }
+
+    /**
+     * B9: True if any TIM1 CCR register has a non-zero PWM value.
+     */
+    public boolean isRightPwmActive() {
+        return getTim1Ccr1() != 0 || getTim1Ccr2() != 0 || getTim1Ccr3() != 0;
     }
 
     // ---- Public API ----

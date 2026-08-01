@@ -363,3 +363,21 @@ void bldc_step(void) {
   RIGHT_TIM->CCR2 = (uint16_t)CLAMP((vr + pwm_res / 2), PWM_MARGIN, pwm_res - PWM_MARGIN);
   RIGHT_TIM->CCR3 = (uint16_t)CLAMP((wr + pwm_res / 2), PWM_MARGIN, pwm_res - PWM_MARGIN);
 }
+
+// ============================================================================
+// E2E helper: skip ADC calibration phase (for B9 testing).
+// In production, the first 2000 bldc_step() calls calibrate ADC offsets.
+// In e2e, adc_get_raw() always returns 0, so the offsets end up as 0,
+// which causes the safety check to keep enableFin=0.
+// This function sets offsetcount past the calibration threshold and
+// sets non-zero offset values so the FOC safety check passes.
+// ============================================================================
+void e2e_bldc_skip_calibration(void) {
+  offsetcount = 2000;
+  offsetrrA = 1000;
+  offsetrrC = 1000;
+  offsetrlA = 1000;
+  offsetrlC = 1000;
+  offsetdcl = 500;
+  offsetdcr = 500;
+}

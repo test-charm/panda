@@ -328,6 +328,7 @@ void jna_body_set_signature_chunk(int chunk, const char *data, size_t data_len) 
 
 // ---- JNA: BLDC motor control (B8-B9) ----
 
+// B8: bldc_init / TIM status
 void jna_body_bldc_init(void) {
   bldc_init();
 }
@@ -337,3 +338,19 @@ unsigned int jna_body_get_tim8_cr1(void) { return LEFT_TIM->CR1; }
 unsigned int jna_body_get_tim1_cr1(void) { return RIGHT_TIM->CR1; }
 unsigned int jna_body_get_tim8_arr(void) { return LEFT_TIM->ARR; }
 unsigned int jna_body_get_tim1_arr(void) { return RIGHT_TIM->ARR; }
+
+// B9: bldc_step — FOC algorithm execution
+// e2e_bldc_skip_calibration() is defined in the e2e bldc.h wrapper
+void e2e_bldc_skip_calibration(void);
+
+void jna_bldc_step(void) { bldc_step(); }
+void jna_body_skip_calibration(void) { e2e_bldc_skip_calibration(); }
+void jna_body_set_motor_speeds(int left, int right) { rpm_left = left; rpm_right = right; }
+void jna_body_set_enable_motors_val(int enable) { enable_motors = (bool)enable; }
+
+unsigned int jna_body_get_tim8_ccr1(void) { return LEFT_TIM->CCR1; }
+unsigned int jna_body_get_tim8_ccr2(void) { return LEFT_TIM->CCR2; }
+unsigned int jna_body_get_tim8_ccr3(void) { return LEFT_TIM->CCR3; }
+unsigned int jna_body_get_tim1_ccr1(void) { return RIGHT_TIM->CCR1; }
+unsigned int jna_body_get_tim1_ccr2(void) { return RIGHT_TIM->CCR2; }
+unsigned int jna_body_get_tim1_ccr3(void) { return RIGHT_TIM->CCR3; }

@@ -27,6 +27,21 @@ public class BodyCommandsStepDefs {
         bodyClient.bldcInit();
     }
 
+    @When("bldc skip calibration")
+    public void bldcSkipCalibration() {
+        bodyClient.bldcSkipCalibration();
+    }
+
+    @When("bldc step")
+    public void bldcStep() {
+        bodyClient.bldcStep();
+    }
+
+    @When("set motor speeds: left = {int} rpm, right = {int} rpm, enable = {word}")
+    public void setMotorSpeeds(int leftRpm, int rightRpm, String enable) {
+        bodyClient.setMotorSpeeds(leftRpm, rightRpm, "true".equals(enable));
+    }
+
     @Then("body control data should be:")
     public void bodyControlDataShould(String expression) {
         expect(bodyClient).should(expression);
