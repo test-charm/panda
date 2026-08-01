@@ -98,6 +98,7 @@ body 固件使用独立的 C 入口 `libpanda_body.c`（而非 `libpanda.c`）�
 | `jna_pwm_init_channel_3()` | 调用 `pwm_init(TIM3, 3)` (llfan stub 路径) ✅ J12b |
 | `jna_enter_stop_mode_ignition_on()` | 模拟 ignition ON → `enter_stop_mode()` → `NVIC_SystemReset` ✅ J12c |
 | `jna_spi_init()` | 调用 `spi_init()` (覆盖 DMA 初始化) ✅ J13 |
+| `jna_panda_init()` (body) | 模拟 body 固件启动序列：`body_can_init()` → `dotstar_init()` → `bldc_init()` (B8/B13 ✅) |
 | `jna_body_bldc_init()` | 调用 `bldc_init()` (BLDC 模型初始化 + TIM PWM, B8 ✅) |
 | `jna_body_get_tim8_cr1()` / `jna_body_get_tim1_cr1()` | 读取 TIM8/TIM1 CR1 寄存器 (PWM 状态验证) |
 | `jna_body_get_tim8_arr()` / `jna_body_get_tim1_arr()` | 读取 TIM8/TIM1 ARR 寄存器 (PWM 频率验证) |
@@ -105,6 +106,11 @@ body 固件使用独立的 C 入口 `libpanda_body.c`（而非 `libpanda.c`）�
 | `jna_body_skip_calibration()` | 跳过 ADC 校准阶段, 设置非零偏移值 (B9 ✅) |
 | `jna_body_set_motor_speeds(l, r)` / `jna_body_set_enable_motors_val(e)` | 设置 `rpm_left`/`rpm_right`/`enable_motors` (B9 ✅) |
 | `jna_body_get_tim8_ccr1/2/3()` / `jna_body_get_tim1_ccr1/2/3()` | 读取 TIM8/TIM1 CCR1/2/3 (PWM 占空比验证, B9 ✅) |
+| `jna_body_can_send_motor_speeds()` / `jna_body_can_send_var_values()` / `jna_body_can_send_body_data()` | 直接调用 body CAN 发送 helper，验证 0x201/0x202/0x203 帧内容 (B14 ✅) |
+| `jna_body_can_receive_target()` | 构造并注入 0x250 目标转速帧，覆盖 `body_can_rx()` / `body_can_process_target()` (B15 ✅) |
+| `jna_body_can_periodic(now, ignition, charging)` | 调用 `body_can_periodic()`，覆盖超时归零与 10ms 周期发送 (B16-B17 ✅) |
+| `jna_body_set_microsecond_timer()` | 预设 body 微秒定时器值，验证 CAN 命令时间戳与超时逻辑 (B15-B16 ✅) |
+| `jna_body_can_pop_rx()` / `bodyClient.rxQueue` | 读取 e2e 中被 `process_can()` 回灌的 body CAN 帧 (`returned=true`) (B14/B17 ✅) |
 | `jna_dotstar_fill(r,g,b)` | 调用 `dotstar_fill()` (填充全部像素, B10 ✅) |
 | `jna_dotstar_show()` | 调用 `dotstar_show()` (发送 SPI 帧, B10 ✅) |
 | `jna_dotstar_set_pixel(idx,r,g,b)` | 调用 `dotstar_set_pixel()` (设置单个像素, B10b ✅) |
@@ -138,9 +144,9 @@ e2e-tests/
 │   │   └── bldc/                     # （已清理，实际使用 board/body/bldc/）
 │   ├── java/com/panda/e2e/
 │   │   ├── PandaClient.java          # JNA 接口 (panda)
-│       │   ├── BodyPandaClient.java      # JNA 接口 (body: USB 命令 + bldc_init + dotstar + TIM 寄存器读取)
+│       │   ├── BodyPandaClient.java      # JNA 接口 (body: USB 命令 + CAN + BLDC + dotstar + TIM/队列读取)
 │   │   ├── PandaSteps.java           # BDD 步骤定义 (panda)
-│       │   ├── BodyCommandsStepDefs.java # BDD 步骤定义 (body: control write, bldc init, verify)
+│       │   ├── BodyCommandsStepDefs.java # BDD 步骤定义 (body: control write, CAN, BLDC, dotstar, verify)
 │   │   ├── ApplicationSteps.java     # @Before setUp
 │   │   └── spec/
 │   │       ├── UsbControlRequests.java   # 33 个 USB 控制请求 spec (panda)
@@ -149,7 +155,7 @@ e2e-tests/
 │   │       ├── CanSendRequests.java  # CAN 发送 spec
 │   │       └── ...
 │   └── resources/
-│       ├── features/                 # 42 个 feature 文件（含 body_commands/body_shared_commands/body_bldc/body_dotstar）
+│       ├── features/                 # 43 个 feature 文件（含 body_commands/body_shared_commands/body_bldc/body_can/body_dotstar）
 │       └── test-design/              # 测试设计文档
 ```
 
@@ -200,24 +206,26 @@ e2e-tests/
 | **Body 固件** | | | |
 | Body 电机命令 | `body_commands.feature` | 5 | rpmLeft/rpmRight/motorEnabled (0xb3/0xb4 通过 `board/body/main_comms.h`) |
 | Body 共享命令 | `body_shared_commands.feature` | 8 | hwType/respBuffer/nvicResetCount/enterBootloaderMode (0xc1/0xd1/0xd3/0xd4/0xd6/0xd8/0xdd, B1-B7 全部覆盖) |
-| **Body BLDC** | `body_bldc.feature` | 2 | B8: bldc_init() 自动调用，验证 TIM8/TIM1 CEN; B9: bldc_step() → BLDC_controller_step() FOC 算法，验证 TIM8/TIM1 CCR1/2/3 PWM 输出 |
-| **Body DotStar** | `body_dotstar.feature` | 6 | B10: dotstar_init() 在 jna_panda_init() 中自动调用 + dotstar_fill/show/set_pixel/brightness; B11: dotstar_run_rainbow() 彩虹动画; B12: dotstar_apply_breathe() 三角波呼吸效果 |
+| **Body BLDC** | `body_bldc.feature` | 2 | B8/B13: `jna_panda_init()` 启动路径自动调用 `body_can_init()` + `bldc_init()`，验证 CAN 初始化状态 + TIM8/TIM1 CEN；B9: `bldc_step()` → `BLDC_controller_step()` FOC 算法，验证 TIM8/TIM1 CCR1/2/3 PWM 输出 |
+| **Body CAN** | `body_can.feature` | 4 | B14-B17: 0x201/0x202/0x203 发送 helper、0x250 目标转速接收、100ms 超时归零、10ms 周期发送节流；通过 `rxQueue` 回显帧 + `bodyCan` 状态 + `rpmLeft/rpmRight` 验证 |
+| **Body DotStar** | `body_dotstar.feature` | 6 | B10: `dotstar_init()` 在 `jna_panda_init()` 启动路径中自动调用（前置会先执行 `body_can_init()`）+ dotstar_fill/show/set_pixel/brightness；B11: dotstar_run_rainbow() 彩虹动画；B12: dotstar_apply_breathe() 三角波呼吸效果 |
 
 ## C 代码覆盖率
 
-> 数据来源: `e2e-tests/run_all_coverage.sh` 合并报告 (cuatro + tres + red + body)
-> 生成时间: 2026-08-01 (B12: dotstar LED driver B10-B12)
+> 数据来源: panda 侧为 `e2e-tests/run_all_coverage.sh` 合并报告；body 侧已用 `COVERAGE=1 ./gradlew cucumberCoverage -Pboard=body -Ptags='@body'` 重新校正
+> 生成时间: 2026-08-01 (已包含 B13-B17 body CAN)
 > IGNORE_REGEX: 已排除 e2e stub (`bldc.h`, `stm32h7xx.h`)
 
 | 源文件 | 行覆盖 | 函数覆盖 | 说明 |
 |--------|--------|---------|------|
 | `board/main_comms.h` | **97.0%** (261/269) | 3/3 | USB 命令处理 (Phase J: 新增 0xc3 MCU UID + 修复 0xde) |
 | `board/main.c` | **64.2%** (145/226) | 4/7 | 主循环 + 初始化 |
-| `board/body/main_comms.h` | **86.4%** (57/66) | — | ✅ body 共享命令 B1-B7 完成 (8/9 case 覆盖) |
+| `board/body/main_comms.h` | **86.4%** (57/66) | 1/2 | ✅ body 共享命令 B1-B7 完成 (8/9 case 覆盖；0xde 仍未实现) |
 | `board/body/main.c` | **0%** (0/96) | — | ⏳ body 主循环待覆盖 (B18-B20) |
-| `board/body/can.h` | **0%** (0/92) | — | ⏳ body CAN 待覆盖 (B13-B17) |
-| `board/body/dotstar.h` | **~95%** (~150/158) | — | ✅ B10-B12: dotstar_init/fill/set_pixel/brightness/rainbow/breathe 全覆盖 |
-| `board/body/bldc/BLDC_controller.c` | **~45%** (~570/1274) | — | ✅ B8: `bldc_init()` → `BLDC_controller_initialize()` ×2; ✅ B9: `bldc_step()` → `BLDC_controller_step()` FOC 算法 (PI 调节器/Clark-Park/SVPWM/速度环) |
+| `board/body/boards/board_body.h` | **0%** (0/27) | 0/1 | ⏳ `board_body_init()` 仍仅在 `body_main()` 中调用，待 B21 |
+| `board/body/can.h` | **100%** (82/82) | 7/7 | ✅ B13-B17 完成：`body_can_init()`（经 `jna_panda_init()` 启动路径）、发送 helper、RX 目标解析、超时归零、10ms 周期发送 |
+| `board/body/dotstar.h` | **91.0%** (141/155) | 14/14 | ✅ B10-B12：dotstar_init/fill/set_pixel/brightness/rainbow/breathe 高覆盖；未命中的主要是未初始化防御分支 |
+| `board/body/bldc/BLDC_controller.c` | **38.5%** (486/1264) | 16/26 | ✅ B8/B9：`bldc_init()` → `BLDC_controller_initialize()` ×2；`bldc_step()` → `BLDC_controller_step()` FOC 算法 (PI 调节器/Clark-Park/SVPWM/速度环) |
 | `board/drivers/can_common.h` | **100%** (107/107) | 10/12 | CAN 通用操作 |
 | `board/drivers/gpio.h` | **100%** (72/72) | 6/7 | ✅ Phase J: J1 PUSH_PULL + J10 detect_with_pull 全覆盖 |
 | `board/sys/faults.h` | **100%** (20/20) | 2/2 | 故障设置 |
@@ -245,8 +253,8 @@ e2e-tests/
 | `board/drivers/uart.h` | **100%** (77/77) | — | ✅ Phase J: J5 injectc overwrite 全覆盖 |
 | `board/stm32h7/llfdcan_declarations.h` | **95.7%** (22/23) | — | CAN_NAME_FROM_CANIF FDCAN3 分支不可覆盖 |
 | **合计 (panda)** | **92.7%** (2340/2525, 40 files) | — | panda 固件 (cuatro+tres+red) |
-| **合计 (body)**  | **~52%** (~940/1762, 9 files)  | — | body 固件 (B1-B12: main_comms.h + bldc_init + bldc_step FOC + dotstar LED) |
-| **合计 (全)**    | **~72%** (~3280/4287, 49 files) | — | 全板合并 (待 re-run 覆盖率) |
+| **合计 (body)**  | **待 full-suite re-run** | — | 最新 body 单板覆盖已包含 B13-B17；上述 body 文件行覆盖率已逐项校正 |
+| **合计 (全)**    | **待 full-suite re-run** | — | 全板合并总计需在下次 `run_all_coverage.sh` 后刷新 |
 
 ## 设计原则
 

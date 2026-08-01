@@ -2,12 +2,18 @@
 @body
 Feature: Body Firmware BLDC Motor Control
 
-  Scenario: B8 — BLDC initialization at startup sets up TIM8 and TIM1 for PWM
+  Scenario: B8/B13 — startup initializes BLDC PWM and body CAN
     Then body control data should be:
       """
       : {
         leftTimerEnabled: true
         rightTimerEnabled: true
+        bodyCan: {
+          canSilent: false
+          canLoopback: false
+          bodySafetyHooksSet: true
+          canTransceiverEnabled: true
+        }
       }
       """
 

@@ -62,6 +62,36 @@ public class BodyCommandsStepDefs {
         bodyClient.dotstarApplyBreathe(r, g, b, nowUs, cycleUs);
     }
 
+    @When("body can send motor speeds: left = {int}, right = {int}")
+    public void bodyCanSendMotorSpeeds(int leftRpm, int rightRpm) {
+        bodyClient.bodyCanSendMotorSpeeds(leftRpm, rightRpm);
+    }
+
+    @When("body can send var values: ignition = {word}, enable = {word}, fault = {int}, left err = {int}, right err = {int}")
+    public void bodyCanSendVarValues(String ignition, String enable, int fault, int leftErr, int rightErr) {
+        bodyClient.bodyCanSendVarValues("true".equals(ignition), "true".equals(enable), fault, leftErr, rightErr);
+    }
+
+    @When("body can send body data: temp = {int}, voltage = {int}, percentage = {int}, charging = {word}")
+    public void bodyCanSendBodyData(int tempRaw, int voltageRaw, int percentage, String charging) {
+        bodyClient.bodyCanSendBodyData(tempRaw, voltageRaw, percentage, "true".equals(charging));
+    }
+
+    @When("body can set microsecond timer: {int}")
+    public void bodyCanSetMicrosecondTimer(int nowUs) {
+        bodyClient.bodyCanSetMicrosecondTimer(nowUs);
+    }
+
+    @When("body can receive target: left = {int} rpm, right = {int} rpm")
+    public void bodyCanReceiveTarget(int leftRpm, int rightRpm) {
+        bodyClient.bodyCanReceiveTarget(leftRpm, rightRpm);
+    }
+
+    @When("body can periodic: now_us = {int}, ignition = {word}, charging = {word}")
+    public void bodyCanPeriodic(int nowUs, String ignition, String charging) {
+        bodyClient.bodyCanPeriodic(nowUs, "true".equals(ignition), "true".equals(charging));
+    }
+
     @Then("body control data should be:")
     public void bodyControlDataShould(String expression) {
         expect(bodyClient).should(expression);

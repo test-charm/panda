@@ -1,14 +1,25 @@
 # Body BLDC 电机控制 — 测试设计文档
 
 > 功能: `bldc_init()` + `bldc_step()` in `e2e-tests/src/test/c/board/body/bldc/bldc.h` (e2e 兼容包装器)
-> 被测接口: `jna_panda_init()` → `bldc_init()` (B8); `jna_bldc_step()` → `bldc_step()` (B9)
+> 被测接口: `jna_panda_init()` → `body_can_init()` + `dotstar_init()` + `bldc_init()` (B8/B13 启动路径); `jna_bldc_step()` → `bldc_step()` (B9)
 > 固件目标: body (`board/body/main.c`)
-> 已完成: B8 + B9 (2026-08-01)
+> 已完成: B8 + B9，且 B13 已合并到启动场景 (2026-08-01)
 
 ## 1. 被测功能流程图
 
 ```
 jna_panda_init() (body 固件启动模拟)
+     │
+     ▼
+body_can_init()
+     │
+     ├─ can_silent = false
+     ├─ can_loopback = false
+     ├─ set_safety_hooks(SAFETY_BODY, 0)
+     └─ can_init_all()
+     │
+     ▼
+dotstar_init()                               — 启动顺序中的前置步骤（本设计不展开）
      │
      ▼
 bldc_init()
@@ -40,7 +51,7 @@ bldc_init()
      └─ RIGHT_TIM (TIM1) 配置: 同 TIM8
 ```
 
-> **关键验证点**: `bldc_init()` 后，LEFT_TIM->CR1 和 RIGHT_TIM->CR1 的 `TIM_CR1_CEN` (bit 0) 应置位，表示 PWM 定时器已启动。
+> **关键验证点**: 启动后 `body_can_init()` 与 `bldc_init()` 都应生效：`bodyCan.canSilent=false` / `bodyCan.canLoopback=false` / `bodyCan.bodySafetyHooksSet=true` / `bodyCan.canTransceiverEnabled=true`，且 LEFT_TIM->CR1 / RIGHT_TIM->CR1 的 `TIM_CR1_CEN` (bit 0) 应置位。
 
 ## 2. 输入因子
 
@@ -59,6 +70,10 @@ bldc_init()
 |------|------|------|
 | `leftTimerEnabled` | bool | LEFT_TIM (TIM8) CR1.CEN = 1 |
 | `rightTimerEnabled` | bool | RIGHT_TIM (TIM1) CR1.CEN = 1 |
+| `bodyCan.canSilent` | bool | 启动后应为 false |
+| `bodyCan.canLoopback` | bool | 启动后应为 false |
+| `bodyCan.bodySafetyHooksSet` | bool | 当前安全模式应为 `SAFETY_BODY` |
+| `bodyCan.canTransceiverEnabled` | bool | CAN 收发器输出脚已拉低使能 |
 | `leftTimerArr` | int | LEFT_TIM ARR = pwm_res (非零) |
 | `rightTimerArr` | int | RIGHT_TIM ARR = pwm_res (非零) |
 
@@ -66,17 +81,26 @@ bldc_init()
 
 ## 4. 测试用例
 
-### TC1 (B8): BLDC 初始化设置 TIM8 和 TIM1 用于 PWM 输出
-- 前置: 无（`bldc_init()` 由 `jna_panda_init()` 在库加载时自动调用）
+### TC1 (B8/B13): 启动时完成 body CAN 初始化并设置 TIM8/TIM1 PWM
+- 前置: 无（`jna_panda_init()` 在库加载时自动按启动顺序调用 `body_can_init()` → `dotstar_init()` → `bldc_init()`）
 - 输入: 无（所有 body 场景共享此初始化）
-- 输出: `leftTimerEnabled=true`, `rightTimerEnabled=true`
+- 输出:
+  - `bodyCan.canSilent=false`
+  - `bodyCan.canLoopback=false`
+  - `bodyCan.bodySafetyHooksSet=true`
+  - `bodyCan.canTransceiverEnabled=true`
+  - `leftTimerEnabled=true`, `rightTimerEnabled=true`
 - 验证方式: 读取 `TIM8->CR1 & TIM_CR1_CEN` / `TIM1->CR1 & TIM_CR1_CEN`
-- 覆盖: `bldc_init()` 完整路径 + `BLDC_controller_initialize()` ×2
+- 覆盖: `body_can_init()` 启动路径 + `bldc_init()` 完整路径 + `BLDC_controller_initialize()` ×2
 
 ## 5. 覆盖检查
 
 | 条件 | TC1 |
 |------|-----|
+| `body_can_init()` 启动调用 | ✅ |
+| `can_silent=false` / `can_loopback=false` | ✅ |
+| `set_safety_hooks(SAFETY_BODY)` | ✅ |
+| CAN 收发器使能 GPIO | ✅ |
 | LEFT_TIM CR1.CEN 置位 | ✅ |
 | RIGHT_TIM CR1.CEN 置位 | ✅ |
 | BLDC_controller_initialize (left) | ✅ (编译器链接自动覆盖) |
@@ -84,7 +108,7 @@ bldc_init()
 | GPIO Hall 传感器配置 | ✅ (寄存器操作自动覆盖) |
 | TIM PWM 寄存器配置 | ✅ (ARR/EEC/CCMR/BDTR 操作自动覆盖) |
 
-✅ B8: `bldc_init()` 全覆盖。`BLDC_controller_initialize()` 及参数数据结构引用已通过编译器链接自动进入覆盖率。
+✅ B8/B13: 启动场景同时覆盖 `body_can_init()` 与 `bldc_init()`。`BLDC_controller_initialize()` 及参数数据结构引用已通过编译器链接自动进入覆盖率。
 
 ---
 
@@ -200,6 +224,7 @@ bldc_step()
 ```c
 void body_main(void) {
   // ... 硬件初始化 (clock, peripherals, USB, interrupts, enable_fpu) ...
+  body_can_init();        // line 115
   dotstar_init();         // line 116
   bldc_init();            // line 117
   // ... 主循环 while(1):
@@ -209,9 +234,9 @@ void body_main(void) {
 }
 ```
 
-e2e 环境：`jna_panda_init()` 模拟固件启动，依次调用 `dotstar_init()` 和 `bldc_init()`（与生产固件顺序一致）。`bldc_step()` 通过独立的 `jna_bldc_step()` JNA 入口调用，模拟 TIM8 更新中断触发的 FOC 算法执行。
+e2e 环境：`jna_panda_init()` 模拟固件启动，依次调用 `body_can_init()`、`dotstar_init()`、`bldc_init()`（与生产固件顺序一致）。`bldc_step()` 通过独立的 `jna_bldc_step()` JNA 入口调用，模拟 TIM8 更新中断触发的 FOC 算法执行。
 
-### 6.1 B8: bldc_init — 初始化覆盖
+### 6.1 B8/B13: 启动路径初始化覆盖
 
 ## 覆盖率
 
@@ -220,6 +245,6 @@ e2e 环境：`jna_panda_init()` 模拟固件启动，依次调用 `dotstar_init(
 
 | 源文件 | 行覆盖 | 说明 |
 |--------|--------|------|
-| `board/body/bldc/bldc.h` | ✅ bldc_init() + bldc_step() | BLDC 初始化 + TIM PWM 配置 (B8) + FOC 算法 (B9) |
-| `board/body/bldc/BLDC_controller.c` | ~45%+ | BLDC_controller_initialize() ×2 + BLDC_controller_step() ×2 FOC 算法 (PI/Clark-Park/SVPWM/速度环) |
+| `board/body/bldc/bldc.h` | ✅ bldc_init() + bldc_step() | BLDC 初始化 + TIM PWM 配置 (B8/B13 启动路径的一部分) + FOC 算法 (B9) |
+| `board/body/bldc/BLDC_controller.c` | 38.45% (486/1264) | BLDC_controller_initialize() ×2 + BLDC_controller_step() ×2 FOC 算法 (PI/Clark-Park/SVPWM/速度环) |
 | `board/body/bldc/BLDC_controller_data.c` | 隐式覆盖 | rtConstP 查表数据 + rtP_Left 参数结构体通过模型指针引用进入覆盖率 |

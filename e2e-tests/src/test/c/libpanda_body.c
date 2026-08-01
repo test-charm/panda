@@ -6,6 +6,10 @@
 
 #include "fake_stm.h"
 
+#ifndef E2E_TEST
+#define E2E_TEST
+#endif
+
 // ---- CMSIS + safety deps ----
 #include "config.h"
 #include "opendbc/safety/can.h"
@@ -88,15 +92,17 @@ TIM_TypeDef e2e_TIM1, e2e_TIM8;
 
 // ---- FDCAN instances ----
 // FDCAN1/2/3 macros must be defined as pointers BEFORE including headers that use them
-#define FDCAN1 (&e2e_FDCAN1)
-#define FDCAN2 (&e2e_FDCAN2)
-#define FDCAN3 (&e2e_FDCAN3)
-FDCAN_GlobalTypeDef e2e_FDCAN1 = {0}, e2e_FDCAN2 = {0}, e2e_FDCAN3 = {0};
-FDCAN_GlobalTypeDef fake_fdcan[3] = {{0}, {0}, {0}};
-// cans[] is defined by fdcan.h, not here
+#define FDCAN1 (&fake_fdcan[0])
+#define FDCAN2 (&fake_fdcan[1])
+#define FDCAN3 (&fake_fdcan[2])
+static FDCAN_GlobalTypeDef fake_fdcan[3] = {{0}, {0}, {0}};
 
 // ---- FDCAN SRAM buffer (needed by fdcan.h) ----
-uint32_t e2e_fdcan_sram[4096] __attribute__((aligned(256)));
+#define FAKE_FDCAN_SRAM_SIZE 0x4000
+static uint8_t fake_fdcan_sram[FAKE_FDCAN_SRAM_SIZE] __attribute__((aligned(256)));
+#undef FDCAN_START_ADDRESS
+#define FDCAN_START_ADDRESS ((uintptr_t)fake_fdcan_sram)
+FDCAN_GlobalTypeDef *cans[3] = {FDCAN1, FDCAN2, FDCAN3};
 
 // ---- CMSIS intrinsic stubs ----
 void __disable_irq(void) {}
@@ -106,8 +112,9 @@ void __ISB(void) {}
 void __WFI(void) {}
 
 // ---- Utility stubs ----
-uint32_t microsecond_timer_get(void) { return 0; }
-void microsecond_timer_init(void) {}
+static uint32_t e2e_microsecond_timer = 0U;
+uint32_t microsecond_timer_get(void) { return e2e_microsecond_timer; }
+void microsecond_timer_init(void) { e2e_microsecond_timer = 0U; }
 void tick_timer_init(void) {}
 void peripherals_init(void) {}
 void clock_init(void) {}
@@ -299,9 +306,11 @@ void jna_panda_init(void) {
   uptime_cnt = 0;
   nvic_reset_call_count = 0;
   enter_bootloader_mode = 0;
+  e2e_microsecond_timer = 0U;
 
-  // bldc_init() and dotstar_init() are called in body_main() startup (line 116-117).
-  // Call them here so all body tests get full startup coverage automatically.
+  // body_main() startup initializes CAN, DotStar, then BLDC.
+  // Mirror that startup path here so each body scenario begins from firmware init state.
+  body_can_init();
   dotstar_init();
   bldc_init();
 }
@@ -389,3 +398,99 @@ unsigned int jna_dotstar_get_pixel_b(unsigned int index) {
 }
 unsigned int jna_dotstar_get_brightness(void) { return dotstar_state.global_brightness; }
 unsigned int jna_dotstar_is_initialized(void) { return dotstar_state.initialized ? 1U : 0U; }
+
+// ---- JNA: Body CAN (B13-B17) ----
+void jna_body_can_send_motor_speeds(int left, int right) {
+  body_can_send_motor_speeds(BODY_BUS_NUMBER, (float)left, (float)right);
+}
+
+void jna_body_can_send_var_values(int ignition, int enable_motors_val, int fault, int left_z_errcode, int right_z_errcode) {
+  body_can_send_var_values(BODY_BUS_NUMBER, ignition != 0, enable_motors_val != 0,
+                           (uint8_t)fault, (uint8_t)left_z_errcode, (uint8_t)right_z_errcode);
+}
+
+void jna_body_can_send_body_data(int mcu_temp_raw, int batt_voltage_raw_val, int batt_percentage_val, int charger_connected) {
+  body_can_send_body_data(BODY_BUS_NUMBER, (uint8_t)mcu_temp_raw, (uint16_t)batt_voltage_raw_val,
+                          (uint8_t)batt_percentage_val, charger_connected != 0);
+}
+
+void jna_body_set_microsecond_timer(unsigned int now_us) {
+  e2e_microsecond_timer = now_us;
+}
+
+void jna_body_can_receive_target(int left_rpm, int right_rpm) {
+  CANPacket_t pkt = {0};
+  const int16_t left_target_deci_rpm = (int16_t)(left_rpm * 10);
+  const int16_t right_target_deci_rpm = (int16_t)(right_rpm * 10);
+
+  pkt.addr = 0x250U;
+  pkt.bus = BODY_BUS_NUMBER;
+  pkt.data_len_code = 4U;
+  pkt.data[0] = (uint8_t)((left_target_deci_rpm >> 8U) & 0xFFU);
+  pkt.data[1] = (uint8_t)(left_target_deci_rpm & 0xFFU);
+  pkt.data[2] = (uint8_t)((right_target_deci_rpm >> 8U) & 0xFFU);
+  pkt.data[3] = (uint8_t)(right_target_deci_rpm & 0xFFU);
+  body_can_rx(&pkt);
+}
+
+void jna_body_can_periodic(unsigned int now_us, int ignition, int plug_charging) {
+  body_can_periodic(now_us, ignition != 0, plug_charging != 0);
+}
+
+unsigned int jna_body_get_last_can_cmd_timestamp_us(void) {
+  return last_can_cmd_timestamp_us;
+}
+
+unsigned int jna_body_get_can_silent(void) {
+  return can_silent ? 1U : 0U;
+}
+
+unsigned int jna_body_get_can_loopback(void) {
+  return can_loopback ? 1U : 0U;
+}
+
+unsigned int jna_body_is_body_safety_mode(void) {
+  return (current_safety_mode == SAFETY_BODY) ? 1U : 0U;
+}
+
+unsigned int jna_body_is_can_transceiver_enabled(void) {
+  const unsigned int pin_mode = (CAN_TRANSCEIVER_EN_PORT->MODER >> (CAN_TRANSCEIVER_EN_PIN * 2U)) & 0x3U;
+  const unsigned int pin_level = (CAN_TRANSCEIVER_EN_PORT->ODR >> CAN_TRANSCEIVER_EN_PIN) & 0x1U;
+  return ((pin_mode == MODE_OUTPUT) && (pin_level == 0U)) ? 1U : 0U;
+}
+
+bool jna_body_can_pop_tx(uint32_t *out_addr, uint8_t *out_returned, uint8_t *out_data, uint8_t *out_len,
+                         uint8_t *out_extended, uint8_t *out_fd) {
+  CANPacket_t pkt;
+  if (can_pop(can_queues[BODY_BUS_NUMBER], &pkt)) {
+    *out_addr = pkt.addr;
+    *out_returned = pkt.returned;
+    *out_len = pkt.data_len_code;
+    *out_extended = pkt.extended;
+    *out_fd = pkt.fd;
+    if (pkt.data_len_code > 0U) {
+      (void)memcpy(out_data, pkt.data, pkt.data_len_code);
+    }
+    return true;
+  }
+  return false;
+}
+
+bool jna_body_can_pop_rx(uint32_t *out_addr, uint8_t *out_bus, uint8_t *out_rejected, uint8_t *out_returned,
+                         uint8_t *out_data, uint8_t *out_len, uint8_t *out_extended, uint8_t *out_fd) {
+  CANPacket_t pkt;
+  if (can_pop(&can_rx_q, &pkt)) {
+    *out_addr = pkt.addr;
+    *out_bus = pkt.bus;
+    *out_rejected = pkt.rejected;
+    *out_returned = pkt.returned;
+    *out_len = pkt.data_len_code;
+    *out_extended = pkt.extended;
+    *out_fd = pkt.fd;
+    if (pkt.data_len_code > 0U) {
+      (void)memcpy(out_data, pkt.data, pkt.data_len_code);
+    }
+    return true;
+  }
+  return false;
+}

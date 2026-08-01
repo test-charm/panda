@@ -1,14 +1,17 @@
 # Body DotStar LED 驱动 — 测试设计文档
 
 > 功能: `dotstar_init()` + `dotstar_fill()` + `dotstar_set_pixel()` + `dotstar_set_global_brightness()` + `dotstar_run_rainbow()` + `dotstar_apply_breathe()` in `board/body/dotstar.h`
-> 被测接口: `jna_panda_init()` → `dotstar_init()` (启动路径); JNA 直接调用 `dotstar_fill` / `dotstar_show` / `dotstar_set_pixel` / `dotstar_set_global_brightness` / `dotstar_run_rainbow` / `dotstar_apply_breathe`
+> 被测接口: `jna_panda_init()` → `body_can_init()` → `dotstar_init()` (启动路径); JNA 直接调用 `dotstar_fill` / `dotstar_show` / `dotstar_set_pixel` / `dotstar_set_global_brightness` / `dotstar_run_rainbow` / `dotstar_apply_breathe`
 > 固件目标: body (`board/body/main.c`)
 > 已完成: B10 + B11 + B12 (2026-08-01)
 
 ## 1. 被测功能流程图
 
 ```
-jna_panda_init() (body 固件启动模拟, line 116)
+jna_panda_init() (body 固件启动模拟, line 115-117)
+      │
+      ▼
+body_can_init()                            — 启动顺序中的前置步骤
       │
       ▼
 dotstar_init()
@@ -57,7 +60,7 @@ dotstar_apply_breathe(color, now_us, cycle_us)
             dotstar_fill(r', g', b')
 ```
 
-> **关键验证点**: `dotstar_state.initialized` 在 `jna_panda_init()` 后自动为 true。各函数通过 `dotstar_state.pixels[i]` 和 `dotstar_state.global_brightness` 直接验证。
+> **关键验证点**: `dotstar_state.initialized` 在 `jna_panda_init()` 后自动为 true。虽然 `body_can_init()` 先于 `dotstar_init()` 执行，但 LED 状态验证仍只依赖 `dotstar_state.pixels[i]` 和 `dotstar_state.global_brightness`。
 > `dotstar_show()` 仅在 `initialized=true` 时执行 SPI 帧发送（e2e 中通过假 GPIO 验证寄存器写入）。
 
 ## 2. 输入因子
@@ -149,6 +152,7 @@ dotstar_apply_breathe(color, now_us, cycle_us)
 ```c
 void body_main(void) {
   // ... 硬件初始化 ...
+  body_can_init();        // ← line 115
   dotstar_init();         // ← line 116
   bldc_init();            // ← line 117
   // ... 主循环 while(1):
@@ -157,7 +161,7 @@ void body_main(void) {
 }
 ```
 
-e2e 环境：`jna_panda_init()` 模拟固件启动，调用 `dotstar_init()` 后接 `bldc_init()`（与生产固件顺序一致）。`dotstar_run_rainbow()` 和 `dotstar_apply_breathe()` 通过独立 JNA 入口调用，模拟 `tick_handler()` 中的 LED 动画更新。
+e2e 环境：`jna_panda_init()` 模拟固件启动，按 `body_can_init()` → `dotstar_init()` → `bldc_init()` 顺序执行（与生产固件顺序一致）。`dotstar_run_rainbow()` 和 `dotstar_apply_breathe()` 通过独立 JNA 入口调用，模拟主循环中的 LED 动画更新。
 
 ## 覆盖率
 
@@ -166,4 +170,4 @@ e2e 环境：`jna_panda_init()` 模拟固件启动，调用 `dotstar_init()` 后
 
 | 源文件 | 说明 |
 |--------|------|
-| `board/body/dotstar.h` | ✅ B10+B11+B12: dotstar_init() + dotstar_fill() + dotstar_set_pixel() + dotstar_set_global_brightness() + dotstar_run_rainbow() + dotstar_apply_breathe() 全覆盖 |
+| `board/body/dotstar.h` | 90.97% (141/155) | ✅ B10+B11+B12: dotstar_init() + dotstar_fill() + dotstar_set_pixel() + dotstar_set_global_brightness() + dotstar_run_rainbow() + dotstar_apply_breathe() 高覆盖 |

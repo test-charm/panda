@@ -100,6 +100,21 @@ public class BodyPandaClient {
         int jna_dotstar_get_pixel_b(int index);
         int jna_dotstar_get_brightness();
         int jna_dotstar_is_initialized();
+
+        // ---- Body CAN (B13-B17) ----
+        void jna_body_can_send_motor_speeds(int left, int right);
+        void jna_body_can_send_var_values(int ignition, int enableMotors, int fault, int leftZErrcode, int rightZErrcode);
+        void jna_body_can_send_body_data(int mcuTempRaw, int battVoltageRaw, int battPercentage, int chargerConnected);
+        void jna_body_can_receive_target(int leftRpm, int rightRpm);
+        void jna_body_can_periodic(int nowUs, int ignition, int plugCharging);
+        void jna_body_set_microsecond_timer(int nowUs);
+        int jna_body_get_last_can_cmd_timestamp_us();
+        int jna_body_get_can_silent();
+        int jna_body_get_can_loopback();
+        int jna_body_is_body_safety_mode();
+        int jna_body_is_can_transceiver_enabled();
+        boolean jna_body_can_pop_tx(int[] outAddr, byte[] outReturned, byte[] outData, byte[] outLen, byte[] outExtended, byte[] outFd);
+        boolean jna_body_can_pop_rx(int[] outAddr, byte[] outBus, byte[] outRejected, byte[] outReturned, byte[] outData, byte[] outLen, byte[] outExtended, byte[] outFd);
     }
 
     // ---- Inner data classes (used by jfactory specs) ----
@@ -115,6 +130,8 @@ public class BodyPandaClient {
     private static final String ORIGINAL_LIB_PATH =
             System.getProperty("user.dir") + "/src/test/c/libpanda_body.dylib";
     private BodyPandaLib lib = Native.load(ORIGINAL_LIB_PATH, BodyPandaLib.class);
+    private AdaptiveList<PandaClient.CanMessage> txQueueSnapshot = null;
+    private AdaptiveList<PandaClient.CanMessage> rxQueueSnapshot = null;
 
     private void reloadLibrary() {
         try {
@@ -131,6 +148,13 @@ public class BodyPandaClient {
 
     public void clearAll() {
         reloadLibrary();
+        txQueueSnapshot = null;
+        rxQueueSnapshot = null;
+    }
+
+    private void invalidateCanSnapshots() {
+        txQueueSnapshot = null;
+        rxQueueSnapshot = null;
     }
 
     // ---- DAL-compatible accessors (used by Then body control data should be:) ----
@@ -300,6 +324,103 @@ public class BodyPandaClient {
      * Calls the C-side comms_control_handler with the decoded request.
      */
     public void controlWrite(byte request, short param1, short param2) {
+        invalidateCanSnapshots();
         lib.jna_body_control_write(Byte.toUnsignedInt(request), param1, param2);
+    }
+
+    // ---- Body CAN (B13-B17) ----
+
+    public void bodyCanSendMotorSpeeds(int leftRpm, int rightRpm) {
+        invalidateCanSnapshots();
+        lib.jna_body_can_send_motor_speeds(leftRpm, rightRpm);
+    }
+
+    public void bodyCanSendVarValues(boolean ignition, boolean enableMotors, int fault, int leftZErrcode, int rightZErrcode) {
+        invalidateCanSnapshots();
+        lib.jna_body_can_send_var_values(ignition ? 1 : 0, enableMotors ? 1 : 0, fault, leftZErrcode, rightZErrcode);
+    }
+
+    public void bodyCanSendBodyData(int mcuTempRaw, int battVoltageRaw, int battPercentage, boolean chargerConnected) {
+        invalidateCanSnapshots();
+        lib.jna_body_can_send_body_data(mcuTempRaw, battVoltageRaw, battPercentage, chargerConnected ? 1 : 0);
+    }
+
+    public void bodyCanSetMicrosecondTimer(int nowUs) {
+        lib.jna_body_set_microsecond_timer(nowUs);
+    }
+
+    public void bodyCanReceiveTarget(int leftRpm, int rightRpm) {
+        invalidateCanSnapshots();
+        lib.jna_body_can_receive_target(leftRpm, rightRpm);
+    }
+
+    public void bodyCanPeriodic(int nowUs, boolean ignition, boolean plugCharging) {
+        invalidateCanSnapshots();
+        lib.jna_body_can_periodic(nowUs, ignition ? 1 : 0, plugCharging ? 1 : 0);
+    }
+
+    @Getter
+    public class BodyCanState {
+        public boolean isCanSilent() { return lib.jna_body_get_can_silent() != 0; }
+        public boolean isCanLoopback() { return lib.jna_body_get_can_loopback() != 0; }
+        public boolean isBodySafetyHooksSet() { return lib.jna_body_is_body_safety_mode() != 0; }
+        public boolean isCanTransceiverEnabled() { return lib.jna_body_is_can_transceiver_enabled() != 0; }
+        public int getLastCanCmdTimestampUs() { return lib.jna_body_get_last_can_cmd_timestamp_us(); }
+    }
+
+    private final BodyCanState bodyCan = new BodyCanState();
+
+    public BodyCanState getBodyCan() { return bodyCan; }
+
+    public AdaptiveList<PandaClient.CanMessage> getTxQueue() {
+        if (txQueueSnapshot != null) {
+            return txQueueSnapshot;
+        }
+
+        int[] outAddr = new int[1];
+        byte[] outReturned = new byte[1];
+        byte[] outData = new byte[64];
+        byte[] outLen = new byte[1];
+        byte[] outExtended = new byte[1];
+        byte[] outFd = new byte[1];
+        var canMessages = new ArrayList<PandaClient.CanMessage>();
+
+        while (lib.jna_body_can_pop_tx(outAddr, outReturned, outData, outLen, outExtended, outFd)) {
+            int len = Byte.toUnsignedInt(outLen[0]);
+            byte[] data = new byte[len];
+            System.arraycopy(outData, 0, data, 0, len);
+            canMessages.add(new PandaClient.CanMessage(outAddr[0], 0, data, false, outReturned[0] != 0,
+                    outExtended[0] != 0, outFd[0] != 0));
+        }
+
+        txQueueSnapshot = AdaptiveList.staticList(canMessages);
+        return txQueueSnapshot;
+    }
+
+    public AdaptiveList<PandaClient.CanMessage> getRxQueue() {
+        if (rxQueueSnapshot != null) {
+            return rxQueueSnapshot;
+        }
+
+        int[] outAddr = new int[1];
+        byte[] outBus = new byte[1];
+        byte[] outRejected = new byte[1];
+        byte[] outReturned = new byte[1];
+        byte[] outData = new byte[64];
+        byte[] outLen = new byte[1];
+        byte[] outExtended = new byte[1];
+        byte[] outFd = new byte[1];
+        var canMessages = new ArrayList<PandaClient.CanMessage>();
+
+        while (lib.jna_body_can_pop_rx(outAddr, outBus, outRejected, outReturned, outData, outLen, outExtended, outFd)) {
+            int len = Byte.toUnsignedInt(outLen[0]);
+            byte[] data = new byte[len];
+            System.arraycopy(outData, 0, data, 0, len);
+            canMessages.add(new PandaClient.CanMessage(outAddr[0], Byte.toUnsignedInt(outBus[0]), data,
+                    outRejected[0] != 0, outReturned[0] != 0, outExtended[0] != 0, outFd[0] != 0));
+        }
+
+        rxQueueSnapshot = AdaptiveList.staticList(canMessages);
+        return rxQueueSnapshot;
     }
 }
