@@ -52,6 +52,17 @@ public class BodyPandaClient {
 
         void jna_body_set_signature_chunk(int chunk, byte[] data, int data_len);
 
+        // ---- BLDC motor control ----
+        void jna_body_bldc_init();
+
+        int jna_body_get_tim8_cr1();
+
+        int jna_body_get_tim1_cr1();
+
+        int jna_body_get_tim8_arr();
+
+        int jna_body_get_tim1_arr();
+
         void jna_panda_init();
     }
 
@@ -148,14 +159,33 @@ public class BodyPandaClient {
         lib.jna_body_set_signature_chunk(chunk, data, data.length);
     }
 
+    // ---- BLDC motor control (B8) ----
+
+    /**
+     * B8: Initialize BLDC/FOC controller, TIM1 and TIM8 for PWM.
+     */
+    public void bldcInit() {
+        lib.jna_body_bldc_init();
+    }
+
+    // BIT(0) = TIM_CR1_CEN
+    private static final int TIM_CR1_CEN = 1;
+
+    public boolean isLeftTimerEnabled() {
+        return (lib.jna_body_get_tim8_cr1() & TIM_CR1_CEN) != 0;
+    }
+
+    public boolean isRightTimerEnabled() {
+        return (lib.jna_body_get_tim1_cr1() & TIM_CR1_CEN) != 0;
+    }
+
     // ---- Public API ----
 
     /**
      * Send a USB control command — the jfactory entry point.
      * Calls the C-side comms_control_handler with the decoded request.
      */
-    public void controlWrite(byte request, short param1, short param2, short length) {
-        lib.jna_body_control_write(
-                Byte.toUnsignedInt(request), (int) param1, (int) param2);
+    public void controlWrite(byte request, short param1, short param2) {
+        lib.jna_body_control_write(Byte.toUnsignedInt(request), param1, param2);
     }
 }

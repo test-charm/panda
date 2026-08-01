@@ -299,6 +299,10 @@ void jna_panda_init(void) {
   uptime_cnt = 0;
   nvic_reset_call_count = 0;
   enter_bootloader_mode = 0;
+
+  // bldc_init() is called in body_main() startup (line 117).
+  // Call it here so all body tests get BLDC coverage automatically.
+  bldc_init();
 }
 
 // ---- JNA: Response buffer access (filled by jna_body_control_write) ----
@@ -321,3 +325,15 @@ void jna_body_set_signature_chunk(int chunk, const char *data, size_t data_len) 
   uint8_t *sig = (uint8_t *)_app_start + _app_start[0] + (size_t)chunk * 64U;
   for (size_t i = 0U; (i < 64U) && (i < data_len); i++) { sig[i] = (uint8_t)data[i]; }
 }
+
+// ---- JNA: BLDC motor control (B8-B9) ----
+
+void jna_body_bldc_init(void) {
+  bldc_init();
+}
+
+// LEFT_TIM = TIM8, RIGHT_TIM = TIM1 (defined in bldc_defs.h)
+unsigned int jna_body_get_tim8_cr1(void) { return LEFT_TIM->CR1; }
+unsigned int jna_body_get_tim1_cr1(void) { return RIGHT_TIM->CR1; }
+unsigned int jna_body_get_tim8_arr(void) { return LEFT_TIM->ARR; }
+unsigned int jna_body_get_tim1_arr(void) { return RIGHT_TIM->ARR; }

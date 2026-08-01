@@ -19,7 +19,12 @@ public class BodyCommandsStepDefs {
         var jFactory = newJFactory(BodyUsbControlRequests.BodyUsbControlRequest.class);
         jFactory.useDAL().createAll(expression);
         var request = jFactory.type(BodyPandaClient.BodyControlRequest.class).query();
-        bodyClient.controlWrite(request.request, request.param1, request.param2, request.length);
+        bodyClient.controlWrite(request.request, request.param1, request.param2);
+    }
+
+    @When("bldc init")
+    public void bldcInit() {
+        bodyClient.bldcInit();
     }
 
     @Then("body control data should be:")

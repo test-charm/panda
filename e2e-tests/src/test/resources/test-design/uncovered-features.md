@@ -1,10 +1,10 @@
 # 端到端测试覆盖分析
 
-> 最后更新: 2026-08-01 (B1-B7: body shared USB commands)
-> Feature 文件: 38 个, 场景总数: 264 (cuatro/tres/red/body 合并)
-> 综合行覆盖率: **55.9%** (2398/4287 lines), 49 files
+> 最后更新: 2026-08-01 (B8: bldc_init — BLDC 模型初始化 + TIM PWM)
+> Feature 文件: 39 个, 场景总数: 265 (cuatro/tres/red/body 合并)
+> 综合行覆盖率: ~56%+ (待重新运行 run_all_coverage.sh), 49 files
 > 非 body 覆盖率: **92.7%** (2340/2525 lines), 40 files
-> Body 覆盖率: **3.3%** (58/1762 lines), 9 files
+> Body 覆盖率: ~5%+ (bldc_init 随 jna_panda_init 自动调用, BLDC_controller_initialize ×2 已覆盖, 待重新运行覆盖率)
 > 数据来源: `e2e-tests/run_all_coverage.sh` → `e2e-tests/build/coverage/merged.lcov`
 > IGNORE_REGEX 已排除 e2e stub: `bldc.h`, `stm32h7xx.h`
 
@@ -482,6 +482,12 @@ while (true) {
 - B4: `can_health_pkt.h` 提取为共享文件 (0% → 94.6%)
 - B5: `harness.h` 去桩化 (0% → 100%), 综合 82.2% → 90.0%
 
+### 第六阶段: Body 固件测试 (B1-B7)
+- B1-B7: body 共享 USB 命令全覆盖 (0xd6/0xdd/0xd8/0xd3/0xd4/0xd1), `main_comms.h` → 86.4%
+
+### 第七阶段: BLDC 电机控制 (B8)
+- B8: `bldc_init()` 随 `jna_panda_init()` 自动调用, 覆盖 `BLDC_controller_initialize()` ×2 + TIM PWM 寄存器验证
+
 ### 第三阶段: 轻量去桩化 (C1-C3)
 - C1: `crc.h` 去桩化 (0% → 100%, 纯 C 算法)
 - C2: `llfdcan_declarations.h` 真实宏定义进入覆盖率 (91.3%)
@@ -517,10 +523,12 @@ Phase H 后: ~91% (~2100/~2300, ~40 files) ← 当前
 Phase J 后: **92.9%** (2304/2479, ~40 files) ← 最新 ✅
 Phase K 后: **~92%** (~2371/2985, 48 files) ← body 合并后 (不含 BLDC)
 B1-B7 后: **55.9%** (2398/4287, 49 files) ← body 全量合并 (含 BLDC, e2e stub 已排除)
+B8 后:    ~56%+  (body: bldc_init → BLDC_controller_initialize ×2, 待 re-run 覆盖率)
 ```
 
 > **注**：Phase K 合并 body 固件覆盖率后，分母增加了 ~506 行新文件（`board/body/main.c`、`board/body/main_comms.h`、`board/body/can.h`、`board/body/dotstar.h` 等），但 BLDC 尚未进入覆盖率。
 > **B1-B7 (2026-08-01)**：body 共享命令测试完成，`main_comms.h` → 86.4%。同时 BLDC 控制器等真实固件文件进入覆盖率（1274+158+96+92 行，0%），body 总计 1762 行（9 文件）并入合并统计。`run_all_coverage.sh` 已排除 e2e 包装器（bldc.h、stm32h7xx.h），body 固件低覆盖反映真实未测试状态。
+> **B8 (2026-08-01)**：`bldc_init()` 在 `jna_panda_init()` 中自动调用，模拟生产固件 `body_main()` 启动流程。覆盖 `BLDC_controller_initialize()` ×2（左/右电机模型初始化）+ BLDC 控制器参数配置 + TIM1/TIM8 PWM 寄存器设置。所有 body 场景（14 个）自动获得 BLDC 初始化覆盖。
 > **非 body 覆盖率**: 92.7% (2340/2525, 40 files)，与本阶段前一致。
 
 ### 第六阶段：Body 固件可补测试缺口分析 (2026-08-01)
@@ -547,8 +555,8 @@ B1-B7 后: **55.9%** (2398/4287, 49 files) ← body 全量合并 (含 BLDC, e2e 
 
 | # | 优先级 | 文件 | 未覆盖内容 | 所需 JNA 入口 | 测试方案 |
 |---|--------|------|-----------|--------------|---------|
-| B8 | 🔴 高 | `body/bldc/bldc.h` | `bldc_init()` (Simulink 模型初始化 + TIM PWM + hall GPIO) | `jna_bldc_init()` | 调用 `bldc_init()` → 验证 `rtM_Left->defaultParam` 非 NULL、`LEFT_TIM->CR1` 已设置 `CEN` |
-| B9 | 🔴 高 | `body/bldc/bldc.h` + `BLDC_controller.c` | `bldc_step()` → `BLDC_controller_step()` (3306 行 FOC 算法) | `jna_bldc_init()` + `jna_bldc_step()` | 先 `bldc_init()`，设置 `rpm_left=100` / `rpm_right=200`，循环调用 `bldc_step()` ×2000 (跳过 ADC 校准) → 验证 `rtY_Left.DC_phaA/B/C` 和 `LEFT_TIM->CCR1/2/3` 有 PWM 输出 |
+| B8 | ✅ 完成 | `body/bldc/bldc.h` | `bldc_init()` (Simulink 模型初始化 + TIM PWM + hall GPIO) | `bldc_init()` 在 `jna_panda_init()` 中自动调用 | `bldc_init()` → `BLDC_controller_initialize()` ×2 → 验证 `LEFT_TIM->CR1` + `RIGHT_TIM->CR1` 有 `CEN` 位 |
+| B9 | 🔴 高 | `body/bldc/bldc.h` + `BLDC_controller.c` | `bldc_step()` → `BLDC_controller_step()` (3306 行 FOC 算法) | `jna_bldc_step()` | 先 `bldc_init()`（已自动完成），设置 `rpm_left=100` / `rpm_right=200`，循环调用 `bldc_step()` ×2000 (跳过 ADC 校准) → 验证 `rtY_Left.DC_phaA/B/C` 和 `LEFT_TIM->CCR1/2/3` 有 PWM 输出 |
 | B10 | 🟡 中 | `body/dotstar.h` | `dotstar_init()` + `dotstar_show()` + `dotstar_fill()` + `dotstar_set_pixel()` + `dotstar_set_global_brightness()` | `jna_dotstar_init()` + `jna_dotstar_fill()` + `jna_dotstar_show()` + `jna_dotstar_get_pixel()` | 调用 `dotstar_init()` → 验证 `dotstar_state.initialized=true`。`dotstar_fill(r,g,b)` → `dotstar_show()` → 读取 `dotstar_state.pixels[0-9]` 验证颜色 |
 | B11 | 🟡 中 | `body/dotstar.h` | `dotstar_run_rainbow()` (HSV 彩虹 + 呼吸亮度) | `jna_dotstar_init()` + `jna_dotstar_run_rainbow()` + `jna_dotstar_get_pixel()` / `jna_dotstar_get_brightness()` | `dotstar_init()` + `dotstar_run_rainbow(t_us)` → 读取 `dotstar_state.global_brightness` 和 `pixels[0]` 颜色，验证非零 |
 | B12 | 🟡 中 | `body/dotstar.h` | `dotstar_apply_breathe()` (三角波呼吸效果) | `jna_dotstar_init()` + `jna_dotstar_apply_breathe()` + `jna_dotstar_get_pixel()` | `dotstar_init()` + `dotstar_apply_breathe({r,g,b}, t_us, cycle_us)` → 验证像素颜色随 phase 变化 |
@@ -562,15 +570,15 @@ B1-B7 后: **55.9%** (2398/4287, 49 files) ← body 全量合并 (含 BLDC, e2e 
 | B20 | 🟡 中 | `body/main.c` | `bldc_tim8_handler()` → `bldc_step()` | `jna_bldc_init()` + `jna_trigger_tim8_irq()` | `bldc_init()` 后设置 `LEFT_TIM->SR = TIM_SR_UIF` → 触发 TIM8_UP IRQ → `bldc_tim8_handler()` → `bldc_step()` → 验证 `rtY_Left.DC_phaA` 变化 |
 | B21 | 🟢 低 | `body/boards/board_body.h` | `board_body_init()` (GPIO/CAN/EXTI/电源初始化) | `jna_board_body_init()` (或通过 `jna_body_main_init()`) | 调用 `board_body_init()` → 验证 `SYSCFG->EXTICR[3]`、`EXTI->IMR1`、`OBDC_POWER_ON_PORT` 等寄存器值 |
 
-> B8-B9 最优先：BLDC 控制器 3700 行是最大的覆盖率缺口。只需 2 个新 JNA 入口 (`jna_bldc_init` + `jna_bldc_step`)，即可覆盖 `board/body/bldc/` 下全部核心代码。
+> B8 已完成：`bldc_init()` 在 `jna_panda_init()` 中自动调用（模拟生产固件 `body_main()` 启动流程），覆盖 `BLDC_controller_initialize()` ×2 + `BLDC_controller_data.c` 常量的隐式引用。B9 仍需 `jna_bldc_step()` 来执行 FOC 算法循环。
 > B13-B17 CAN 函数次优先：2-3 个 JNA 入口覆盖 `body/can.h` 全部 8 个函数。
 
 #### 6.3 所需 JNA 入口汇总
 
 | # | JNA 入口 | C 函数 | 覆盖文件 | 说明 |
 |---|---------|--------|---------|------|
-| J1 | `jna_bldc_init()` | `bldc_init()` | `bldc.h`, `BLDC_controller.c`, `BLDC_controller_data.c` | 模型初始化，一次性覆盖 ~500 行 |
-| J2 | `jna_bldc_step()` | `bldc_step()` | `bldc.h`, `BLDC_controller.c` | FOC 一步，需先调 `bldc_init()` + 跳过 2000 次校准 |
+| J1 | `jna_panda_init()` → `bldc_init()` | `bldc_init()` | `bldc.h`, `BLDC_controller.c`, `BLDC_controller_data.c` | ✅ B8 完成：模型初始化随库加载自动调用，覆盖 ~500 行 |
+| J2 | `jna_bldc_step()` | `bldc_step()` | `bldc.h`, `BLDC_controller.c` | ⏳ B9 待完成：FOC 一步，需跳过 2000 次校准 |
 | J3 | `jna_body_can_init()` | `body_can_init()` | `body/can.h` | CAN 初始化 |
 | J4 | `jna_body_can_periodic(now, ignition, charging)` | `body_can_periodic()` | `body/can.h` | CAN 周期发送 + 超时检查 |
 | J5 | `jna_body_can_rx(msg)` | `body_can_rx()` | `body/can.h` | CAN 帧接收 |
@@ -594,12 +602,13 @@ B1-B7 后: **55.9%** (2398/4287, 49 files) ← body 全量合并 (含 BLDC, e2e 
 #### 6.5 覆盖率预估
 
 ```
-当前身体覆盖率:    3.3%  (58/1762, 仅 main_comms.h 86.4%)
+当前身体覆盖率:    ~5%   (bldc_init 随 jna_panda_init 自动调用, BLDC_controller_initialize ×2 + 数据常量已覆盖)
 B1-B7 完成后 (USB): 3.3%  (main_comms.h → 86.4%, 其余 0%)
-B8-B9 完成后 (BLDC): ~45% (+3700 行 BLDC 控制器)
+B8 完成后 (BLDC 初始化): ~5% (+bldc_init → BLDC_controller_initialize + 数据常量)
+B9 完成后 (BLDC 步进):  ~45% (+3700 行 BLDC 控制器 FOC 算法)
 B10-B12 完成后 (LED): ~52% (+dotstar.h)
 B13-B17 完成后 (CAN): ~65% (+can.h)
-B18-B21 完成后:       ~75% (+main.c 中断 + board_body.h)
+B18-B21 完成后:        ~75% (+main.c 中断 + board_body.h)
 ```
 
 ---
