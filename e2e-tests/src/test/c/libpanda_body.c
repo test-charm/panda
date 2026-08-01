@@ -283,12 +283,6 @@ int jna_body_control_write(unsigned int request, unsigned int param1, unsigned i
   return resp_buffer_len;
 }
 
-// JNA: Read response byte at index (returns -1 if out of range)
-int jna_body_get_resp_byte(int index) {
-  if (index < 0 || index >= resp_buffer_len) return -1;
-  return (int)resp_buffer[index];
-}
-
 // JNA: Read motor target globals
 int jna_body_get_rpm_left(void)  { return rpm_left; }
 int jna_body_get_rpm_right(void) { return rpm_right; }

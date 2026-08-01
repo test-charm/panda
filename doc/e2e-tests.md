@@ -27,9 +27,12 @@ Cucumber BDD 断言: gpioAModer: 0xFFFFFFF1, rccCr: 0x0, ...
 ./gradlew cucumber -Pboard=cuatro  # 默认
 ./gradlew cucumber -Pboard=tres
 ./gradlew cucumber -Pboard=red
+./gradlew cucumber -Pboard=body    # Body 固件
 ```
 
-构建输出 `libpanda_${board}.dylib`，编译宏 `-DE2E_BOARD_CUATRO/TRES/RED` 控制板级 GPIO 引脚选择。`@cuatro/@tres/@red` 标签过滤板特定场景。
+构建输出 `libpanda_${board}.dylib`，编译宏 `-DE2E_BOARD_CUATRO/TRES/RED` 控制板级 GPIO 引脚选择，`-DPANDA_BODY` 激活 body 固件路径。`@cuatro/@tres/@red/@body` 标签过滤板特定场景。
+
+body 固件使用独立的 C 入口 `libpanda_body.c`（而非 `libpanda.c`），因为 body 依赖不同的硬件外设（BLDC 电机、DotStar LED）且不包含 panda 的 harness/SPI/风扇等。
 
 ## 自动生成代码
 
@@ -101,25 +104,37 @@ Cucumber BDD 断言: gpioAModer: 0xFFFFFFF1, rccCr: 0x0, ...
 ```
 e2e-tests/
 ├── build.gradle
-├── scripts/coverage-report.sh       # 覆盖率报告（支持多板）
+├── run_all_coverage.sh               # 全板覆盖率合并（含 body）
+├── scripts/coverage-report.sh        # 覆盖率报告（支持多板）
 ├── src/test/
 │   ├── c/
-│   │   ├── build.sh                 # 编译（支持 BOARD 参数）
-│   │   ├── fake_stm.h               # GPIO_TypeDef 完整结构体
+│   │   ├── build.sh                  # 编译（支持 BOARD=body）
+│   │   ├── fake_stm.h                # GPIO_TypeDef 完整结构体 + CMSIS 桩
 │   │   ├── fdcan_regs.h              # FDCAN 寄存器类型定义
-│   │   ├── libpanda.c               # 假寄存器实例 + JNA 访问器
-│   │   ├── build.sh                 # 编译（支持 BOARD 参数）
-│   │   └── board/drivers/           # 仅 2 个必须桩 (fake_siren.h, usb.h); pwm/led/spi/watchdog 直接用真实文件 ✅ Phase H
+│   │   ├── libpanda.c                # 假寄存器实例 + JNA 访问器 (panda)
+│   │   ├── libpanda_body.c           # 假寄存器实例 + JNA 访问器 (body)
+│   │   ├── stm32h7xx.h               # 最小 CMSIS 桩（body 编译用）
+│   │   ├── board/
+│   │   │   ├── drivers/              # 仅 2 个必须桩 (fake_siren.h, usb.h)
+│   │   │   ├── stm32h7/              # board.h / lladc.h ADC 拦截桩
+│   │   │   ├── obj/gitversion.h      # 固件版本桩
+│   │   │   └── body/bldc/bldc.h      # BLDC Simulink 桩（body）
+│   │   └── bldc/                     # （已清理，实际使用 board/body/bldc/）
 │   ├── java/com/panda/e2e/
-│   │   ├── PandaClient.java         # JNA 接口 + StopModeRegs DTO
-│   │   ├── SafetyModeSteps.java     # BDD 步骤定义 + ControlSetup
-│   │   ├── Factories.java           # ControlSetup → client 自动装配 + hexToBytes
+│   │   ├── PandaClient.java          # JNA 接口 (panda)
+│   │   ├── BodyPandaClient.java      # JNA 接口 (body)
+│   │   ├── PandaSteps.java           # BDD 步骤定义 (panda)
+│   │   ├── BodyCommandsStepDefs.java # BDD 步骤定义 (body)
+│   │   ├── ApplicationSteps.java     # @Before setUp
 │   │   └── spec/
-│   │       ├── UsbControlRequests.java  # 33 个 USB 控制请求 spec
-│   │       └── ControlSetups.java       # 前置数据 spec
+│   │       ├── UsbControlRequests.java   # 33 个 USB 控制请求 spec (panda)
+│   │       ├── BodyUsbControlRequests.java # 5 个 USB 控制请求 spec (body)
+│   │       ├── ControlSetups.java    # 前置数据 spec (panda)
+│   │       ├── CanSendRequests.java  # CAN 发送 spec
+│   │       └── ...
 │   └── resources/
-│       ├── features/                # 36 个 feature 文件（含 interrupt_rate.feature ✅ Phase H）
-│       └── test-design/             # 测试设计文档
+│       ├── features/                 # 38 个 feature 文件（含 body_commands/body_shared_commands）
+│       └── test-design/              # 测试设计文档
 ```
 
 ## 被测功能覆盖
@@ -166,16 +181,21 @@ e2e-tests/
 | Tick 路径 | `tick_paths.feature` | 12 | has_fan=false, heartbeat_counter 溢出, safety_mode_cnt 溢出, harness reinit + register_divergence + watchdog (P1 + C4+C5) |
 | SPI Version Packet + Device ID | `spi_version_packet.feature` | 7 | spiVersionResult + serial/provision + USB 0xc3 MCU UID (Phase J) |
 | SPI 状态机 | `spi_state_machine.feature` | 31 | spiStateResult (生产 `spi_rx_done()` + `spi_tx_done()` + `spi_init()` ✅ J13 全状态覆盖 + endpoint2_write 合并 (第十三节 C6) + uart_read 合并 (第十三节 B8) ✅ Phase F.5) |
+| **Body 固件** | | | |
+| Body 电机命令 | `body_commands.feature` | 5 | rpmLeft/rpmRight/motorEnabled (0xb3/0xb4 通过 `board/body/main_comms.h`) |
+| Body 共享命令 | `body_shared_commands.feature` | 1 | hwType (0xc1 硬件类型查询)
 
 ## C 代码覆盖率
 
-> 数据来源: `e2e-tests/run_all_coverage.sh` 合并报告 (cuatro + tres + red)
-> 生成时间: 2026-07-30 (Phase J + J11-J14 + J12b-c 完成)
+> 数据来源: `e2e-tests/run_all_coverage.sh` 合并报告 (cuatro + tres + red + body)
+> 生成时间: 2026-07-31 (Phase K: body e2e 支持)
 
 | 源文件 | 行覆盖 | 函数覆盖 | 说明 |
 |--------|--------|---------|------|
 | `board/main_comms.h` | **97.0%** (261/269) | 3/3 | USB 命令处理 (Phase J: 新增 0xc3 MCU UID + 修复 0xde) |
 | `board/main.c` | **64.2%** (145/226) | 4/7 | 主循环 + 初始化 |
+| `board/body/main_comms.h` | — | — | ✅ body e2e 覆盖 (Phase K) |
+| `board/body/main.c` | — | — | ✅ body e2e 覆盖 (Phase K) |
 | `board/drivers/can_common.h` | **100%** (107/107) | 10/12 | CAN 通用操作 |
 | `board/drivers/gpio.h` | **100%** (72/72) | 6/7 | ✅ Phase J: J1 PUSH_PULL + J10 detect_with_pull 全覆盖 |
 | `board/sys/faults.h` | **100%** (20/20) | 2/2 | 故障设置 |
@@ -223,6 +243,7 @@ e2e-tests/
 
 ## C 代码编译
 
+Panda 固件：
 ```bash
 BOARD=cuatro cc -std=gnu11 -fPIC -shared -O0 -g \
   -I src/test/c \
@@ -233,7 +254,17 @@ BOARD=cuatro cc -std=gnu11 -fPIC -shared -O0 -g \
   -o libpanda_cuatro.dylib src/test/c/libpanda.c
 ```
 
-`-I src/test/c` 中的 stub 头文件提供板级适配（`board/stm32h7/board.h` — 引入真实 `board/boards/*.h` 生产代码，并包含 `common_init_gpio()` / `gpio_uart7_init()` 的真实实现复制自 `peripherals.h`）以及 `lladc.h`（ADC 拦截桩）。`pwm.h`、`led.h`、`spi.h`、`simple_watchdog.h` 的 e2e 包装器已删除，所有类型/桩集中在 `fake_stm.h`，真实文件直接使用 ✅ Phase H。
+Body 固件：
+```bash
+cc -std=gnu11 -fPIC -shared -O0 -g \
+  -I src/test/c \
+  -I . -I board/ -I board/body/ -I .venv/.../opendbc \
+  -D PANDA_BODY -D ALLOW_DEBUG \
+  -D HEALTH_PACKET_VERSION=0x...U -D CAN_PACKET_VERSION_HASH=0x...U \
+  -o libpanda_body.dylib src/test/c/libpanda_body.c
+```
+
+`-I src/test/c` 中的 stub 头文件提供板级适配。panda 使用 `board/stm32h7/board.h`（引入真实 `board/boards/*.h` 生产代码），body 使用 `board/body/bldc/bldc.h`（BLDC Simulink 桩）和 `stm32h7xx.h`（CMSIS 最小桩）。
 
 ## 运行命令
 
@@ -245,13 +276,15 @@ cd e2e-tests
 
 # 指定板卡
 ./gradlew cucumber -Pboard=tres
+./gradlew cucumber -Pboard=body
 
 # 覆盖率 (单板)
 COVERAGE=1 ./gradlew cucumberCoverage
 
-# 全量测试 + 合并覆盖率 (所有 feature，所有板卡)
+# 全量测试 + 合并覆盖率 (所有 feature，所有板卡: cuatro + tres + red + body)
 ./run_all_coverage.sh
 
 # 重建 C 库
 cd src/test/c && ./build.sh cuatro
+cd src/test/c && ./build.sh body
 ```

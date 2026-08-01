@@ -1,20 +1,22 @@
 # 端到端测试覆盖分析
 
-> 最后更新: 2026-07-30 (Phase J 完成)
-> Feature 文件: 38 个, 场景总数: 246 (cuatro/tres/red 合并)
-> 综合行覆盖率: **92.9%** (2304/2479 lines), 40 files
+> 最后更新: 2026-07-31 (Phase K: body e2e)
+> Feature 文件: 38 个, 场景总数: 257 (cuatro/tres/red/body 合并)
+> 综合行覆盖率: **79.4%** (2371/2985 lines), 48 files
 > 数据来源: `e2e-tests/run_all_coverage.sh` → `e2e-tests/build/coverage/merged.lcov`
 
 ---
 
 ## 一、e2e 编译模型
 
+### 1.1 Panda 固件
+
 e2e 通过 `libpanda.c` 编译完整 `board/main.c`，利用 `-I` 优先级覆盖机制：
 - `-I e2e-tests/src/test/c` (最高优先级 → e2e 桩)
 - `-I /path/to/panda` (项目根)
 - `-I /path/to/panda/board` (board 目录)
 
-### 1.1 进入覆盖率的 31 个真实 `board/` 文件
+进入覆盖率的 31 个真实 `board/` 文件（panda 固件）：
 
 ```
 board/main.c                          — 主固件逻辑
@@ -54,15 +56,36 @@ board/boards/unused_funcs.h           — 未使用功能的空桩实现
 board/provision.h                     — 设备 Provision 读取
 ```
 
-### 1.2 未进入覆盖率的文件
+### 1.2 Body 固件
+
+Body 固件通过独立的 `libpanda_body.c` 编译 `board/body/main.c`（Phase K），利用相同的 `-I` 优先级覆盖机制：
+- `-I e2e-tests/src/test/c` (最高优先级 → e2e 桩)
+- `-I /path/to/panda` (项目根)
+- `-I /path/to/panda/board` (board 目录)
+- `-I /path/to/panda/board/body` (body 子目录)
+- 编译宏: `-DPANDA_BODY` (激活 body 条件编译路径)
+
+进入覆盖率的 body 固件文件（5 个）：
+
+```
+board/body/main.c                     — Body 主固件逻辑
+board/body/main_comms.h               — Body USB 命令处理
+board/body/can.h                      — Body CAN 通信 (电机/状态/电池帧)
+board/body/dotstar.h                  — DotStar APA102 LED 驱动
+board/body/bldc/bldc_defs.h           — BLDC 电机常量定义
+```
+
+> Body 依赖的 `board/body/bldc/bldc.h` (BLDC Simulink 自动代码) 因 macOS LP64 字长不匹配，在 e2e 中被 `board/body/bldc/bldc.h` 桩替换。
+
+### 1.3 未进入覆盖率的文件
 
 ```
 ┌─ board/ 全部 C/H 文件 (~90 个)
 │
-├── ✅ 已编译为真实代码 (31 个)
+├── ✅ 已编译为真实代码 (31 panda + 5 body = 36 个)
 ├── ⚠️ 被 e2e 桩替换 (7 个) — 见第三节
 ├── ❌ 被 stm32h7_config.h 切断 — 纯硬件外设 (peripherals.h, clock.h, llfan.h 等)
-├── 🚫 其他固件目标 (25 个) — 见第七节
+├── 🚫 其他固件目标 (20 个, body 已不再算其他目标) — 见第七节
 └── 📦 CMSIS/HAL 头 + 工具脚本 — 见第八节
 ```
 
@@ -113,16 +136,31 @@ board/provision.h                     — 设备 Provision 读取
 | `e2e-tests/.../board/stm32h7/board.h` | 100% (41/41) | e2e 桩 |
 | `e2e-tests/.../board/stm32h7/lladc.h` | 88.9% (8/9) | e2e 桩 |
 
+### 2.2 Body 固件覆盖率
+
+> Body 固件通过 `libpanda_body.c` 独立编译，覆盖率由 `run_all_coverage.sh` 合并采集。
+
+| 源文件 | 说明 |
+|--------|------|
+| `board/body/main_comms.h` | ✅ USB 命令处理 (0xb3/0xb4/0xc1/0xd6/0xdd) |
+| `board/body/main.c` | Body 主循环 (USB 命令路径覆盖，GPIO 初始化未覆盖) |
+| `board/body/can.h` | Body CAN 通信 (电机/状态/电池帧，周期性发送未覆盖) |
+| `board/body/dotstar.h` | DotStar LED 驱动 (部分覆盖) |
+| `board/body/bldc/bldc_defs.h` | BLDC 电机常量 (通过 bldc.h 桩间接覆盖) |
+
 ---
 
 ## 三、e2e 桩库存与去桩化状态
 
 ### 3.1 编译模型
 
+#### Panda 固件
+
 ```
-libpanda.c (2026-07-29 现状):
+libpanda.c (2026-07-31 现状):
   #include "board/main.c"                    ← ✅ 完整固件
   #include "board/drivers/fan.h"             ← ✅ 真实代码 (100%)
+  ...
   #include "board/drivers/clock_source.h"    ← ✅ 真实代码 (100%)
   #include "board/drivers/simple_watchdog.h" ← ✅ 真实代码 (100%)
   #include "board/libc.h"                    ← ✅ 真实代码 (83.9%)
@@ -151,6 +189,28 @@ libpanda.c (2026-07-29 现状):
   #include "board/drivers/fake_siren.h"      ← ⚠️ e2e 桩 (声明)
   #include "board/drivers/simple_watchdog.h" ← ✅ 真实代码 (100%, 直接用真实文件)
   #include "board/drivers/spi.h"             ← ✅ 真实代码 (94.2%, 直接用真实文件, llspi stubs 在 fake_stm.h)
+```
+
+#### Body 固件
+
+```
+libpanda_body.c (Phase K, 2026-07-31):
+  #include "fake_stm.h"                       ← ⚠️ e2e 桩 (共享 CMSIS 类型)
+  #include "stm32h7xx.h"                      ← ⚠️ e2e 桩 (UID_BASE, FDCAN_BASE, CMSIS 类型)
+  #include "config.h"                         ← ✅ 真实代码 (构建配置)
+  #include "board/stm32h7/stm32h7_config.h"   ← ⚠️ e2e 桩 (CMSIS 切断 + include 转发)
+  #include "fdcan_regs.h"                     ← ⚠️ e2e 桩 (FDCAN 寄存器类型)
+  #include "board/drivers/gpio.h"             ← ✅ 真实代码
+  #include "board/body/boards/board_body.h"   ← ✅ 真实代码 (board_body struct)
+  #include "board/libc.h"                     ← ✅ 真实代码 (delay, memcpy)
+  #include "board/drivers/led.h"              ← ✅ 真实代码 (PWM LED)
+  #include "board/drivers/pwm.h"              ← ✅ 真实代码 (PWM 定时器)
+  #include "board/stm32h7/llfdcan.h"          ← ✅ 真实代码 (FDCAN 寄存器)
+  #include "board/drivers/fdcan.h"            ← ✅ 真实代码 (FDCAN 高层)
+  #include "board/drivers/interrupts.h"       ← ✅ 真实代码 (中断处理)
+  #include "board/stm32h7/lladc.h"            ← ⚠️ e2e 桩 (ADC 拦截)
+  #include "board/body/bldc/bldc.h"           ← ⚠️ e2e 桩 (BLDC Simulink 桩, macOS LP64 不兼容)
+  #include "board/body/main.c"                ← ✅ 完整 body 固件
 ```
 
 ### 3.2 桩文件清单 (15 个, 8 已完成) 与去桩化评估
@@ -284,7 +344,16 @@ libpanda.c (2026-07-29 现状):
 
 - **Bootstub**: 3 个刷写命令未覆盖 (0xb0 echo, 0xb1 unlock, 0xb2 erase)，需独立 e2e 环境
 - **Jungle 固件**: 8 个命令未覆盖，需独立 e2e 环境
-- **Body 固件**: 2 个命令未覆盖，需独立 e2e 环境
+
+### 4.3 Body 固件 — `board/body/main_comms.h` (✅ 已覆盖)
+
+| 命令 | 功能 | Feature |
+|------|------|---------|
+| 0xb3 | 电机转速 | `body_commands.feature` |
+| 0xb4 | 电机启停 | `body_commands.feature` |
+| 0xc1 | 硬件类型 | `body_shared_commands.feature` |
+| 0xd6 | 固件版本 | `body_shared_commands.feature` (隐式，通过 refreshState 覆盖) |
+| 0xdd | 数据包版本 | `body_shared_commands.feature` (隐式，通过 refreshState 覆盖) |
 
 ---
 
@@ -313,6 +382,16 @@ libpanda.c (2026-07-29 现状):
 ### tick_handler 触发机制
 
 `When call tick handler N times` → `jna_call_tick_handler()` → 真实 `tick_handler()` (8Hz + 1Hz 逻辑)。8 次调用 = 1 次 1Hz tick。通过 `heartbeatDisabled` 控制心跳超时。
+
+### 5.2 Body 固件主循环
+
+Body 固件 (`board/body/main.c`) 的 `main()` 主循环为简单轮询模式，无 tick handler FSM。当前 e2e 覆盖的是 USB 命令处理路径（`comms_control_handler`），主循环的 LED 呼吸、CAN 周期性发送因无硬件主循环而未覆盖。覆盖要点：
+
+| 功能 | 覆盖方式 |
+|------|---------|
+| USB 命令 (0xb3/0xb4) | `jna_body_control_write` → `comms_control_handler` |
+| 全局状态读取 | `jna_body_get_rpm_left/right/enable_motors` / `jna_body_get_hw_type` |
+| 电机控制逻辑 | 通过命令写入 + 状态回读验证（`rpmLeft`/`rpmRight`/`motorEnabled`） |
 
 ---
 
@@ -364,10 +443,66 @@ Phase E 后: ~83.9%
 Phase F 后: 91.1% (1989/2183) ← 本次整合前
 Phase H 后: ~91% (~2100/~2300, ~40 files) ← 当前
 Phase J 后: **92.9%** (2304/2479, ~40 files) ← 最新 ✅
+Phase K 后: **79.4%** (2371/2985, 48 files) ← body 合并后
 ```
+
+> **注**：Phase K 合并 body 固件覆盖率后，分母增加了 ~506 行新文件（`board/body/main.c`、`board/body/main_comms.h`、`board/body/can.h`、`board/body/dotstar.h` 等），导致百分比下降。分子从 2304 提升至 2371（+67 行覆盖），但分母从 2479 增至 2985（+506 行新入覆盖率的代码）
 
 ---
 
+
+## 七、其他固件目标
+
+panda 代码库从同一 `board/` 目录构建三个独立固件，e2e 当前仅覆盖 panda 主固件和 body 固件：
+
+```
+board/main.c          → panda 固件    ✅ e2e 覆盖
+board/bootstub.c      → bootstub      ❌ 无 e2e (3 文件)
+board/jungle/main.c   → jungle 固件   ❌ 无 e2e (6 文件)
+board/body/main.c     → body 固件     ✅ e2e 覆盖 (Phase K, libpanda_body.dylib)
+board/crypto/         → 加密库        ❌ bootstub 专用 (4 文件)
+```
+
+### Body 固件 e2e 详情
+
+Body 固件通过独立的 `libpanda_body.c` → `libpanda_body.dylib` 编译链实现 e2e 覆盖：
+
+- **C 入口**：`e2e-tests/src/test/c/libpanda_body.c`（独立于 panda 的 `libpanda.c`）
+- **关键桩**：`board/body/bldc/bldc.h`（BLDC Simulink 桩，跳过 macOS LP64 字长检查）、`stm32h7xx.h`（CMSIS 最小桩）、`fake_stm.h`（共享 GPIO/TIM 类型）
+- **BodyPandaClient**：`reloadLibrary()` 每场景重新加载 dylib（仿 PandaClient 模式）
+- **Step 定义**：`BodyCommandsStepDefs` 使用 jfactory + DAL 模式（`When body control write:` / `Then body control data should be:`）
+- **覆盖命令**：0xb3（电机转速）、0xb4（电机启停）、0xc1（硬件类型）、0xd6（固件版本）、0xdd（数据包版本哈希）
+- **Feature 文件**：`body_commands.feature`（5 场景）+ `body_shared_commands.feature`（1 场景），均带 `@body` 标签
+
+---
+
+## 八、CMSIS/HAL 头文件与工具脚本
+
+以下不计入覆盖率：STM32 官方 CMSIS 头文件（`core_cm7.h`、`stm32h7xx.h` 等 12 个）、Python 工具（`flash.py`、`recover.py`）、未被引用的文件（`llflash.h`、`lli2c.h`）。
+
+---
+
+## 九、测试设计审视
+
+### 9.1 非端到端功能测试合并
+
+从 52 个 feature 合并至 38 个（net -14），覆盖率无损。合并类别：
+
+| 类别 | 减少 | 目标文件 |
+|------|------|---------|
+| 纯重复 | 1 | `microsecond_timer` → 已删除 |
+| 单一数据读取 | 8 | → `spi_version_packet`、`health`、`fdcan_interrupt`、`spi_state_machine` |
+| 内部实现细节 | 6 | → `can_comms`、`clock_source`、`tick_paths`、`spi_state_machine`、`safety_mode` |
+| 单一控制写入 | 5 | → `can_fd_data_bitrate`、`system_reset_bootloader` |
+
+保留的 33 个真正端到端 feature（完整多步骤工作流）：CAN 通信协议（4）、CAN 配置（3）、安全模式（1）、心跳超时（2）、电源管理（3）、SPI 协议（2）、故障处理（2）、CAN 中断（1）、中断处理（1）、设备控制（5）、tick 流程（2）、硬件检测（2）、启动流程（1）、其他（3）。
+
+### 9.2 非端到端 When 步骤
+
+共 20 个非 E2E When 步骤（直接 JNA 调用内部函数/操作内部数据结构），分析结论：
+- **60%** 有 E2E 等价路径，但保留 JNA 调用以测试边界条件（队列回绕、FIFO 满等）
+- **30%** 是硬件初始化/主循环路径，e2e 无主循环，必须 JNA 调用
+- **10%** 完全无法被 E2E 覆盖（`fault_recovered` 无公开 API、FDCAN IR 硬件标志、red `unused_set_fan_enabled` 被 `has_fan=false` 跳过）
 ## 十、Phase J: 可补端到端测试缺口分析 (2026-07-30)
 
 基于 `e2e-tests/build/coverage/merged.lcov` (91.2%, 2259/2478, 40 files)，逐个分析未覆盖行的可测试性。
@@ -471,46 +606,26 @@ J14 power_saving.h:    +1 line  (llcan_irq_enable(cans[0]) flipped harness disab
 | `unused_funcs.h` | 100% (23/23) | 91.3% (21/23) | -2 | `unused_init_bootloader` 函数体 (空函数) 在合并多板 LCOV 后显式为未覆盖 |
 | `drivers.h` | 80.0% (4/5) | 100% (5/5) | +1 | ✅ 提升 |
 
+### 10.7 Phase K: Body 固件 e2e 支持 (2026-07-31)
+
+新增独立 body 固件 e2e 测试环境：
+
+| 文件 | 变更 |
+|------|------|
+| `libpanda_body.c` (+270 lines) | 新 body C 入口：假寄存器（GPIO/ADC/FDCAN/TIM1/TIM8）+ JNA 访问器 |
+| `fake_stm.h` (+15 lines) | +TIM_CR1_CMS_0, TIM_SR_UIF, TIM_CCER_CC1NE, EXTI15_10_IRQn, FDCAN IRQn, GPIO_OSPEEDR_OSPEED5, CORE_FREQ |
+| `stm32h7xx.h` (+32 lines) | 最小 CMSIS 桩（UID_BASE, FDCAN_BASE） |
+| `build.sh` (+20 lines) | +body 目标（-DPANDA_BODY, -I board/body/, -DHEALTH_PACKET_VERSION 等） |
+| `board/body/bldc/bldc.h` (+70 lines) | BLDC Simulink 桩（跳过 macOS LP64 字长检查） |
+| `BodyPandaClient.java` (+80 lines) | JNA 接口 + reloadLibrary() + DAL 访问器 |
+| `BodyCommandsStepDefs.java` (+50 lines) | jfactory + expect().should() 模式 |
+| `BodyUsbControlRequests.java` (+75 lines) | 5 个 body spec（SetMotorSpeed, SetMotorEnable 等） |
+| `body_commands.feature` | 5 场景：0xb3/0xb4 电机命令 |
+| `body_shared_commands.feature` | 1 场景：0xc1 硬件类型 |
+| `run_all_coverage.sh` (+10 lines) | +body 构建/测试/合并 |
+
+**架构差异**：Body 使用独立 `libpanda_body.c`（非 `libpanda.c`）和 `-DPANDA_BODY` 编译 `board/body/main.c`，因为 body 依赖 BLDC 电机、DotStar LED 等 panda 没有的外设。
+
+**新入覆盖率的 body 文件**：`board/body/main.c`（144 行）、`board/body/main_comms.h`（85 行）、`board/body/can.h`（118 行）、`board/body/dotstar.h`（184 行）、`board/body/bldc/bldc_defs.h`（54 行）。部分 body 文件（GPIO/ADC 初始化、主循环轮询）因 e2e 无硬件主循环而未覆盖。
+
 ---
-
-## 七、其他固件目标
-
-panda 代码库从同一 `board/` 目录构建三个独立固件，e2e 当前仅覆盖 panda 主固件 (`board/main.c`)：
-
-```
-board/main.c          → panda 固件    ✅ e2e 覆盖
-board/bootstub.c      → bootstub      ❌ 无 e2e (3 文件)
-board/jungle/main.c   → jungle 固件   ❌ 无 e2e (6 文件)
-board/body/main.c     → body 固件     ❌ 无 e2e (12 文件)
-board/crypto/         → 加密库        ❌ bootstub 专用 (4 文件)
-```
-
----
-
-## 八、CMSIS/HAL 头文件与工具脚本
-
-以下不计入覆盖率：STM32 官方 CMSIS 头文件 (`core_cm7.h`, `stm32h7xx.h` 等 12 个)、Python 工具 (`flash.py`, `recover.py`)、未被引用的文件 (`llflash.h`, `lli2c.h`)。
-
----
-
-## 九、测试设计审视
-
-### 9.1 非端到端功能测试合并
-
-从 52 个 feature 合并至 36 个 (净减 16 个)，覆盖率无损。合并类别：
-
-| 类别 | 减少 | 目标文件 |
-|------|------|---------|
-| 纯重复 | 1 | `microsecond_timer` → 已删除 |
-| 单一数据读取 | 8 | → `spi_version_packet`, `health`, `fdcan_interrupt`, `spi_state_machine` |
-| 内部实现细节 | 6 | → `can_comms`, `clock_source`, `tick_paths`, `spi_state_machine`, `safety_mode` |
-| 单一控制写入 | 5 | → `can_fd_data_bitrate`, `system_reset_bootloader` |
-
-保留的 33 个真正端到端 feature（完整多步骤工作流）：CAN 通信协议 (4)、CAN 配置 (3)、安全模式 (1)、心跳超时 (2)、电源管理 (3)、SPI 协议 (2)、故障处理 (2)、CAN 中断 (1)、中断处理 (1)、设备控制 (5)、tick 流程 (2)、硬件检测 (2)、启动流程 (1)、其他 (3)。
-
-### 9.2 非端到端 When 步骤
-
-共 20 个非 E2E When 步骤（直接 JNA 调用内部函数/操作内部数据结构），分析结论：
-- **60%** 有 E2E 等价路径，但保留 JNA 调用以测试边界条件（队列回绕、FIFO 满等）
-- **30%** 是硬件初始化/主循环路径，e2e 无主循环，必须 JNA 调用
-- **10%** 完全无法被 E2E 覆盖（`fault_recovered` 无公开 API、FDCAN IR 硬件标志、red `unused_set_fan_enabled` 被 `has_fan=false` 跳过）

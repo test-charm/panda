@@ -21,11 +21,15 @@ public class BodyPandaClient {
 
     public interface BodyPandaLib extends Library {
         int jna_body_control_write(int request, int param1, int param2);
-        int jna_body_get_resp_byte(int index);
+
         int jna_body_get_rpm_left();
+
         int jna_body_get_rpm_right();
+
         int jna_body_get_enable_motors();
+
         int jna_body_get_hw_type();
+
         void jna_panda_init();
     }
 
@@ -62,10 +66,21 @@ public class BodyPandaClient {
 
     // ---- DAL-compatible accessors (used by Then body control data should be:) ----
 
-    public int getRpmLeft()           { return lib.jna_body_get_rpm_left(); }
-    public int getRpmRight()          { return lib.jna_body_get_rpm_right(); }
-    public boolean isMotorEnabled()   { return lib.jna_body_get_enable_motors() != 0; }
-    public int getHwType()            { return lib.jna_body_get_hw_type(); }
+    public int getRpmLeft() {
+        return lib.jna_body_get_rpm_left();
+    }
+
+    public int getRpmRight() {
+        return lib.jna_body_get_rpm_right();
+    }
+
+    public boolean isMotorEnabled() {
+        return lib.jna_body_get_enable_motors() != 0;
+    }
+
+    public int getHwType() {
+        return lib.jna_body_get_hw_type();
+    }
 
     // ---- Public API ----
 

@@ -11,14 +11,18 @@ import org.testcharm.jfactory.JFactory;
 public class ApplicationSteps {
 
     @Autowired
-    private PandaClient client;
+    private PandaClient pandaClient;
+
+    @Autowired
+    private BodyPandaClient bodyClient;
 
     @Autowired
     private JFactory jFactory;
 
     @Before
     public void setUp() {
-        client.clearAll();
+        pandaClient.clearAll();
+        bodyClient.clearAll();
         jFactory.clear();
     }
 

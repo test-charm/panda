@@ -1,11 +1,12 @@
 # language: en
+@body
 Feature: Body Firmware Motor Commands
 
-  @body
   Scenario: Setting left motor speed to 100 rpm and right motor speed to 200 rpm
     When body control write:
       """
-      SetMotorSpeed: {
+      BodyUsbControlRequest: {
+        request: -77
         param1: 100
         param2: 200
       }
@@ -18,7 +19,6 @@ Feature: Body Firmware Motor Commands
       }
       """
 
-  @body
   Scenario: Motors are disabled at start
     Then body control data should be:
       """
@@ -27,11 +27,11 @@ Feature: Body Firmware Motor Commands
       }
       """
 
-  @body
   Scenario: Enabling motors via command 0xb4
     When body control write:
       """
-      SetMotorEnable: {
+      BodyUsbControlRequest: {
+        request: -76
         param1: 1
       }
       """
@@ -42,7 +42,6 @@ Feature: Body Firmware Motor Commands
       }
       """
 
-  @body
   Scenario: Disabling motors via command 0xb4
     When body control write:
       """
@@ -63,7 +62,6 @@ Feature: Body Firmware Motor Commands
       }
       """
 
-  @body
   Scenario: Disabling motors resets speeds to zero
     When body control write:
       """

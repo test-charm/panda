@@ -12,7 +12,9 @@ public class BodyUsbControlRequests {
         }
     }
 
-    /** 0xb3: set motor speeds */
+    /**
+     * 0xb3: set motor speeds
+     */
     public static class SetMotorSpeed extends BodyUsbControlRequest {
         @Override
         public void main() {
@@ -21,7 +23,9 @@ public class BodyUsbControlRequests {
         }
     }
 
-    /** 0xb4: enable/disable motors */
+    /**
+     * 0xb4: enable/disable motors
+     */
     public static class SetMotorEnable extends BodyUsbControlRequest {
         @Override
         public void main() {
@@ -30,31 +34,13 @@ public class BodyUsbControlRequests {
         }
     }
 
-    /** 0xc1: get hardware type */
+    /**
+     * 0xc1: get hardware type
+     */
     public static class GetHwType extends BodyUsbControlRequest {
         @Override
         public void main() {
             property("request").defaultValue((byte) -63);       // 0xc1
-            property("param1").defaultValue((short) 0);
-            property("param2").defaultValue((short) 0);
-        }
-    }
-
-    /** 0xd6: get firmware version */
-    public static class GetVersion extends BodyUsbControlRequest {
-        @Override
-        public void main() {
-            property("request").defaultValue((byte) -42);       // 0xd6
-            property("param1").defaultValue((short) 0);
-            property("param2").defaultValue((short) 0);
-        }
-    }
-
-    /** 0xdd: get packet version hashes */
-    public static class GetPacketVersions extends BodyUsbControlRequest {
-        @Override
-        public void main() {
-            property("request").defaultValue((byte) -35);       // 0xdd
             property("param1").defaultValue((short) 0);
             property("param2").defaultValue((short) 0);
         }
