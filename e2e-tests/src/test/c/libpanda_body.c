@@ -245,9 +245,8 @@ volatile int rpm_left = 0;
 volatile int rpm_right = 0;
 volatile bool enable_motors = 0;
 
-// Battery globals (from real bldc.h, used by body/can.h)
-volatile uint16_t batt_voltage_raw = 0;
-volatile uint16_t batt_percentage = 0;
+// Battery globals now defined in e2e bldc.h compatibility wrapper
+// (board/body/bldc/bldc.h → included via board/body/main.c)
 
 // ---- Provision (for UID_BASE, DEVICE_SERIAL_NUMBER_ADDRESS) ----
 #include "board/provision.h"
