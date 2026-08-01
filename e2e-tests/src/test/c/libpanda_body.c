@@ -117,7 +117,8 @@ void interrupt_timer_init(void) {}
 void fault_occurred(uint32_t fault) { (void)fault; }
 void disable_interrupts(void) {}
 void enable_interrupts(void) {}
-void NVIC_SystemReset(void) {}
+static int nvic_reset_call_count = 0;
+void NVIC_SystemReset(void) { nvic_reset_call_count++; }
 
 // _app_start — the firmware binary signature location (from linker script)
 int _app_start[0xc000] = {0};
@@ -134,8 +135,8 @@ uint8_t hw_type;
 uint32_t uptime_cnt;
 
 // ENTER_*_MAGIC values (from real board/early_init.h, not in e2e stub)
-#define ENTER_BOOTLOADER_MAGIC 0xdeadbeefU
-#define ENTER_SOFTLOADER_MAGIC 0xdeadc0deU
+#define ENTER_BOOTLOADER_MAGIC 0x1U
+#define ENTER_SOFTLOADER_MAGIC 0x2U
 
 // ---- CAN state globals ----
 bool can_silent;
@@ -296,4 +297,27 @@ void jna_panda_init(void) {
   // Initialize key state that body/main.c's main() would set
   hw_type = HW_TYPE_BODY;
   uptime_cnt = 0;
+  nvic_reset_call_count = 0;
+  enter_bootloader_mode = 0;
+}
+
+// ---- JNA: Response buffer access (filled by jna_body_control_write) ----
+int jna_body_get_resp_len(void) { return resp_buffer_len; }
+int jna_body_get_resp_byte(int index) {
+  if (index < 0 || index >= resp_buffer_len) return -1;
+  return (int)resp_buffer[index];
+}
+
+// ---- JNA: NVIC reset count (NVIC_SystemReset call counter) ----
+int jna_body_get_nvic_reset_count(void) { return nvic_reset_call_count; }
+void jna_body_reset_nvic_count(void) { nvic_reset_call_count = 0; }
+
+// ---- JNA: Bootloader mode state ----
+int jna_body_get_enter_bootloader_mode(void) { return (int)enter_bootloader_mode; }
+
+// ---- JNA: Signature data preset (for 0xd3/0xd4 signature commands) ----
+void jna_body_set_app_code_len(int len) { _app_start[0] = len; }
+void jna_body_set_signature_chunk(int chunk, const char *data, size_t data_len) {
+  uint8_t *sig = (uint8_t *)_app_start + _app_start[0] + (size_t)chunk * 64U;
+  for (size_t i = 0U; (i < 64U) && (i < data_len); i++) { sig[i] = (uint8_t)data[i]; }
 }

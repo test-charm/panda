@@ -1,5 +1,6 @@
 package com.panda.e2e;
 
+import com.panda.e2e.spec.BodyUsbControlRequests;
 import com.panda.e2e.spec.CanQueues;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -15,13 +16,14 @@ import java.nio.charset.StandardCharsets;
 public class Factories {
 
     @Bean
-    public JFactory createJFactory(PandaClient client) {
+    public JFactory createJFactory(PandaClient pandaClient, BodyPandaClient bodyPandaClient) {
         var jFactory = new JFactory(new CompositeDataRepository(new MemoryDataRepository())
-                .registerByType(PandaSteps.UsbControlRequest.class, new UsbControlRequestDataRepository(client))
-                .registerByType(PandaSteps.CanSendRequest.class, new CanSendRequestDataRepository(client))
-                .registerByType(PandaSteps.ControlSetup.class, new ControlSetupDataRepository(client))
-                .registerByType(CanQueues.CanQueueData.class, new CanQueueDataRepository(client))
-                .registerByType(PandaSteps.CanRxInjectRequest.class, new CanRxInjectRequestDataRepository(client))
+                .registerByType(PandaSteps.UsbControlRequest.class, new UsbControlRequestDataRepository(pandaClient))
+                .registerByType(PandaSteps.CanSendRequest.class, new CanSendRequestDataRepository(pandaClient))
+                .registerByType(PandaSteps.ControlSetup.class, new ControlSetupDataRepository(pandaClient))
+                .registerByType(CanQueues.CanQueueData.class, new CanQueueDataRepository(pandaClient))
+                .registerByType(PandaSteps.CanRxInjectRequest.class, new CanRxInjectRequestDataRepository(pandaClient))
+                .registerByType(BodyUsbControlRequests.BodyControlSetup.class, new BodyControlSetupDataRepository(bodyPandaClient))
         );
         Classes.subTypesOf(Spec.class, "com.panda.e2e.spec")
                 .forEach(spec -> jFactory.register((Class) spec));
@@ -213,6 +215,29 @@ public class Factories {
                     request.extended, request.address,
                     request.canfdFrame, request.brsFrame,
                     request.dataLenCode, data);
+        }
+    }
+
+    public static class BodyControlSetupDataRepository extends MemoryDataRepository {
+        private final BodyPandaClient client;
+
+        public BodyControlSetupDataRepository(BodyPandaClient client) {
+            this.client = client;
+        }
+
+        @Override
+        public void save(Object object) {
+            super.save(object);
+            var setup = (BodyUsbControlRequests.BodyControlSetup) object;
+            if (setup.codeLen != 0) {
+                client.setAppCodeLen(setup.codeLen);
+            }
+            if (setup.signatureChunk0 != null) {
+                client.setSignatureChunk(0, hexToBytes(setup.signatureChunk0));
+            }
+            if (setup.signatureChunk1 != null) {
+                client.setSignatureChunk(1, hexToBytes(setup.signatureChunk1));
+            }
         }
     }
 }

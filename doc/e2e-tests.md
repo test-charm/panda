@@ -124,11 +124,11 @@ e2e-tests/
 │   │   ├── PandaClient.java          # JNA 接口 (panda)
 │   │   ├── BodyPandaClient.java      # JNA 接口 (body)
 │   │   ├── PandaSteps.java           # BDD 步骤定义 (panda)
-│   │   ├── BodyCommandsStepDefs.java # BDD 步骤定义 (body)
+│       │   ├── BodyCommandsStepDefs.java # BDD 步骤定义 (body: control write, setup write, verify)
 │   │   ├── ApplicationSteps.java     # @Before setUp
 │   │   └── spec/
 │   │       ├── UsbControlRequests.java   # 33 个 USB 控制请求 spec (panda)
-│   │       ├── BodyUsbControlRequests.java # 5 个 USB 控制请求 spec (body)
+│       │       ├── BodyUsbControlRequests.java # 5 个 USB 控制请求 spec + BodyControlSetup (body)
 │   │       ├── ControlSetups.java    # 前置数据 spec (panda)
 │   │       ├── CanSendRequests.java  # CAN 发送 spec
 │   │       └── ...
@@ -183,19 +183,23 @@ e2e-tests/
 | SPI 状态机 | `spi_state_machine.feature` | 31 | spiStateResult (生产 `spi_rx_done()` + `spi_tx_done()` + `spi_init()` ✅ J13 全状态覆盖 + endpoint2_write 合并 (第十三节 C6) + uart_read 合并 (第十三节 B8) ✅ Phase F.5) |
 | **Body 固件** | | | |
 | Body 电机命令 | `body_commands.feature` | 5 | rpmLeft/rpmRight/motorEnabled (0xb3/0xb4 通过 `board/body/main_comms.h`) |
-| Body 共享命令 | `body_shared_commands.feature` | 1 | hwType (0xc1 硬件类型查询)
+| Body 共享命令 | `body_shared_commands.feature` | 8 | hwType/respBuffer/nvicResetCount/enterBootloaderMode (0xc1/0xd1/0xd3/0xd4/0xd6/0xd8/0xdd, B1-B7 全部覆盖) |
 
 ## C 代码覆盖率
 
 > 数据来源: `e2e-tests/run_all_coverage.sh` 合并报告 (cuatro + tres + red + body)
-> 生成时间: 2026-07-31 (Phase K: body e2e 支持)
+> 生成时间: 2026-08-01 (B1-B7: body 共享命令全覆盖)
+> IGNORE_REGEX: 已排除 e2e stub (`bldc.h`, `stm32h7xx.h`)
 
 | 源文件 | 行覆盖 | 函数覆盖 | 说明 |
 |--------|--------|---------|------|
 | `board/main_comms.h` | **97.0%** (261/269) | 3/3 | USB 命令处理 (Phase J: 新增 0xc3 MCU UID + 修复 0xde) |
 | `board/main.c` | **64.2%** (145/226) | 4/7 | 主循环 + 初始化 |
-| `board/body/main_comms.h` | — | — | ✅ body e2e 覆盖 (Phase K) |
-| `board/body/main.c` | — | — | ✅ body e2e 覆盖 (Phase K) |
+| `board/body/main_comms.h` | **86.4%** (57/66) | — | ✅ body 共享命令 B1-B7 完成 (8/9 case 覆盖) |
+| `board/body/main.c` | **0%** (0/96) | — | ⏳ body 主循环待覆盖 (B18-B20) |
+| `board/body/can.h` | **0%** (0/92) | — | ⏳ body CAN 待覆盖 (B13-B17) |
+| `board/body/dotstar.h` | **0%** (0/158) | — | ⏳ body DotStar LED 待覆盖 (B10-B12) |
+| `board/body/bldc/BLDC_controller.c` | **0%** (0/1274) | — | ⏳ BLDC FOC 控制器待覆盖 (B8-B9) |
 | `board/drivers/can_common.h` | **100%** (107/107) | 10/12 | CAN 通用操作 |
 | `board/drivers/gpio.h` | **100%** (72/72) | 6/7 | ✅ Phase J: J1 PUSH_PULL + J10 detect_with_pull 全覆盖 |
 | `board/sys/faults.h` | **100%** (20/20) | 2/2 | 故障设置 |
@@ -222,7 +226,9 @@ e2e-tests/
 | `board/drivers/interrupts.h` | **100%** (53/53) | 4/4 | ✅ Phase J: J6 rate print 全覆盖 |
 | `board/drivers/uart.h` | **100%** (77/77) | — | ✅ Phase J: J5 injectc overwrite 全覆盖 |
 | `board/stm32h7/llfdcan_declarations.h` | **95.7%** (22/23) | — | CAN_NAME_FROM_CANIF FDCAN3 分支不可覆盖 |
-| **合计** | **94.0%** (2329/2479, 40 files) | — | Phase J + J11-J14 + J12b-J12c 完成 + cuatro ADC 覆盖 ✅ |
+| **合计 (panda)** | **92.7%** (2340/2525, 40 files) | — | panda 固件 (cuatro+tres+red) |
+| **合计 (body)**  | **3.3%** (58/1762, 9 files)  | — | body 固件 (B1-B7 完成) |
+| **合计 (全)**    | **55.9%** (2398/4287, 49 files) | — | 全板合并 |
 
 ## 设计原则
 

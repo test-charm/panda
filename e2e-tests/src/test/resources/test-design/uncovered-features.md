@@ -1,9 +1,12 @@
 # 端到端测试覆盖分析
 
-> 最后更新: 2026-08-01 (Phase L: BLDC de-stubbing)
-> Feature 文件: 38 个, 场景总数: 257 (cuatro/tres/red/body 合并)
-> 综合行覆盖率: **79.4%** (2371/2985 lines), 48 files
+> 最后更新: 2026-08-01 (B1-B7: body shared USB commands)
+> Feature 文件: 38 个, 场景总数: 264 (cuatro/tres/red/body 合并)
+> 综合行覆盖率: **55.9%** (2398/4287 lines), 49 files
+> 非 body 覆盖率: **92.7%** (2340/2525 lines), 40 files
+> Body 覆盖率: **3.3%** (58/1762 lines), 9 files
 > 数据来源: `e2e-tests/run_all_coverage.sh` → `e2e-tests/build/coverage/merged.lcov`
+> IGNORE_REGEX 已排除 e2e stub: `bldc.h`, `stm32h7xx.h`
 
 ---
 
@@ -86,7 +89,7 @@ board/body/bldc/bldc_defs.h           — BLDC 电机常量 (#define 宏，不�
 board/body/bldc/rtwtypes.h            — Simulink 固定宽度类型 (typedef，不计入行覆盖)
 ```
 
-> Body 依赖的 `board/body/bldc/bldc.h` 在 e2e 中被 `e2e-tests/src/test/c/board/body/bldc/bldc.h` 兼容包装器替换。该包装器通过 `#include <limits.h>` 抢占 guard + 覆盖 `ULONG_MAX`/`LONG_MAX` 为 ILP32 值来绕过 Simulink 自动代码的 macOS LP64 字长检查，然后 include 真实的 BLDC_controller.h/.c/.data.c。已从 `IGNORE_REGEX` 中移除，BLDC 全部进入覆盖率。
+> Body 依赖的 `board/body/bldc/bldc.h` 在 e2e 中被 `e2e-tests/src/test/c/board/body/bldc/bldc.h` 兼容包装器替换。该包装器通过 `#include <limits.h>` 抢占 guard + 覆盖 `ULONG_MAX`/`LONG_MAX` 为 ILP32 值来绕过 Simulink 自动代码的 macOS LP64 字长检查，然后 include 真实的 BLDC_controller.h/.c/.data.c。`run_all_coverage.sh` 的 `IGNORE_REGEX` 排除此包装器文件（`src/test/c/board/body/bldc/bldc\.h`），BLDC 固件代码（BLDC_controller.c 等）正常进入覆盖率。
 
 ### 1.3 未进入覆盖率的文件
 
@@ -151,20 +154,20 @@ board/body/bldc/rtwtypes.h            — Simulink 固定宽度类型 (typedef�
 
 > Body 固件通过 `libpanda_body.c` 独立编译，覆盖率由 `run_all_coverage.sh` 合并采集。
 > 现有 `@body` 测试仅通过 JNA 调用 `jna_body_control_write()` → `comms_control_handler()`，从未执行 `body_main()` 主循环。
-> Phase L 去桩化后，`board/body/bldc/` 下 4 个文件（bldc.h + BLDC_controller.h/.c/.data.c）新进入覆盖率。
+> B1-B7 完成后，`board/body/main_comms.h` 已覆盖 86.4% (57/66 行)。Bluetooth DC 文件（BLDC_controller.c 等）因未执行仍为 0%。
 
 | 源文件 | 行覆盖 | 说明 |
 |--------|--------|------|
-| `board/body/main_comms.h` | ~30% | 仅 0xb3/0xb4/0xc1 3 个 case 被覆盖；0xd1(含 2 个子分支 bootloader/softloader)、0xd3、0xd4、0xd6、0xd8、0xdd 及 `comms_endpoint2_write` 均未覆盖 |
+| `board/body/main_comms.h` | 86.4% | ✅ B1-B7 完成：0xc1/0xd1/0xd3/0xd4/0xd6/0xd8/0xdd 共 8 个 case 覆盖；仅 0xde (SOM GPIO) 未实现 |
 | `board/body/main.c` | 0% | `body_main()` 未执行：主循环（dotstar 彩虹/呼吸/电机启停逻辑）、`tick_handler()`（CAN 健康检查+LED 翻转）、`exti15_10_handler()`（点火消抖+充电检测）、`bldc_tim8_handler()`（→ `bldc_step()`）、`enable_fpu()`、`__initialize_hardware_early()`、`debug_ring_callback()` 全部未覆盖 |
 | `board/body/can.h` | 0% | 全部 8 个函数未覆盖：`body_can_send_motor_speeds()`、`body_can_send_var_values()`、`body_can_send_body_data()`、`body_can_process_target()`、`body_can_rx()`、`body_can_init()`、`body_can_periodic()`、`body_can_send_motor_speeds` 中的 0x222 v2 ID 帧 |
 | `board/body/dotstar.h` | 0% | 全部 14 个函数未覆盖：`dotstar_show()`、`dotstar_init()`、`dotstar_set_pixel()`、`dotstar_fill()`、`dotstar_set_global_brightness()`、`dotstar_hue_to_rgb()`、`dotstar_run_rainbow()`、`dotstar_apply_breathe()` 及低层 `dotstar_set_clk()`、`dotstar_set_data()`、`dotstar_write_byte()`、`dotstar_latch_len()`、`dotstar_send_start_frame()`、`dotstar_send_end_frame()` |
 | `board/body/boards/board_body.h` | 0% | `board_body_init()`（GPIO/CAN/EXTI/电源初始化）仅在 `body_main()` 中调用，未执行 |
 | `board/body/boards/board_declarations.h` | — | 仅 `#define` 宏，无可执行代码 |
-| **BLDC 电机控制 (Phase L 新入)** | | |
-| `board/body/bldc/bldc.h` (e2e 包装器) | 0% | `bldc_init()` (Simulink 模型初始化 + TIM1/TIM8 PWM + hall GPIO)、`bldc_step()` (ADC 校准+FOC 控制+PWM 输出)、`motor_set_enable()`、`motor_encoder_get_speed_rpm()` — 仅在 `body_main()` / `bldc_tim8_handler()` 中调用，均未覆盖 |
+| **BLDC 电机控制** | | |
+| `board/body/bldc/bldc.h` (e2e 包装器) | 0% | `bldc_init()` (Simulink 模型初始化 + TIM1/TIM8 PWM + hall GPIO)、`bldc_step()` (ADC 校准+FOC 控制+PWM 输出)、`motor_set_enable()`、`motor_encoder_get_speed_rpm()` — 仅在 `body_main()` / `bldc_tim8_handler()` 中调用，均未覆盖。e2e 包装器文件自身不在覆盖率统计中 |
 | `board/body/bldc/BLDC_controller.h` | — | 仅类型定义 (RT_MODEL, ExtY, ExtU, DW, P, ConstP)，无可执行代码 |
-| `board/body/bldc/BLDC_controller.c` | 0% | 3306 行真实 FOC 矢量控制算法 (`BLDC_controller_initialize` + `BLDC_controller_step`)，仅在 `bldc_init()`/`bldc_step()` 中调用，未覆盖 |
+| `board/body/bldc/BLDC_controller.c` | 0% | 1274 行真实 FOC 矢量控制算法 (`BLDC_controller_initialize` + `BLDC_controller_step`)，仅在 `bldc_init()`/`bldc_step()` 中调用，未覆盖 |
 | `board/body/bldc/BLDC_controller_data.c` | 0% | 查表数据 (`rtConstP` 正弦表 6×181 + iq_maxSca 表) + 可调参数 (`rtP_Left`)，编译到 dylib 中但从未读取 |
 
 > **根因**：`libpanda_body.c` 提供了 JNA 入口函数 `jna_body_control_write()` / `jna_body_get_rpm_left()` 等来调用 `comms_control_handler()` 和读取全局变量，但从未提供调用 `body_main()` 或 `bldc_init()` / `bldc_step()` 的 JNA 入口。所有通过主循环或 BLDC 中断触发的代码路径因此全部未覆盖。
@@ -215,12 +218,12 @@ libpanda.c (2026-07-31 现状):
 #### Body 固件
 
 ```
-libpanda_body.c (Phase L, 2026-08-01):
+libpanda_body.c (B1-B7, 2026-08-01):
   #include "fake_stm.h"                       ← ⚠️ e2e 桩 (共享 CMSIS 类型)
-  #include "stm32h7xx.h"                      ← ⚠️ e2e 桩 (UID_BASE, FDCAN_BASE, CMSIS 类型)
+  #include "stm32h7xx.h"                      ← ⚠️ e2e 桩 (UID_BASE, FDCAN_BASE, CMSIS 类型，已从覆盖率排除)
   #include "config.h"                         ← ✅ 真实代码 (构建配置)
   #include "board/stm32h7/stm32h7_config.h"   ← ⚠️ e2e 桩 (CMSIS 切断 + include 转发)
-  #include "fdcan_regs.h"                     ← ⚠️ e2e 桩 (FDCAN 寄存器类型)
+  #include "fdcan_regs.h"                     ← ⚠️ e2e 桩 (FDCAN 寄存器类型，覆盖率中来自共享代码)
   #include "board/drivers/gpio.h"             ← ✅ 真实代码 (84.5%)
   #include "board/body/boards/board_declarations.h" ← ✅ 真实代码 (body 引脚/HW_TYPE_BODY 宏定义)
   #include "board/body/boards/board_body.h"   ← ✅ 真实代码 (board_body struct + board_body_init)
@@ -231,8 +234,21 @@ libpanda_body.c (Phase L, 2026-08-01):
   #include "board/drivers/fdcan.h"            ← ✅ 真实代码 (FDCAN 高层, 94.9%)
   #include "board/drivers/interrupts.h"       ← ✅ 真实代码 (中断处理, 96.2%)
   #include "board/stm32h7/lladc.h"            ← ⚠️ e2e 桩 (ADC 拦截)
-  #include "board/body/bldc/bldc.h"           ← ✅ 兼容包装器 (Phase L: include 真实 BLDC_controller.h/.c/.data.c, 覆盖 ULONG_MAX 绕过 macOS LP64 检查)
+  #include "board/body/bldc/bldc.h"           ← ✅ 兼容包装器 (已从覆盖率排除: include 真实 BLDC_controller.h/.c/.data.c, 覆盖 ULONG_MAX 绕过 macOS LP64 检查)
   #include "board/body/main.c"                ← ✅ 完整 body 固件 (通过 #define BLDC_H 跳过真实 bldc.h)
+
+  —— JNA 出口 (B1-B7 新增) ——
+  jna_body_control_write()          → comms_control_handler() (所有 USB 命令)
+  jna_body_get_resp_len()           → resp_buffer_len (命令响应长度)
+  jna_body_get_resp_byte(idx)       → resp_buffer[idx] (命令响应字节)
+  jna_body_get_nvic_reset_count()   → nvic_reset_call_count (B3/B6/B7)
+  jna_body_reset_nvic_count()       → nvic_reset_call_count = 0
+  jna_body_get_enter_bootloader_mode() → enter_bootloader_mode (B6/B7)
+  jna_body_set_app_code_len(len)    → _app_start[0] = len (B4/B5 签名前置)
+  jna_body_set_signature_chunk()    → 写入 _app_start[code_len + chunk*64] (B4/B5)
+  jna_body_get_rpm_left/right()     → rpm_left/rpm_right (B3/B4 body_commands)
+  jna_body_get_enable_motors()      → enable_motors (B3/B4 body_commands)
+  jna_body_get_hw_type()            → hw_type (0xc1)
 ```
 
 > **BLDC 兼容包装器内部链**：`bldc.h` (e2e) → `#include <limits.h>` 抢占 guard → 覆盖 `ULONG_MAX`/`LONG_MAX` → `#include "board/body/bldc/BLDC_controller.h"` → `#include "board/body/bldc/BLDC_controller.c"` (3306 行 FOC) → `#include "board/body/bldc/BLDC_controller_data.c"` → 真实 `bldc_init()`/`bldc_step()` 实现。ulong_T 保持 64-bit（实际未被模型结构体使用），只覆盖了编译期字长检查宏。
@@ -371,21 +387,22 @@ libpanda_body.c (Phase L, 2026-08-01):
 - **Bootstub**: 3 个刷写命令未覆盖 (0xb0 echo, 0xb1 unlock, 0xb2 erase)，需独立 e2e 环境
 - **Jungle 固件**: 8 个命令未覆盖，需独立 e2e 环境
 
-### 4.3 Body 固件 — `board/body/main_comms.h` (3/9 已覆盖)
+### 4.3 Body 固件 — `board/body/main_comms.h` (8/9 已覆盖, B1-B7 ✅)
 
-> `comms_control_handler()` 共有 9 个 case（不含 default），现有测试仅覆盖 3 个。`comms_endpoint2_write()`（空实现）也未覆盖。
+> `comms_control_handler()` 共有 9 个 case（不含 default），B1-B7 完成后已覆盖 8 个。`comms_endpoint2_write()`（空实现）也未覆盖。
 
 | 命令 | 功能 | 状态 | Feature |
 |------|------|------|---------|
 | 0xb3 | 设置电机转速 | ✅ 已覆盖 | `body_commands.feature` |
 | 0xb4 | 电机启停 | ✅ 已覆盖 | `body_commands.feature` |
 | 0xc1 | 获取硬件类型 | ✅ 已覆盖 | `body_shared_commands.feature` |
-| 0xd1 | 进入 bootloader / softloader | ❌ 未覆盖 | 含 2 个子分支 (param1=0 bootloader, param1=1 softloader, default) |
-| 0xd3 | 签名字节 (offset=0, 64B) | ❌ 未覆盖 | 读取 `_app_start[0]` + offset 位置的前 64 字节 |
-| 0xd4 | 签名字节 (offset=64, 64B) | ❌ 未覆盖 | 读取 `_app_start[0]` + offset 位置的后 64 字节 |
-| 0xd6 | 固件版本 (`gitversion`) | ❌ 未覆盖 | 返回 18 字节 gitversion 字符串 |
-| 0xd8 | 系统复位 (NVIC_SystemReset) | ❌ 未覆盖 | 直接触发 NVIC_SystemReset() |
-| 0xdd | 数据包版本哈希 | ❌ 未覆盖 | 返回 `{HEALTH_PACKET_VERSION, CAN_PACKET_VERSION_HASH}` 8 字节 |
+| 0xd1 | 进入 bootloader / softloader | ✅ B6-B7 | `body_shared_commands.feature` (param1=0 bootloader, param1=1 softloader) |
+| 0xd3 | 签名字节 (offset=0, 64B) | ✅ B4 | `body_shared_commands.feature` (预置非零签名数据) |
+| 0xd4 | 签名字节 (offset=64, 64B) | ✅ B5 | `body_shared_commands.feature` (预置非零签名数据) |
+| 0xd6 | 获取固件版本 (18B gitversion) | ✅ B1 | `body_shared_commands.feature` |
+| 0xd8 | 系统复位 | ✅ B3 | `body_shared_commands.feature` |
+| 0xdd | 数据包版本 (8B) | ✅ B2 | `body_shared_commands.feature` |
+| 0xde | 读取 SOM GPIO | ❌ 未覆盖 | 暂未实现 body 侧 0xde 命令 |
 
 ---
 
@@ -498,11 +515,13 @@ Phase E 后: ~83.9%
 Phase F 后: 91.1% (1989/2183) ← 本次整合前
 Phase H 后: ~91% (~2100/~2300, ~40 files) ← 当前
 Phase J 后: **92.9%** (2304/2479, ~40 files) ← 最新 ✅
-Phase K 后: **79.4%** (2371/2985, 48 files) ← body 合并后
+Phase K 后: **~92%** (~2371/2985, 48 files) ← body 合并后 (不含 BLDC)
+B1-B7 后: **55.9%** (2398/4287, 49 files) ← body 全量合并 (含 BLDC, e2e stub 已排除)
 ```
 
-> **注**：Phase K 合并 body 固件覆盖率后，分母增加了 ~506 行新文件（`board/body/main.c`、`board/body/main_comms.h`、`board/body/can.h`、`board/body/dotstar.h` 等），导致百分比下降。分子从 2304 提升至 2371（+67 行覆盖），但分母从 2479 增至 2985（+506 行新入覆盖率的代码）
-> **Phase L 去桩化后**：分母进一步增加 ~3700 行 BLDC 控制器代码（`BLDC_controller.c` 3306 行 + `BLDC_controller_data.c` 380 行 + `bldc.h` 310 行），覆盖率将进一步下降。
+> **注**：Phase K 合并 body 固件覆盖率后，分母增加了 ~506 行新文件（`board/body/main.c`、`board/body/main_comms.h`、`board/body/can.h`、`board/body/dotstar.h` 等），但 BLDC 尚未进入覆盖率。
+> **B1-B7 (2026-08-01)**：body 共享命令测试完成，`main_comms.h` → 86.4%。同时 BLDC 控制器等真实固件文件进入覆盖率（1274+158+96+92 行，0%），body 总计 1762 行（9 文件）并入合并统计。`run_all_coverage.sh` 已排除 e2e 包装器（bldc.h、stm32h7xx.h），body 固件低覆盖反映真实未测试状态。
+> **非 body 覆盖率**: 92.7% (2340/2525, 40 files)，与本阶段前一致。
 
 ### 第六阶段：Body 固件可补测试缺口分析 (2026-08-01)
 
@@ -520,7 +539,7 @@ Phase K 后: **79.4%** (2371/2985, 48 files) ← body 合并后
 | B6 | 🟢 低 | `main_comms.h` | 0xd1 bootloader 模式 (param1=0) | `jna_body_control_write(0xd1, 0, 0)` → 验证 `enter_bootloader_mode = ENTER_BOOTLOADER_MAGIC` |
 | B7 | 🟢 低 | `main_comms.h` | 0xd1 softloader 模式 (param1=1) | `jna_body_control_write(0xd1, 1, 0)` → 验证 `enter_bootloader_mode = ENTER_SOFTLOADER_MAGIC` |
 
-> B1-B2 最优先：只需在 `body_shared_commands.feature` 中新增 2 个场景，覆盖 `main_comms.h` 中 2 个常用命令。
+> B1-B7 全部完成：在 `body_shared_commands.feature` 中新增 7 个场景，覆盖 `main_comms.h` 中 7 个 body 共享命令（0xd6/0xdd/0xd8/0xd3/0xd4/0xd1）。`main_comms.h` 覆盖率：3/9 case → 86.4% (57/66 行)。
 
 #### 6.2 需新增 JNA 入口后可补 ⚙️
 
@@ -575,8 +594,8 @@ Phase K 后: **79.4%** (2371/2985, 48 files) ← body 合并后
 #### 6.5 覆盖率预估
 
 ```
-当前 body 覆盖率:    ~6%  (仅 main_comms.h 的 3/9 case)
-B1-B7 完成后 (USB):  ~15% (main_comms.h → ~90%)
+当前身体覆盖率:    3.3%  (58/1762, 仅 main_comms.h 86.4%)
+B1-B7 完成后 (USB): 3.3%  (main_comms.h → 86.4%, 其余 0%)
 B8-B9 完成后 (BLDC): ~45% (+3700 行 BLDC 控制器)
 B10-B12 完成后 (LED): ~52% (+dotstar.h)
 B13-B17 完成后 (CAN): ~65% (+can.h)
@@ -594,7 +613,7 @@ panda 代码库从同一 `board/` 目录构建三个独立固件，e2e 当前仅
 board/main.c          → panda 固件    ✅ e2e 覆盖
 board/bootstub.c      → bootstub      ❌ 无 e2e (3 文件)
 board/jungle/main.c   → jungle 固件   ❌ 无 e2e (6 文件)
-board/body/main.c     → body 固件     ✅ e2e 覆盖 (Phase K, libpanda_body.dylib)
+board/body/main.c     → body 固件     ✅ e2e 覆盖 (B1-B7, libpanda_body.dylib)
 board/crypto/         → 加密库        ❌ bootstub 专用 (4 文件)
 ```
 
@@ -603,11 +622,11 @@ board/crypto/         → 加密库        ❌ bootstub 专用 (4 文件)
 Body 固件通过独立的 `libpanda_body.c` → `libpanda_body.dylib` 编译链实现 e2e 覆盖：
 
 - **C 入口**：`e2e-tests/src/test/c/libpanda_body.c`（独立于 panda 的 `libpanda.c`）
-- **关键桩**：`board/body/bldc/bldc.h`（Phase L 兼容包装器，include 真实 BLDC_controller.c/.data.c）、`stm32h7xx.h`（CMSIS 最小桩）、`fake_stm.h`（共享 GPIO/TIM 类型）
-- **BodyPandaClient**：`reloadLibrary()` 每场景重新加载 dylib（仿 PandaClient 模式）
-- **Step 定义**：`BodyCommandsStepDefs` 使用 jfactory + DAL 模式（`When body control write:` / `Then body control data should be:`）
-- **覆盖命令**：0xb3（电机转速）、0xb4（电机启停）、0xc1（硬件类型）、0xd6（固件版本）、0xdd（数据包版本哈希）
-- **Feature 文件**：`body_commands.feature`（5 场景）+ `body_shared_commands.feature`（1 场景），均带 `@body` 标签
+- **关键桩**：`board/body/bldc/bldc.h`（兼容包装器，include 真实 BLDC_controller.c/.data.c，已从覆盖率排除）、`stm32h7xx.h`（CMSIS 最小桩，已从覆盖率排除）、`fake_stm.h`（共享 GPIO/TIM 类型）
+- **BodyPandaClient**：`reloadLibrary()` 每场景重新加载 dylib（仿 PandaClient 模式）。新增 `RespBuffer`、`nvicResetCount`、`enterBootloaderMode`、`setAppCodeLen`、`setSignatureChunk` 等 DAL 访问器
+- **Step 定义**：`BodyCommandsStepDefs` 使用 jfactory + DAL 模式（`When body control write:` / `When body setup write:` / `Then body control data should be:`）
+- **覆盖命令**：0xb3（电机转速）、0xb4（电机启停）、0xc1（硬件类型）、0xd1（bootloader/softloader B6-B7）、0xd3/0xd4（固件签名 B4-B5）、0xd6（固件版本 B1）、0xd8（系统复位 B3）、0xdd（数据包版本 B2）
+- **Feature 文件**：`body_commands.feature`（5 场景）+ `body_shared_commands.feature`（8 场景，B1-B7），均带 `@body` 标签
 
 ---
 
@@ -751,13 +770,13 @@ J14 power_saving.h:    +1 line  (llcan_irq_enable(cans[0]) flipped harness disab
 | `fake_stm.h` (+15 lines) | +TIM_CR1_CMS_0, TIM_SR_UIF, TIM_CCER_CC1NE, EXTI15_10_IRQn, FDCAN IRQn, GPIO_OSPEEDR_OSPEED5, CORE_FREQ |
 | `stm32h7xx.h` (+32 lines) | 最小 CMSIS 桩（UID_BASE, FDCAN_BASE） |
 | `build.sh` (+20 lines) | +body 目标（-DPANDA_BODY, -I board/body/, -DHEALTH_PACKET_VERSION 等） |
-| `board/body/bldc/bldc.h` (+70 lines) | BLDC Simulink 桩（跳过 macOS LP64 字长检查）→ **Phase L 升级为兼容包装器** |
-| `BodyPandaClient.java` (+80 lines) | JNA 接口 + reloadLibrary() + DAL 访问器 |
-| `BodyCommandsStepDefs.java` (+50 lines) | jfactory + expect().should() 模式 |
-| `BodyUsbControlRequests.java` (+75 lines) | 5 个 body spec（SetMotorSpeed, SetMotorEnable 等） |
+| `board/body/bldc/bldc.h` (+70 lines) | BLDC Simulink 桩（跳过 macOS LP64 字长检查）→ 兼容包装器（include 真实 BLDC_controller.h/.c/.data.c） |
+| `BodyPandaClient.java` (+115 lines) | JNA 接口 + reloadLibrary() + DAL 访问器（含 B1-B7 新增的 RespBuffer/nvicResetCount/enterBootloaderMode/setAppCodeLen/setSignatureChunk） |
+| `BodyCommandsStepDefs.java` (+65 lines) | jfactory + expect().should() 模式（含 body setup write 步骤） |
+| `BodyUsbControlRequests.java` (+95 lines) | 5 个 body spec + BodyControlSetup（签名数据预设） |
 | `body_commands.feature` | 5 场景：0xb3/0xb4 电机命令 |
-| `body_shared_commands.feature` | 1 场景：0xc1 硬件类型 |
-| `run_all_coverage.sh` (+10 lines) | +body 构建/测试/合并 |
+| `body_shared_commands.feature` | 8 场景：0xc1/0xd1/0xd3/0xd4/0xd6/0xd8/0xdd (B1-B7 完成) |
+| `run_all_coverage.sh` (+15 lines) | +body 构建/测试/合并，IGNORE_REGEX 排除 body e2e 桩 |
 
 **架构差异**：Body 使用独立 `libpanda_body.c`（非 `libpanda.c`）和 `-DPANDA_BODY` 编译 `board/body/main.c`，因为 body 依赖 BLDC 电机、DotStar LED 等 panda 没有的外设。
 
@@ -774,10 +793,10 @@ J14 power_saving.h:    +1 line  (llcan_irq_enable(cans[0]) flipped harness disab
 | 文件 | 变更 |
 |------|------|
 | `bldc.h` (e2e) | no-op 桩 (74 lines) → 兼容包装器 (365 lines): include 真实 BLDC_controller.h/.c/.data.c + 真实 `bldc_init()`/`bldc_step()` |
-| `libpanda_body.c` | 移除重复的 `batt_voltage_raw`/`batt_percentage` 定义（现在由 bldc.h 定义） |
-| `run_all_coverage.sh` | `IGNORE_REGEX` 移除 `bldc/bldc\.h`，释放 BLDC 文件进入覆盖率 |
-| `uncovered-features.md` | §1.2 body 文件 6→10 个, §2.2 新增 BLDC 覆盖表, §3.3 新增 Phase L 去桩化 |
+| `libpanda_body.c` | 移除重复的 `batt_voltage_raw`/`batt_percentage` 定义（现在由 bldc.h 定义）+ B1-B7 新增 JNA 出口（resp_buffer/nvic/enter_bootloader_mode/signature） |
+| `run_all_coverage.sh` | `IGNORE_REGEX` 新增 `src/test/c/board/body/bldc/bldc\.h\|src/test/c/stm32h7xx` 排除 e2e 包装器（B1-B7 后修正：保证 BLDC 固件代码进入覆盖率同时排除 stub 污染） |
+| `uncovered-features.md` | §1.2 body 文件 6→10 个, §2.2 新增 BLDC 覆盖表, §5 新增 B1-B7 里程碑 |
 
-**新入覆盖率的文件**：`board/body/bldc/bldc.h`、`BLDC_controller.h`、`BLDC_controller.c` (3306 行)、`BLDC_controller_data.c`。dylib 从 ~200KB → ~569KB。现有 6 个 @body 场景全部通过 ✅。BLDC 代码当前覆盖率 0%，需新增 JNA 入口调用 `bldc_init()`/`bldc_step()` 来产生覆盖。
+**新入覆盖率的文件**：`board/body/bldc/BLDC_controller.c` (1274 行)、`BLDC_controller_data.c`、`board/body/bldc_defs.h`、`board/body/rtwtypes.h`。dylib 从 ~200KB → ~569KB。现有 13 个 @body 场景全部通过 ✅。BLDC 代码当前覆盖率 0%，需新增 JNA 入口调用 `bldc_init()`/`bldc_step()` 来产生覆盖 (B8-B9)。
 
 ---

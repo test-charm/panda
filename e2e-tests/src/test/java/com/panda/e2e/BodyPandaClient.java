@@ -2,12 +2,16 @@ package com.panda.e2e;
 
 import com.sun.jna.Library;
 import com.sun.jna.Native;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
 import org.springframework.stereotype.Component;
+import org.testcharm.dal.runtime.AdaptiveList;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
 
 /**
  * Panda client for BODY firmware e2e testing.
@@ -29,6 +33,24 @@ public class BodyPandaClient {
         int jna_body_get_enable_motors();
 
         int jna_body_get_hw_type();
+
+        // ---- Response buffer access (filled by jna_body_control_write) ----
+        int jna_body_get_resp_len();
+
+        int jna_body_get_resp_byte(int index);
+
+        // ---- NVIC reset count ----
+        int jna_body_get_nvic_reset_count();
+
+        void jna_body_reset_nvic_count();
+
+        // ---- Bootloader mode state ----
+        int jna_body_get_enter_bootloader_mode();
+
+        // ---- Signature data preset (for 0xd3/0xd4 signature commands) ----
+        void jna_body_set_app_code_len(int len);
+
+        void jna_body_set_signature_chunk(int chunk, byte[] data, int data_len);
 
         void jna_panda_init();
     }
@@ -80,6 +102,50 @@ public class BodyPandaClient {
 
     public int getHwType() {
         return lib.jna_body_get_hw_type();
+    }
+
+    // ---- Response buffer access ----
+
+    @AllArgsConstructor
+    @Getter
+    public static class RespBuffer {
+        private final AdaptiveList<Byte> bytes;
+        private final int len;
+    }
+
+    public RespBuffer getRespBuffer() {
+        int len = lib.jna_body_get_resp_len();
+        var list = new ArrayList<Byte>();
+        for (int i = 0; i < len; i++) {
+            list.add((byte) lib.jna_body_get_resp_byte(i));
+        }
+        return new RespBuffer(AdaptiveList.staticList(list), len);
+    }
+
+    // ---- NVIC reset count ----
+
+    public int getNvicResetCount() {
+        return lib.jna_body_get_nvic_reset_count();
+    }
+
+    public void resetNvicCount() {
+        lib.jna_body_reset_nvic_count();
+    }
+
+    // ---- Bootloader mode state ----
+
+    public int getEnterBootloaderMode() {
+        return lib.jna_body_get_enter_bootloader_mode();
+    }
+
+    // ---- Signature data preset ----
+
+    public void setAppCodeLen(int len) {
+        lib.jna_body_set_app_code_len(len);
+    }
+
+    public void setSignatureChunk(int chunk, byte[] data) {
+        lib.jna_body_set_signature_chunk(chunk, data, data.length);
     }
 
     // ---- Public API ----

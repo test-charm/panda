@@ -45,4 +45,20 @@ public class BodyUsbControlRequests {
             property("param2").defaultValue((short) 0);
         }
     }
+
+    /**
+     * Body control setup — preset signature data for 0xd3/0xd4 signature commands.
+     */
+    public static class BodyControlSetup extends Spec<BodyControlSetup> {
+        public int codeLen;
+        public String signatureChunk0;
+        public String signatureChunk1;
+
+        @Override
+        public void main() {
+            property("codeLen").defaultValue(0);
+            property("signatureChunk0").defaultValue(null);
+            property("signatureChunk1").defaultValue(null);
+        }
+    }
 }
