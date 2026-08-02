@@ -42,6 +42,9 @@ public class BodyCommandsStepDefs {
         bodyClient.setMotorSpeeds(leftRpm, rightRpm, "true".equals(enable));
     }
 
+    @When("dotstar deinit")
+    public void dotstarDeinit() { bodyClient.dotstarDeinit(); }
+
     @When("dotstar show")
     public void dotstarShow() { bodyClient.dotstarShow(); }
 

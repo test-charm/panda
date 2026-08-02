@@ -152,6 +152,7 @@ public class BodyPandaClient {
 
         // ---- DotStar LED driver (B10-B12) ----
         void jna_dotstar_init();
+        void jna_dotstar_deinit();
         void jna_dotstar_fill(int r, int g, int b);
         void jna_dotstar_show();
         void jna_dotstar_set_pixel(int index, int r, int g, int b);
@@ -417,6 +418,7 @@ public class BodyPandaClient {
 
     // ---- DotStar LED driver (B10-B12) ----
 
+    public void dotstarDeinit() { lib.jna_dotstar_deinit(); }
     public void dotstarFill(int r, int g, int b) { lib.jna_dotstar_fill(r, g, b); }
     public void dotstarShow() { lib.jna_dotstar_show(); }
     public void dotstarSetPixel(int index, int r, int g, int b) { lib.jna_dotstar_set_pixel(index, r, g, b); }

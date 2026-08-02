@@ -472,6 +472,7 @@ void jna_body_set_err_qual(int qual, int dequal) { rtP_Left.t_errQual = (uint16_
 
 // ---- JNA: DotStar LED driver (B10-B12) ----
 void jna_dotstar_init(void) { dotstar_init(); }
+void jna_dotstar_deinit(void) { dotstar_state.initialized = false; }
 void jna_dotstar_fill(unsigned int r, unsigned int g, unsigned int b) {
   dotstar_fill((uint8_t)r, (uint8_t)g, (uint8_t)b);
 }

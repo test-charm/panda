@@ -81,3 +81,33 @@ Feature: Body Firmware DotStar LED Driver
         pixel0B: 150
       }
       """
+
+  Scenario: B10d — dotstar functions are no-op when not initialized
+    When dotstar deinit
+    When dotstar show
+    When dotstar fill: r = 1, g = 2, b = 3
+    When dotstar set pixel: index = 0, r = 10, g = 20, b = 30
+    When dotstar apply breathe: r = 11, g = 22, b = 33, now_us = 0, cycle_us = 0
+    Then body control data should be:
+      """
+      dotstar.initialized: false
+      """
+
+  Scenario: B10e — dotstar_set_pixel ignores out-of-range index
+    When dotstar fill: r = 0, g = 0, b = 0
+    When dotstar set pixel: index = 10, r = 255, g = 128, b = 64
+    Then body control data should be:
+      """
+      dotstar: {
+        pixel0R: 0
+        pixel0G: 0
+        pixel0B: 0
+      }
+      """
+
+  Scenario: B12c — dotstar_apply_breathe handles cycle_us=1 edge case
+    When dotstar apply breathe: r = 100, g = 150, b = 200, now_us = 0, cycle_us = 1
+    Then body control data should be:
+      """
+      dotstar.brightness: 31
+      """
