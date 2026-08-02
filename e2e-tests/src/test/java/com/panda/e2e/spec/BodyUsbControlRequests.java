@@ -74,6 +74,12 @@ public class BodyUsbControlRequests {
         public int adcRightPhaC;
         public int adcRightDc;
         public int adcBattery;
+        public int angleMeasEna;
+        public int mechAngleLeft;
+        public int mechAngleRight;
+        public int diagEna;
+        public int errQual;
+        public int errDequal;
 
         @Override
         public void main() {
@@ -101,6 +107,12 @@ public class BodyUsbControlRequests {
             property("adcRightPhaC").defaultValue(-1);
             property("adcRightDc").defaultValue(-1);
             property("adcBattery").defaultValue(-1);
+            property("angleMeasEna").defaultValue(-1);
+            property("mechAngleLeft").defaultValue(Integer.MIN_VALUE);
+            property("mechAngleRight").defaultValue(Integer.MIN_VALUE);
+            property("diagEna").defaultValue(-1);
+            property("errQual").defaultValue(-1);
+            property("errDequal").defaultValue(-1);
         }
     }
 }

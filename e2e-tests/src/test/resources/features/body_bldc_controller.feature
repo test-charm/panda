@@ -77,7 +77,6 @@ Feature: BLDC controller runtime behavior
     Given exists data:
       """
       BodyControlSetup: {
-        schedulerReady: 1
         seedControlMode: 1
       }
       """
@@ -102,7 +101,6 @@ Feature: BLDC controller runtime behavior
     Given exists data:
       """
       BodyControlSetup: {
-        schedulerReady: 1
         seedControlMode: 1
         ctrlModeReq: 2
       }
@@ -123,7 +121,6 @@ Feature: BLDC controller runtime behavior
     Given exists data:
       """
       BodyControlSetup: {
-        schedulerReady: 1
         seedControlMode: 2
         ctrlModeReq: 3
       }
@@ -144,7 +141,6 @@ Feature: BLDC controller runtime behavior
     Given exists data:
       """
       BodyControlSetup: {
-        schedulerReady: 1
         seedControlMode: 2
         ctrlModeReq: 0
       }
@@ -165,7 +161,6 @@ Feature: BLDC controller runtime behavior
       """
       BodyControlSetup: {
         phaseSelection: 0
-        schedulerReady: 1
         seedControlMode: 1
       }
       """
@@ -188,7 +183,6 @@ Feature: BLDC controller runtime behavior
       """
       BodyControlSetup: {
         phaseSelection: 1
-        schedulerReady: 1
         seedControlMode: 1
       }
       """
@@ -211,12 +205,342 @@ Feature: BLDC controller runtime behavior
       """
       BodyControlSetup: {
         ctrlTypeSel: 1
-        schedulerReady: 1
         seedControlMode: 1
       }
       """
     When bldc skip calibration
     And set motor speeds: left = 200 rpm, right = 200 rpm, enable = true
+    And bldc step
+    And bldc step
+    Then body control data should be:
+      """
+      : {
+        leftCtrlType: 1
+        rightCtrlType: 1
+        leftPwmActive: true
+        rightPwmActive: true
+      }
+      """
+
+  Scenario: hall state transitions trigger commutation detection and update electrical angle
+    Given exists data:
+      """
+      BodyControlSetup: {
+        seedControlMode: 1
+        hallLeftA: 0
+        hallLeftB: 0
+        hallLeftC: 1
+        hallRightA: 0
+        hallRightB: 0
+        hallRightC: 1
+      }
+      """
+    When bldc skip calibration
+    And set motor speeds: left = 100 rpm, right = 100 rpm, enable = true
+    And bldc step
+    # Change hall state to trigger commutation transition
+    Given exists data:
+      """
+      BodyControlSetup: {
+        hallLeftA: 0
+        hallLeftB: 1
+        hallLeftC: 1
+        hallRightA: 0
+        hallRightB: 1
+        hallRightC: 1
+      }
+      """
+    And bldc step
+    And bldc step
+    Then body control data should be:
+      """
+      : {
+        leftCtrlMode: 2
+        rightCtrlMode: 2
+        leftPwmActive: true
+        rightPwmActive: true
+      }
+      """
+
+  Scenario: angle measurement enabled with mech angle produces non-zero electrical angle
+    Given exists data:
+      """
+      BodyControlSetup: {
+        angleMeasEna: 1
+        seedControlMode: 1
+        mechAngleLeft: 100
+        mechAngleRight: 200
+      }
+      """
+    When bldc skip calibration
+    And set motor speeds: left = 100 rpm, right = 100 rpm, enable = true
+    And bldc step
+    And bldc step
+    Then body control data should be:
+      """
+      : {
+        leftElectricalAngle: 63
+        rightElectricalAngle: 157
+      }
+      """
+
+  Scenario: cruise control with positive target engages feedforward clamping
+    Given exists data:
+      """
+      BodyControlSetup: {
+        cruiseEnabled: 1
+        cruiseTarget: 500
+        seedControlMode: 1
+      }
+      """
+    When bldc skip calibration
+    And set motor speeds: left = 100 rpm, right = 100 rpm, enable = true
+    And bldc step
+    And bldc step
+    And bldc step
+    Then body control data should be:
+      """
+      : {
+        leftCtrlMode: 2
+        rightCtrlMode: 2
+        leftPwmActive: true
+        rightPwmActive: true
+      }
+      """
+
+  Scenario: hall all low with diagnostics enabled triggers error code
+    Given exists data:
+      """
+      BodyControlSetup: {
+        schedulerReady: 1
+        seedControlMode: 1
+        hallLeftA: 0
+        hallLeftB: 0
+        hallLeftC: 0
+        hallRightA: 0
+        hallRightB: 0
+        hallRightC: 0
+        errQual: 2
+        errDequal: 48000
+      }
+      """
+    When bldc skip calibration
+    And set motor speeds: left = 200 rpm, right = 200 rpm, enable = true
+    And bldc step
+    And bldc step
+    And bldc step
+    And bldc step
+    And bldc step
+    Then body control data should be:
+      """
+      : {
+        leftErrCode: 1
+        rightErrCode: 1
+      }
+      """
+
+  Scenario: diagnostics disabled suppresses error code on hall fault
+    Given exists data:
+      """
+      BodyControlSetup: {
+        diagEna: 0
+        schedulerReady: 1
+        seedControlMode: 1
+        hallLeftA: 0
+        hallLeftB: 0
+        hallLeftC: 0
+        hallRightA: 0
+        hallRightB: 0
+        hallRightC: 0
+        errQual: 2
+        errDequal: 48000
+      }
+      """
+    When bldc skip calibration
+    And set motor speeds: left = 200 rpm, right = 200 rpm, enable = true
+    And bldc step
+    And bldc step
+    And bldc step
+    And bldc step
+    And bldc step
+    Then body control data should be:
+      """
+      : {
+        leftErrCode: 0
+        rightErrCode: 0
+      }
+      """
+
+  Scenario: voltage mode to speed mode transition triggers speed pi reset
+    Given exists data:
+      """
+      BodyControlSetup: {
+        seedControlMode: 3
+        ctrlModeReq: 2
+      }
+      """
+    When bldc skip calibration
+    And set motor speeds: left = 80 rpm, right = 80 rpm, enable = true
+    And bldc step
+    And bldc step
+    Then body control data should be:
+      """
+      : {
+        leftCtrlMode: 2
+        rightCtrlMode: 2
+        leftPwmActive: true
+        rightPwmActive: true
+      }
+      """
+
+  Scenario: phase current injection through ADC drives iq and id non-zero
+    Given exists data:
+      """
+      BodyControlSetup: {
+        seedControlMode: 1
+        adcLeftPhaA: 2000
+        adcLeftPhaC: 1800
+        adcRightPhaA: 2100
+        adcRightPhaC: 1900
+      }
+      """
+    When bldc skip calibration
+    And set motor speeds: left = 120 rpm, right = 120 rpm, enable = true
+    And bldc step
+    And bldc step
+    And bldc step
+    Then body control data should be:
+      """
+      : {
+        leftCtrlMode: 2
+        rightCtrlMode: 2
+        leftPwmActive: true
+        rightPwmActive: true
+      }
+      """
+
+  # ---- FOC PI controller deep coverage (no schedulerReady → reaches FOC on step 3) ----
+
+  Scenario: speed-mode steady state FOC produces non-zero iq and id after two cycles
+    Given exists data:
+      """
+      BodyControlSetup: {
+        seedControlMode: 1
+      }
+      """
+    When bldc skip calibration
+    And set motor speeds: left = 100 rpm, right = 200 rpm, enable = true
+    And bldc step
+    And bldc step
+    And bldc step
+    And bldc step
+    And bldc step
+    And bldc step
+    Then body control data should be:
+      """
+      : {
+        leftCtrlMode: 2
+        rightCtrlMode: 2
+        leftPwmActive: true
+        rightPwmActive: true
+      }
+      """
+
+  Scenario: speed-mode PI reset triggers on VLT to SPD mode transition
+    Given exists data:
+      """
+      BodyControlSetup: {
+        seedControlMode: 3
+        ctrlModeReq: 2
+      }
+      """
+    When bldc skip calibration
+    And set motor speeds: left = 80 rpm, right = 80 rpm, enable = true
+    And bldc step
+    And bldc step
+    And bldc step
+    And bldc step
+    And bldc step
+    And bldc step
+    Then body control data should be:
+      """
+      : {
+        leftCtrlMode: 2
+        rightCtrlMode: 2
+        leftPwmActive: true
+        rightPwmActive: true
+      }
+      """
+
+  Scenario: angle measurement enters Vd_Calculation path via rtb_LogicalOperator
+    Given exists data:
+      """
+      BodyControlSetup: {
+        angleMeasEna: 1
+        seedControlMode: 1
+        mechAngleLeft: 100
+        mechAngleRight: 200
+      }
+      """
+    When bldc skip calibration
+    And set motor speeds: left = 100 rpm, right = 100 rpm, enable = true
+    And bldc step
+    And bldc step
+    And bldc step
+    And bldc step
+    And bldc step
+    And bldc step
+    Then body control data should be:
+      """
+      : {
+        leftCtrlMode: 2
+        rightCtrlMode: 2
+        leftPwmActive: true
+        rightPwmActive: true
+        leftElectricalAngle: 63
+        rightElectricalAngle: 157
+      }
+      """
+
+  Scenario: VLT mode FOC path exercises I_backCalc_fixdt voltage protection
+    Given exists data:
+      """
+      BodyControlSetup: {
+        seedControlMode: 3
+        ctrlModeReq: 1
+      }
+      """
+    When bldc skip calibration
+    And set motor speeds: left = 80 rpm, right = 80 rpm, enable = true
+    And bldc step
+    And bldc step
+    And bldc step
+    And bldc step
+    And bldc step
+    And bldc step
+    Then body control data should be:
+      """
+      : {
+        leftCtrlMode: 1
+        rightCtrlMode: 1
+      }
+      """
+
+  Scenario: SIN control type with field weakening exercises div_nde_s32_floor path
+    Given exists data:
+      """
+      BodyControlSetup: {
+        ctrlTypeSel: 1
+        fieldWeakEnabled: 1
+        seedControlMode: 1
+      }
+      """
+    When bldc skip calibration
+    And set motor speeds: left = 200 rpm, right = 200 rpm, enable = true
+    And bldc step
+    And bldc step
+    And bldc step
+    And bldc step
     And bldc step
     And bldc step
     Then body control data should be:

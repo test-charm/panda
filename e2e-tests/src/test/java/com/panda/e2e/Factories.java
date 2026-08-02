@@ -286,6 +286,24 @@ public class Factories {
                         Math.max(setup.adcBattery, 0)
                 );
             }
+            if (setup.angleMeasEna != -1) {
+                client.setAngleMeasEna(setup.angleMeasEna != 0);
+            }
+            if (setup.mechAngleLeft != Integer.MIN_VALUE || setup.mechAngleRight != Integer.MIN_VALUE) {
+                client.setMechAngle(
+                        setup.mechAngleLeft != Integer.MIN_VALUE ? setup.mechAngleLeft : 0,
+                        setup.mechAngleRight != Integer.MIN_VALUE ? setup.mechAngleRight : 0
+                );
+            }
+            if (setup.diagEna != -1) {
+                client.setDiagEna(setup.diagEna != 0);
+            }
+            if (setup.errQual != -1 || setup.errDequal != -1) {
+                client.setErrQual(
+                        setup.errQual != -1 ? setup.errQual : 1280,
+                        setup.errDequal != -1 ? setup.errDequal : 48000
+                );
+            }
         }
     }
 }

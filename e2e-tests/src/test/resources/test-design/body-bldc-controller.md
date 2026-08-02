@@ -171,6 +171,99 @@
 | ADC 原始采样值 | PI 饱和、限流、`Vd_Calculation`、逆变换饱和分支 |
 | `b_cruiseCtrlEna` / `n_cruiseMotTgt` 等参数 | `Speed_Mode` 里 cruise/feedforward 相关路径 |
 
+### 9.4 本次补测结果
+
+本轮补测在 `e2e-tests/src/test/resources/features/body_bldc_controller.feature` 新增 7 个场景：
+
+| 用例名 | 目标 | 结果 |
+|---|---|---|
+| `hall_state_transitions_trigger_commutation_detection_and_update_electrical_angle` | 注入两个不同 Hall 状态，跨步触发换相检测、方向检测和原始速度估算 | ✅ PASS |
+| `angle_measurement_enabled_with_mech_angle_produces_non_zero_electrical_angle` | `b_angleMeasEna=true` + `a_mechAngle` 注入，走 `F01_06_Electrical_Angle_Measurement`，验证 `a_elecAngle` 输出 | ✅ PASS |
+| `cruise_control_with_positive_target_engages_feedforward_clamping` | `b_cruiseCtrlEna=true` + `n_cruiseMotTgt=500`，命中 `MinMax4/MinMax3` 巡航前馈钳位分支 | ✅ PASS |
+| `hall_all_low_with_diagnostics_enabled_triggers_error_code` | Hall 全 0，设置 `errQual=2` 快速触发误差检测，验证 `z_errCode=1` | ✅ PASS |
+| `diagnostics_disabled_suppresses_error_code_on_hall_fault` | `diagEna=0`，即使 Hall 全 0 也保持 `z_errCode=0` | ✅ PASS |
+| `voltage_mode_to_speed_mode_transition_triggers_speed_pi_reset` | `seedControlMode=3`（VLT）→ `ctrlModeReq=2`（SPD），跨步触发 `PI_clamp_fixdt_b_Reset` | ✅ PASS |
+| `phase_current_injection_through_ADC_drives_iq_and_id_non_zero` | 注入非零 ADC 相电流，通过 Clarke/Park 变换产生非零 iq/id | ✅ PASS |
+
+### 9.5 本轮覆盖影响
+
+本次补测聚焦于通过新的 harness 控制项打开之前未覆盖的控制路径：
+
+| 区域 | 本轮命中情况 |
+|---|---|
+| `F01_06_Electrical_Angle_Measurement`（角度测量路径） | ✅ 通过 `b_angleMeasEna=true` + `a_mechAngle` 命中 |
+| 换相检测/方向检测/原始速度估算 | ✅ 通过 Hall 状态跨步变化命中 |
+| Cruise 控制前馈钳位（`MinMax4/MinMax3`） | ✅ 通过 `b_cruiseCtrlEna=true` + `n_cruiseMotTgt` 命中 |
+| 诊断错误码路径（Hall 全低/全高检测） | ✅ 通过 Hall 状态 + `errQual=2` 快速触发 |
+| 诊断禁用分支（`b_diagEna=false`） | ✅ 通过 `diagEna=0` 验证跳过诊断 |
+| `PI_clamp_fixdt_b_Reset`（speed-mode PI reset） | ✅ 通过 VLT→SPD 模式切换触发 |
+| Clarke 变换 + Park 变换（含非零电流输入） | ✅ 通过 ADC 电流注入命中 |
+
+### 9.6 本轮新增的 harness 接口总结
+
+| 接口 | 层级 | 作用 |
+|---|---|---|
+| `jna_body_set_angle_meas_ena` | C → Java → Spec | 开关角度测量模式 |
+| `jna_body_set_mech_angle` | C → Java → Spec | 注入机械角度值 |
+| `jna_body_set_diag_ena` | C → Java → Spec | 开关电机诊断 |
+| `jna_body_set_err_qual` | C → Java → Spec | 设置误差检测 qualification/dequalification 时间 |
+
+## 10. 第四轮：根因修复与 FOC PI 路径覆盖
+
+### 10.1 根因分析：为什么 PI 控制器代码 0% 覆盖
+
+BLDC_controller 使用三段式 Task_Scheduler 状态机来调度控制/中间/FOC 三个阶段：
+
+```text
+          [U2=T, U5=F, U6=F]  ← init
+         ┌─── IF (控制) ──────── F03 模式管理器、诊断
+         │   U2←U6=F, U5←T, U6←F
+         ▼
+          [U2=F, U5=T, U6=F]
+         ┌─── ELSE IF (中间) ── F04 磁场削弱、Motor_Limitations
+         │   U2←U6=F, U5←F, U6←T
+         ▼
+          [U2=F, U5=F, U6=T]
+         └─── ELSE (FOC) ─────── PI 控制器执行
+             U2←U6=T, U5←F, U6←F
+             循环回到 IF
+```
+
+**关键发现**：`schedulerReady: 1` 将 `UnitDelay6` 提前设为 `true`，破坏了初始状态 `[T,F,F]`，变成 `[T,F,T]`。这导致状态机陷入 `IF ↔ ELSE_IF` 的死循环，永远到不了 `ELSE (FOC)` 分支：
+
+```text
+[T,F,T] → [T,T,F] → [F,T,T] → [T,F,T] → [T,T,F] → ...   ❌ FOC 永远不执行
+```
+
+**修复**：从所有 FOC-path 测试中移除 `schedulerReady: 1`，让调度器自然轮转到 FOC（第 3 步）。
+
+### 10.2 本轮新增测试场景
+
+| 用例名 | 步骤数 | 目标 |
+|---|---|---|
+| `speed-mode_steady_state_FOC_produces_non_zero_iq_and_id_after_two_cycles` | 6 | 无 schedulerReady，自然轮转 2 个完整 FOC 周期，覆盖 `PI_clamp_fixdt_l` 执行体 |
+| `speed-mode_PI_reset_triggers_on_VLT_to_SPD_mode_transition` | 6 | VLT→SPD 模式切换 + FOC 到达，覆盖 `PI_clamp_fixdt_b_Reset` |
+| `angle_measurement_enters_Vd_Calculation_path` | 6 | `b_angleMeasEna=1` 使 `rtb_LogicalOperator=true`，FOC 到达时进入 `Vd_Calculation`，覆盖 `PI_clamp_fixdt_Reset` + `PI_clamp_fixdt` |
+| `VLT_mode_FOC_path_exercises_I_backCalc_fixdt_voltage_protection` | 6 | `seedControlMode=3` + `ctrlModeReq=1`，FOC 到达时 `z_ctrlMod=VLT`，进入 `Voltage_Mode_Protection`，覆盖 `I_backCalc_fixdt_Reset` + `I_backCalc_fixdt` |
+| `SIN_control_type_with_field_weakening_exercises_div_nde_s32_floor_path` | 6 | SIN 控制类型 + 磁场削弱，中间步骤进入 `F04_Field_Weakening`，覆盖 `div_nde_s32_floor`（SIN 分支） |
+
+### 10.3 已修复的现有测试
+
+移除 `schedulerReady: 1` 的测试（共 9 个）：
+- `repeated_speed_mode_steps_reach_the_steady_state_foc_speed_loop`
+- `repeated_steps_keep_the_controller_in_speed_mode`
+- `torque_mode_request_switches_the_controller_out_of_speed_mode`
+- `open_mode_request_clears_the_active_torque_mode`
+- `current_phase_selection_AB_drives_the_AB_clarke_branch`
+- `current_phase_selection_BC_drives_the_BC_clarke_branch`
+- `sin_control_mode_executes_the_sine_table_path`
+- `voltage_mode_to_speed_mode_transition_triggers_speed_pi_reset`
+- `phase_current_injection_through_ADC_drives_iq_and_id_non_zero`
+
+**保留** `schedulerReady: 1` 的测试（纯诊断测试，不走 FOC 路径）：
+- `hall_all_low_with_diagnostics_enabled_triggers_error_code`
+- `diagnostics_disabled_suppresses_error_code_on_hall_fault`
+
 ### 7.4 如果要继续提高覆盖率，优先级应该怎么排
 
 | 优先级 | 建议 | 预计能解锁的代码 |
@@ -285,3 +378,125 @@ body 单板 `llvm-cov` 报告中，该文件当前为：
 4. 专门为 `PI_clamp_fixdt*` 三组控制器写多拍迁移用例
 
 到这一步，`BLDC_controller.c` 剩余的低覆盖区域已经主要集中在**更深层的 PI 状态机和电流环内部细分支**，不再是最外层模式切换和输入选择分支。
+
+## 9. 第三轮 harness 扩展与补测
+
+### 9.1 新增的 harness 控制项
+
+本次扩展 e2e harness，使测试可以注入 FOC 控制器更深层的内部输入：
+
+| 控制项 | JNA 函数 | 作用 |
+|---|---|---|
+| `angleMeasEna` | `jna_body_set_angle_meas_ena` | 设置 `b_angleMeasEna`，启用机械角度测量模式，直接影响 `rtb_LogicalOperator` 从而进入 `Vd_Calculation` 路径 |
+| `mechAngleLeft/Right` | `jna_body_set_mech_angle` | 设置 `a_mechAngle` 输入，控制电气角度计算（需要 `b_angleMeasEna=true` 且 `n_polePairs` 非零） |
+| `diagEna` | `jna_body_set_diag_ena` | 覆盖 `b_diagEna`，控制是否执行电机诊断逻辑（hall 错误、堵转检测） |
+
+### 9.2 本次新增测试场景
+
+新增到：`e2e-tests/src/test/resources/features/body_bldc_controller.feature`
+
+#### 9.2.1 控制模式管理器完整状态迁移路径
+
+| 用例名 | 目标 |
+|---|---|
+| `voltage_mode_to_speed_mode_resets_speed_pi` | 从 VLT_MODE 切到 SPD_MODE，触发 `PI_clamp_fixdt_b_Reset`，验证 speed-mode PI reset |
+| `voltage_mode_to_torque_mode_resets_i_backcalc` | 从 VLT_MODE 切到 TRQ_MODE，触发 `I_backCalc_fixdt_Reset` |
+| `torque_mode_to_speed_mode_resets_speed_pi` | 从 TRQ_MODE 切到 SPD_MODE，覆盖 `PI_clamp_fixdt_b_Reset` 从 torque 态切换 |
+
+#### 9.2.2 电机诊断与错误码路径
+
+| 用例名 | 目标 |
+|---|---|
+| `hall_all_low_triggers_error_code_7` | Hall 全为 0（Sum==0），双拍后触发 `z_errCode=7`（Hall 错误 + 堵转） |
+| `hall_all_high_triggers_error_code_1` | Hall 全为 1（Sum==7），触发 `z_errCode=1`（Hall 全高错误） |
+| `diagnostics_disabled_skips_error_detection` | 设置 `diagEna=0`，验证即使 hall 全 0 也不触发错误码 |
+
+#### 9.2.3 角度测量与电气角度路径
+
+| 用例名 | 目标 |
+|---|---|
+| `angle_measurement_with_mech_angle_produces_electrical_angle` | `b_angleMeasEna=true` + `a_mechAngle` 输入，验证 `a_elecAngle` 输出非零 |
+| `angle_measurement_enables_vd_calculation` | `b_angleMeasEna=true` 使 `rtb_LogicalOperator=true`，进入 `Vd_Calculation` 触发器 |
+
+#### 9.2.4 巡航控制路径
+
+| 用例名 | 目标 |
+|---|---|
+| `cruise_control_with_positive_target_limits_iq_to_vq_max` | `b_cruiseCtrlEna=true` + `n_cruiseMotTgt` 正目标，命中 `MinMax4/MinMax3` 钳位分支 |
+| `cruise_control_with_negative_target_limits_iq_to_gain5` | `b_cruiseCtrlEna=true` + `n_cruiseMotTgt` 负目标，验证负巡航钳位 |
+
+#### 9.2.5 电流注入与饱和路径
+
+| 用例名 | 目标 |
+|---|---|
+| `phase_current_injection_drives_clarke_transform_output` | 注入非零 `adcLeftPhaA/adcLeftPhaC`，验证 Clarke 变换输出非零，走 iq/id 计算 |
+| `dc_link_current_injection_with_near_zero_speed_engages_protection` | 注入大 ADC 电流 + 小转速，让 `i_backCalc_fixdt` 保护路径运行 |
+
+### 9.3 输入因子扩展分析
+
+#### 新因子：`b_angleMeasEna`
+
+| 取值 | 等价类 | 影响 |
+|---|---|---|
+| `false` (0) | 角度估计模式（默认） | `rtb_LogicalOperator = n_commDeacv_Mode && !dz_cntTrnsDet`，需要 commutation 才能进入 Vd_Calculation |
+| `true` (1) | 角度测量模式 | `rtb_LogicalOperator = true`，Vd_Calculation 无条件进入 |
+
+#### 新因子：`a_mechAngle`
+
+| 取值 | 等价类 | 边界值 |
+|---|---|---|
+| 0 | 标准零位 | 0 |
+| 非零正常值 | 产生非零电气角度 | 100, 500, 1000 |
+| 范围外/环绕 | 测试 mod 360° 环绕 | 5760（正好一圈）, 11520 |
+
+#### 新因子：`b_diagEna`
+
+| 取值 | 等价类 | 说明 |
+|---|---|---|
+| `false` (0) | 禁用 | 跳过所有诊断逻辑，`z_errCode` 不更新 |
+| `true` (1) | 启用（默认） | Hall 错误、堵转检测全部运行 |
+
+## 11. 死代码记录
+
+### 11.1 `PI_clamp_fixdt_k` / `PI_clamp_fixdt_g_Reset`（子系统 `<S62>`，iq PI 控制器）
+
+**状态**：❌ 不可覆盖（Simulink 模型死代码）
+
+**证据**：FOC 路径 switch case（line 2479）仅包含 `case 0`（VLT）、`case 1`（SPD）、`case 3`（OPEN），**无 `case 2`**（TRQ_MODE）。`z_ctrlMod=3` 映射到 `UnitDelay3=2`，落入 switch 末尾不执行任何代码。
+
+```c
+// FOC switch (line 2461 → line 2479)
+switch (z_ctrlMod) {
+    case 1: break;        // VLT → UnitDelay3=0
+    case 2: UnitDelay3=1; // SPD → UnitDelay3=1 → case 1: PI_clamp_fixdt_l
+    case 3: UnitDelay3=2; // TRQ → UnitDelay3=2 → NO MATCHING CASE ❌
+    default: UnitDelay3=3;
+}
+switch (UnitDelay3) {
+    case 0: ... // Voltage_Mode
+    case 1: ... // Speed_Mode → PI_clamp_fixdt_l
+    case 3: ... // Open_Mode
+    // ⚠️ case 2 缺失
+}
+```
+
+`PI_clamp_fixdt_k`（64 行）和 `PI_clamp_fixdt_g_Reset`（4 行）仅被 `PI_clamp_fixdt_f_Init()` 初始化过，从未在 `BLDC_controller_step()` 中被调用。需重新生成 Simulink 模型（增加 Torque_Mode FOC 执行体）才能覆盖。
+
+### 11.2 函数覆盖总结
+
+| 函数 | 行数 | 覆盖 | 原因 |
+|------|------|------|------|
+| `div_nde_s32_floor` | 4 | ✅ 100% | SIN_Method 磁场削弱分支 |
+| `Counter` | 16 | ✅ 100% | 换相检测 |
+| `Counter_n` | 18 | ✅ 100% | Debounce_Filter 计数器 |
+| `either_edge` | 3 | ✅ 100% | 错误码边沿检测 |
+| `Debounce_Filter` | 6 | 50% | dequalification 路径未覆盖 |
+| `Low_Pass_Filter` | 23 | 74% | 饱和分支未覆盖 |
+| `I_backCalc_fixdt_Reset` | 4 | ✅ Phase M | VLT/TRQ 保护首次切入 |
+| `I_backCalc_fixdt` | 26 | ✅ Phase M | VLT 保护每拍执行 |
+| `PI_clamp_fixdt_Reset` | 4 | ✅ Phase M | Vd_Calculation 首次切入 |
+| `PI_clamp_fixdt` | 64 | ✅ Phase M | Vd_Calculation PI 执行体 |
+| `PI_clamp_fixdt_b_Reset` | 4 | ✅ Phase M | Speed_Mode 首次切入 |
+| `PI_clamp_fixdt_l` | 64 | ✅ Phase M | Speed_Mode PI 执行体 |
+| `PI_clamp_fixdt_g_Reset` | 4 | ❌ 死代码 | FOC switch 无 TRQ case |
+| `PI_clamp_fixdt_k` | 64 | ❌ 死代码 | FOC switch 无 TRQ case |

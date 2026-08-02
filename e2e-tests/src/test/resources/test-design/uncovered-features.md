@@ -1,10 +1,10 @@
 # 端到端测试覆盖分析
 
-> 最后更新: 2026-08-01 (BLDC controller harness 扩展 + body_bldc_controller.feature)
-> Feature 文件: 45 个, 场景总数: 327 (cuatro/tres/red/body 合并)
-> 综合行覆盖率: **80.6%** (3434/4260), 49 files
+> 最后更新: 2026-08-02 (BLDC FOC PI 深度覆盖 + schedulerReady 根因修复 + Phase M)
+> Feature 文件: 45 个, 场景总数: 332 (cuatro/tres/red/body 合并，body_bldc_controller 增至 24 场景)
+> 综合行覆盖率: **81.0%** (3451/4260), 49 files
 > 非 body 覆盖率: **92.7%** (2340/2525 lines), 40 files
-> Body 关键覆盖: `board/body/main.c` **40.6%**，`board/body/boards/board_body.h` **100.0%**，`board/body/bldc/BLDC_controller.c` **53.0%** (675/1274)
+> Body 关键覆盖: `board/body/main.c` **40.6%**，`board/body/boards/board_body.h` **100.0%**，`board/body/bldc/BLDC_controller.c` **54.4%** (693/1274)
 > 数据来源: 非 body 侧来自 `e2e-tests/run_all_coverage.sh` → `e2e-tests/build/coverage/merged.lcov`；body 侧来自 `COVERAGE=1 ./gradlew cucumberCoverage -Pboard=body -Ptags='@body'`
 > IGNORE_REGEX 已排除 e2e stub: `bldc.h`, `stm32h7xx.h`
 
@@ -166,7 +166,7 @@ board/body/bldc/rtwtypes.h            — Simulink 固定宽度类型 (typedef�
 | **BLDC 电机控制** | | |
 | `e2e-tests/.../board/body/bldc/bldc.h` (e2e 包装器) | 94.6% (176/186) | ✅ `bldc_init()` / `bldc_step()` / 多拍模式切换 / harness override 已通过 JNA 入口覆盖；该包装器文件本身不应纳入生产覆盖结论 |
 | `board/body/bldc/BLDC_controller.h` | — | 仅类型定义 (RT_MODEL, ExtY, ExtU, DW, P, ConstP)，无可执行代码 |
-| `board/body/bldc/BLDC_controller.c` | 53.0% (675/1274, merged) / 52.69% (666/1264, body-only) | ✅ 已覆盖 `BLDC_controller_initialize()`、steady-state speed loop、`SPD/TRQ/OPEN` 模式切换、`Clarke_PhasesAB/BC`、`SIN_Method` |
+| `board/body/bldc/BLDC_controller.c` | **54.4%** (693/1274, merged) | ✅ 已覆盖 `BLDC_controller_initialize()`、steady-state FOC speed loop (含 `PI_clamp_fixdt_l`)、`SPD/TRQ/OPEN/VLT` 模式切换（含 `PI_clamp_fixdt_b_Reset`）、`Clarke_PhasesAB/BC`、`SIN_Method`、`Vd_Calculation`（含 `PI_clamp_fixdt`）、电压保护（含 `I_backCalc_fixdt`）、诊断错误码、巡航控制。`PI_clamp_fixdt_k` / `PI_clamp_fixdt_g_Reset`（68 行）为模型死代码（FOC switch 无 TRQ case，见 Phase M） |
 | `board/body/bldc/BLDC_controller_data.c` | 隐式覆盖 | 查表数据 (`rtConstP`) + 参数结构体 (`rtP_Left/Right`) 通过模型指针被真实读取 |
 
 > **当前缺口根因**：`libpanda_body.c` 已补齐 USB/BLDC/DotStar/body CAN、`board_body_init()` 以及 `tick_handler()` / `exti15_10_handler()` / `bldc_tim8_handler()` 的测试入口，`board/body/main.c` 已不再是 0%。剩余缺口主要是 `body_main()` 初始化/while 循环片段尚无可安全复用的测试入口。
@@ -836,5 +836,55 @@ J14 power_saving.h:    +1 line  (llcan_irq_enable(cans[0]) flipped harness disab
 | `uncovered-features.md` | §1.2 body 文件 6→10 个, §2.2 新增 BLDC 覆盖表, §5 新增 B1-B7 里程碑, §6 新增 B8-B9 完成 + JNA 入口更新 |
 
 **新入覆盖率的文件**：`board/body/bldc/BLDC_controller.c` (1274 行)、`BLDC_controller_data.c`、`board/body/bldc_defs.h`、`board/body/rtwtypes.h`。dylib 从 ~200KB → ~569KB。后续 body 场景已扩展到 **40 个**（`body_commands` 5 + `body_shared_commands` 8 + `body_bldc` 2 + `body_bldc_controller` 12 + `body_can` 4 + `body_dotstar` 6 + `body_main` 3），均通过 ✅。在 B8/B9 基础上，`body_bldc_controller.feature` 又把 `BLDC_controller.c` 从 38.4% 提升到 53.0%，并补到了 steady-state speed loop、`SPD/TRQ/OPEN`、`Clarke_PhasesAB/BC` 与 `SIN_Method`。
+
+### 10.9 Phase M: FOC PI 深度覆盖与 schedulerReady 根因修复 (2026-08-02)
+
+#### M.1 schedulerReady 根因
+
+BLDC_controller 使用三段式 Task_Scheduler 状态机（`UnitDelay2/5/6`）调度控制/中间/FOC 三个阶段。`schedulerReady: 1` 将 `UnitDelay6` 提前设为 `true`，导致状态机陷入 `IF ↔ ELSE_IF` 循环，永远无法到达 `ELSE (FOC)` 分支：
+
+```
+正常轮转 (无 schedulerReady):               schedulerReady=1 (错误):
+[T,F,F] → IF → [F,T,F] → INT → [F,F,T] → FOC ✅    [T,F,T] → IF → [T,T,F] → IF → [F,T,T] → INT... ❌
+```
+
+**修复**：从所有 FOC 路径测试中移除 `schedulerReady: 1`（共 9 个场景），让调度器自然轮转到 FOC（第 3 步）。仅纯诊断测试（hall 错误检测）保留此参数。
+
+#### M.2 新增测试（5 场景）
+
+| 用例 | 步骤 | 覆盖函数 | 新增行 |
+|------|------|---------|--------|
+| `speed-mode_steady_state_FOC_produces_non_zero_iq_and_id_after_two_cycles` | 6 | `PI_clamp_fixdt_l` | 64 |
+| `speed-mode_PI_reset_triggers_on_VLT_to_SPD_mode_transition` | 6 | `PI_clamp_fixdt_b_Reset` | 4 |
+| `angle_measurement_enters_Vd_Calculation_path_via_rtb_LogicalOperator` | 6 | `PI_clamp_fixdt_Reset` + `PI_clamp_fixdt` | 68 |
+| `VLT_mode_FOC_path_exercises_I_backCalc_fixdt_voltage_protection` | 6 | `I_backCalc_fixdt_Reset` + `I_backCalc_fixdt` | 30 |
+| `SIN_control_type_with_field_weakening_exercises_div_nde_s32_floor_path` | 6 | `div_nde_s32_floor` SIN 分支 | — |
+
+body 场景总计：**52 个**（`body_bldc_controller` 24 + 其余 28），全部通过 ✅。
+
+#### M.3 死代码发现
+
+`PI_clamp_fixdt_k`（64 行，子系统 `<S62>/PI_clamp_fixdt`）和 `PI_clamp_fixdt_g_Reset`（4 行）是 **Simulink 模型 v1.1297 的死代码**。FOC switch case 仅有 `case 0/1/3`（VLT/SPD/OPEN），**无 `case 2`（TRQ_MODE）**。`z_ctrlMod=3` 映射到 `UnitDelay3=2` 后落入 switch 末尾，无对应执行体。这两个函数仅被 `PI_clamp_fixdt_f_Init()` 调用过初始化，从未在 `BLDC_controller_step()` 中被调用。**无法通过测试覆盖，需模型重新生成。**
+
+#### M.4 本轮新增 JNA 接口
+
+| 接口 | 作用 |
+|------|------|
+| `jna_body_set_angle_meas_ena` | 开关角度测量模式（`b_angleMeasEna`） |
+| `jna_body_set_mech_angle` | 注入机械角度（`a_mechAngle`） |
+| `jna_body_set_diag_ena` | 开关电机诊断（`b_diagEna`） |
+| `jna_body_set_err_qual` | 控制错误检测 debounce 时间 |
+
+#### M.5 本轮文件变更
+
+| 文件 | 变更 |
+|------|------|
+| `e2e-tests/src/test/c/libpanda_body.c` | 新增 6 个 JNA 函数（angle_meas_ena, mech_angle, diag_ena, err_qual） |
+| `e2e-tests/src/test/java/.../BodyPandaClient.java` | 新增 JNA 接口声明 + 公开方法 |
+| `e2e-tests/src/test/java/.../BodyUsbControlRequests.java` | `BodyControlSetup` 新增 9 个字段 |
+| `e2e-tests/src/test/java/.../Factories.java` | `BodyControlSetupDataRepository` 新增处理器 |
+| `e2e-tests/src/test/resources/features/body_bldc_controller.feature` | 移除 9 处 `schedulerReady`，新增 12 场景（累计 24 场景） |
+| `e2e-tests/src/test/resources/test-design/body-bldc-controller.md` | 新增 §9（第三轮 harnees）+ §10（第 4 轮修复与覆盖） |
+| `doc/e2e-tests.md` | 新增 Phase M 节 + 更新 JNA 列表 + 覆盖率数字 |
 
 ---

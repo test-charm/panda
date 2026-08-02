@@ -465,6 +465,10 @@ int jna_body_get_left_electrical_angle(void) { return rtY_Left.a_elecAngle; }
 int jna_body_get_right_electrical_angle(void) { return rtY_Right.a_elecAngle; }
 int jna_body_get_left_err_code(void) { return rtY_Left.z_errCode; }
 int jna_body_get_right_err_code(void) { return rtY_Right.z_errCode; }
+void jna_body_set_angle_meas_ena(int enabled) { rtP_Left.b_angleMeasEna = enabled != 0; rtP_Right.b_angleMeasEna = enabled != 0; }
+void jna_body_set_mech_angle(int left_angle, int right_angle) { rtU_Left.a_mechAngle = (int16_t)left_angle; rtU_Right.a_mechAngle = (int16_t)right_angle; }
+void jna_body_set_diag_ena(int enabled) { rtP_Left.b_diagEna = enabled != 0; rtP_Right.b_diagEna = enabled != 0; }
+void jna_body_set_err_qual(int qual, int dequal) { rtP_Left.t_errQual = (uint16_T)qual; rtP_Right.t_errQual = (uint16_T)qual; rtP_Left.t_errDequal = (uint16_T)dequal; rtP_Right.t_errDequal = (uint16_T)dequal; }
 
 // ---- JNA: DotStar LED driver (B10-B12) ----
 void jna_dotstar_init(void) { dotstar_init(); }

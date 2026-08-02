@@ -109,8 +109,10 @@ body 固件使用独立的 C 入口 `libpanda_body.c`（而非 `libpanda.c`）�
 | `jna_body_set_ctrl_mode_req()` / `jna_body_get_left/right_ctrl_mode()` | 注入控制模式请求并观察 `OPEN/SPD/TRQ` 状态迁移 (`body_bldc_controller.feature`) |
 | `jna_body_set_ctrl_type_sel()` / `jna_body_get_left/right_ctrl_type()` | 切换 `FOC_CTRL / SIN_CTRL`，覆盖 `SIN_Method` 分支 |
 | `jna_body_set_phase_selection()` / `jna_body_get_left/right_phase_selection()` | 切换 `Clarke_PhasesAB / BC / AC` 路径 |
-| `jna_body_set_scheduler_ready()` / `jna_body_seed_control_mode()` | 直接把控制器推入 steady-state / 预置模式机前态，覆盖深层模式切换 |
+| `jna_body_set_scheduler_ready()` / `jna_body_seed_control_mode()` | 直接把控制器推入 steady-state / 预置模式机前态，覆盖深层模式切换。**注意**：`schedulerReady` 会破坏 Task_Scheduler 三段式轮转，导致 FOC PI 路径无法到达。FOC 路径测试不应使用此参数，应依赖自然 3 步轮转（参见 §Phase M） |
 | `jna_body_set_hall_states()` / `jna_body_set_adc_raw_values()` | 注入 Hall 与 ADC 原始输入，扩展 BLDC 控制器分支覆盖 |
+| `jna_body_set_angle_meas_ena()` / `jna_body_set_mech_angle()` | 开关角度测量模式（`b_angleMeasEna`）并注入机械角度（`a_mechAngle`），进入 `Vd_Calculation` 路径 |
+| `jna_body_set_diag_ena()` / `jna_body_set_err_qual()` | 开关电机诊断（`b_diagEna`）并控制错误检测 debounce 计时（`t_errQual`/`t_errDequal`）
 | `jna_body_get_left/right_iq/id/a_elecAngle/z_errCode()` | 读取 FOC 内部输出量，供深层控制器场景断言 |
 | `jna_body_can_send_motor_speeds()` / `jna_body_can_send_var_values()` / `jna_body_can_send_body_data()` | 直接调用 body CAN 发送 helper，验证 0x201/0x202/0x203 帧内容 (B14 ✅) |
 | `jna_body_can_receive_target()` | 构造并注入 0x250 目标转速帧，覆盖 `body_can_rx()` / `body_can_process_target()` (B15 ✅) |
@@ -219,7 +221,7 @@ e2e-tests/
 | Body 电机命令 | `body_commands.feature` | 5 | rpmLeft/rpmRight/motorEnabled (0xb3/0xb4 通过 `board/body/main_comms.h`) |
 | Body 共享命令 | `body_shared_commands.feature` | 8 | hwType/respBuffer/nvicResetCount/enterBootloaderMode (0xc1/0xd1/0xd3/0xd4/0xd6/0xd8/0xdd, B1-B7 全部覆盖) |
 | **Body BLDC** | `body_bldc.feature` | 2 | B8/B13: `jna_panda_init()` 启动路径自动调用 `body_can_init()` + `bldc_init()`，验证 CAN 初始化状态 + TIM8/TIM1 CEN；B9: `bldc_step()` → `BLDC_controller_step()` FOC 算法，验证 TIM8/TIM1 CCR1/2/3 PWM 输出 |
-| **Body BLDC Controller** | `body_bldc_controller.feature` | 12 | 额外覆盖校准早返回、deadband、钳位、steady-state speed loop、`SPD/TRQ/OPEN` 模式切换、`Clarke_PhasesAB/BC`、`SIN_Method` |
+| **Body BLDC Controller** | `body_bldc_controller.feature` | 24 | 覆盖校准、deadband、钳位、steady-state FOC speed loop (`PI_clamp_fixdt_l`)、`SPD/TRQ/OPEN/VLT` 模式切换（含 `PI_clamp_fixdt_b_Reset`）、`Clarke_PhasesAB/BC`、`SIN_Method`、Hall 换相检测、角度测量、`Vd_Calculation`（`PI_clamp_fixdt_Reset` + `PI_clamp_fixdt`）、电压保护（`I_backCalc_fixdt`）、巡航控制、诊断错误码、ADC 电流注入、磁场削弱 |
 | **Body CAN** | `body_can.feature` | 4 | B14-B17: 0x201/0x202/0x203 发送 helper、0x250 目标转速接收、100ms 超时归零、10ms 周期发送节流；通过 `rxQueue` 回显帧 + `bodyCan` 状态 + `rpmLeft/rpmRight` 验证 |
 | **Body DotStar** | `body_dotstar.feature` | 6 | B10: `dotstar_init()` 在 `jna_panda_init()` 启动路径中自动调用（前置会先执行 `body_can_init()`）+ dotstar_fill/show/set_pixel/brightness；B11: dotstar_run_rainbow() 彩虹动画；B12: dotstar_apply_breathe() 三角波呼吸效果 |
 | **Body Main 中断路径** | `body_main.feature` | 3 | B18-B20: `tick_handler()` CAN reset + 红灯翻转、`exti15_10_handler()` 充电/点火防抖、`bldc_tim8_handler()` → `bldc_step()` IRQ 路径；通过 `tickCount` / `can0Ile` / `plugCharging` / `ignition*` / `tim8Sr` / PWM 状态验证 |
@@ -239,7 +241,7 @@ e2e-tests/
 | `board/body/boards/board_body.h` | **100.0%** (27/27) | 1/1 | ✅ 已通过 `jna_panda_init()` 启动子路径与 `body_bldc.feature` 启动场景覆盖 `board_body_init()` |
 | `board/body/can.h` | **100%** (82/82) | 7/7 | ✅ B13-B17 完成：`body_can_init()`（经 `jna_panda_init()` 启动路径）、发送 helper、RX 目标解析、超时归零、10ms 周期发送 |
 | `board/body/dotstar.h` | **91.0%** (141/155) | 14/14 | ✅ B10-B12：dotstar_init/fill/set_pixel/brightness/rainbow/breathe 高覆盖；未命中的主要是未初始化防御分支 |
-| `board/body/bldc/BLDC_controller.c` | **53.0%** (675/1274) | 19/26 | ✅ 在 B8/B9 基础上，`body_bldc_controller.feature` 继续覆盖 steady-state speed loop、`SPD/TRQ/OPEN` 模式切换、`Clarke_PhasesAB/BC` 与 `SIN_Method` |
+| `board/body/bldc/BLDC_controller.c` | **54.4%** (693/1274) | 19/26 | ✅ 已覆盖 `BLDC_controller_initialize()`、steady-state speed loop (含 `PI_clamp_fixdt_l`)、`SPD/TRQ/OPEN/VLT` 模式切换（含 `PI_clamp_fixdt_b_Reset`）、`Clarke_PhasesAB/BC`、`SIN_Method`、`Vd_Calculation`（含 `PI_clamp_fixdt`）、电压保护（含 `I_backCalc_fixdt`）、诊断错误码。`PI_clamp_fixdt_k` / `PI_clamp_fixdt_g_Reset`（68 行，<S62> iq PI 控制器）为模型死代码 — FOC case 语句缺失 TRQ_MODE（参见 §Phase M） |
 | `board/drivers/can_common.h` | **100%** (107/107) | 10/12 | CAN 通用操作 |
 | `board/drivers/gpio.h` | **100%** (72/72) | 6/7 | ✅ Phase J: J1 PUSH_PULL + J10 detect_with_pull 全覆盖 |
 | `board/sys/faults.h` | **100%** (20/20) | 2/2 | 故障设置 |
@@ -334,3 +336,39 @@ COVERAGE=1 ./gradlew cucumberCoverage
 cd src/test/c && ./build.sh cuatro
 cd src/test/c && ./build.sh body
 ```
+
+## Phase M: FOC PI 路径深度覆盖与死代码发现 (2026-08-02)
+
+### M.1 schedulerReady 根因修复
+
+**发现**：`schedulerReady: 1` 通过 `jna_body_set_scheduler_ready()` 将 `UnitDelay6_DSTATE` 提前设为 `true`，破坏了 BLDC_controller 的三段式 Task_Scheduler 状态机，导致 FOC 执行路径（含所有 PI 控制器）永远无法被到达。
+
+```
+正常自然轮转:                             schedulerReady=1 (错误):
+[T,F,F] → IF → [F,T,F] → INT → [F,F,T] → FOC ✅    [T,F,T] → IF → [T,T,F] → IF → [F,T,T] → INT... ❌
+```
+
+**修复**：从 9 个 FOC 路径测试中移除 `schedulerReady: 1`（仅保留在诊断专用测试中）。这解锁了 Speed_Mode PI (`PI_clamp_fixdt_l`)、Vd_Calculation PI (`PI_clamp_fixdt`)、Voltage_Mode protection (`I_backCalc_fixdt`）等 232 行之前 0% 覆盖的代码。
+
+### M.2 新增测试场景 (5 个)
+
+| 用例 | 步骤数 | 覆盖函数 |
+|------|--------|---------|
+| `speed-mode_steady_state_FOC_produces_non_zero_iq_and_id` | 6 (2 FOC 周期) | `PI_clamp_fixdt_l` (64行) |
+| `speed-mode_PI_reset_triggers_on_VLT_to_SPD_transition` | 6 | `PI_clamp_fixdt_b_Reset` (4行) |
+| `angle_measurement_enters_Vd_Calculation_path` | 6 | `PI_clamp_fixdt_Reset` + `PI_clamp_fixdt` (68行) |
+| `VLT_mode_FOC_path_exercises_I_backCalc_fixdt` | 6 | `I_backCalc_fixdt_Reset` + `I_backCalc_fixdt` (30行) |
+| `SIN_with_field_weakening_exercises_div_nde_s32_floor` | 6 | `div_nde_s32_floor` SIN 分支 |
+
+### M.3 死代码发现
+
+`PI_clamp_fixdt_k` (64行) 和 `PI_clamp_fixdt_g_Reset` (4行) — 子系统 `<S62>/PI_clamp_fixdt`（iq 电流环 PI 控制器）— 是 Simulink 模型 v1.1297 的死代码。FOC 路径 switch case 缺失 `case 2`（TRQ_MODE 执行体），`z_ctrlMod=3` 映射到 `UnitDelay3=2` 后落入 switch 末尾，无对应 case。这些函数仅被 `PI_clamp_fixdt_f_Init()` 初始化，从未在 `BLDC_controller_step()` 中被调用。
+
+### M.4 新增 JNA 接口
+
+| 接口 | 作用 |
+|------|------|
+| `jna_body_set_angle_meas_ena` | 开关角度测量模式（`b_angleMeasEna`） |
+| `jna_body_set_mech_angle` | 注入机械角度（`a_mechAngle`） |
+| `jna_body_set_diag_ena` | 开关电机诊断（`b_diagEna`） |
+| `jna_body_set_err_qual` | 控制错误检测 debounce 时间 |
