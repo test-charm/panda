@@ -1,9 +1,9 @@
 # Body DotStar LED 驱动 — 测试设计文档
 
-> 功能: `dotstar_init()` + `dotstar_fill()` + `dotstar_set_pixel()` + `dotstar_set_global_brightness()` + `dotstar_run_rainbow()` + `dotstar_apply_breathe()` in `board/body/dotstar.h`
-> 被测接口: `jna_panda_init()` → `board_body_init()` → `body_can_init()` → `dotstar_init()` (启动路径); JNA 直接调用 `dotstar_fill` / `dotstar_show` / `dotstar_set_pixel` / `dotstar_set_global_brightness` / `dotstar_run_rainbow` / `dotstar_apply_breathe`
+> 功能: `dotstar_init()` + `dotstar_deinit()` + `dotstar_fill()` + `dotstar_set_pixel()` + `dotstar_set_global_brightness()` + `dotstar_run_rainbow()` + `dotstar_apply_breathe()` in `board/body/dotstar.h`
+> 被测接口: `jna_panda_init()` → `board_body_init()` → `body_can_init()` → `dotstar_init()` (启动路径); JNA 直接调用 `dotstar_fill` / `dotstar_show` / `dotstar_set_pixel` / `dotstar_set_global_brightness` / `dotstar_run_rainbow` / `dotstar_apply_breathe`; JNA `jna_dotstar_deinit()` 用于测试未初始化保护路径
 > 固件目标: body (`board/body/main.c`)
-> 已完成: B10 + B11 + B12 (2026-08-01)
+> 已完成: B10 + B10d + B10e + B11 + B12 + B12c (2026-08-02)
 
 ## 1. 被测功能流程图
 
@@ -23,12 +23,18 @@ dotstar_init()
       ├─ 清零所有 10 个像素 (r=g=b=0)
       └─ dotstar_show()                         ← 发送全黑帧到 LED 链
 
+dotstar_deinit()                             — 仅 e2e 测试辅助（生产固件无此路径）
+      │
+      └─ dotstar_state.initialized = false
+
 dotstar_fill(r, g, b)
       │
+      ├─ [!initialized?] → return (no-op)     ← B10d 覆盖
       └─ [initialized?] → 遍历 pixel[0..9] = {r, g, b}
 
 dotstar_set_pixel(index, r, g, b)
       │
+      ├─ [!initialized || index ≥ 10?] → return (no-op)  ← B10d + B10e 覆盖
       └─ [initialized && index < 10?] → pixel[index] = {r, g, b}
 
 dotstar_set_global_brightness(brightness)
@@ -48,12 +54,15 @@ dotstar_run_rainbow(now_us)
 
 dotstar_apply_breathe(color, now_us, cycle_us)
       │
+      ├─ [!initialized?] → return (no-op)       ← B10d 覆盖
+      │
       ├─ [cycle_us == 0?] → brightness=MAX, fill(color)  ← 全亮度路径
       │
       └─ [cycle_us > 0]:
             phase = now_us % cycle_us
             half_cycle = cycle_us / 2
-            amplitude = (phase ≤ half_cycle) ? phase : (cycle_us - phase)
+            ├─ [half_cycle == 0?] → half_cycle = 1        ← B12c 覆盖
+            └─ amplitude = (phase ≤ half_cycle) ? phase : (cycle_us - phase)
             scale = (amplitude * 255) / half_cycle
             r' = (color.r * scale) / 255, g', b' 同理
             dotstar_set_global_brightness(MAX)
@@ -62,19 +71,21 @@ dotstar_apply_breathe(color, now_us, cycle_us)
 
 > **关键验证点**: `dotstar_state.initialized` 在 `jna_panda_init()` 后自动为 true。虽然 `body_can_init()` 先于 `dotstar_init()` 执行，但 LED 状态验证仍只依赖 `dotstar_state.pixels[i]` 和 `dotstar_state.global_brightness`。
 > `dotstar_show()` 仅在 `initialized=true` 时执行 SPI 帧发送（e2e 中通过假 GPIO 验证寄存器写入）。
+> `jna_dotstar_deinit()` 将 `initialized` 设为 false，用于覆盖各函数的未初始化保护分支。生产固件 `body_main()` 中并无此路径。
 
 ## 2. 输入因子
 
 | 因子 | 类型 | 等价类 | 取值 |
 |------|------|--------|------|
-| `r, g, b` (fill) | uint8 | 任意颜色 | (100, 150, 200), (0, 0, 0) |
-| `index` (set_pixel) | uint16 | 有效 (0-9), 边界 | 3 |
-| `r, g, b` (set_pixel) | uint8 | 与背景不同的颜色 | (255, 128, 64) |
+| `r, g, b` (fill) | uint8 | 任意颜色 | (100, 150, 200), (0, 0, 0), (1, 2, 3) |
+| `index` (set_pixel) | uint16 | 有效 (0-9), 边界, 越界 | 3, 10 |
+| `r, g, b` (set_pixel) | uint8 | 与背景不同的颜色 | (255, 128, 64), (10, 20, 30) |
 | `brightness` (set_global) | uint8 | 正常值, 超上限 | 50 (clamp to 31) |
 | `now_us` (rainbow) | uint32 | 任意时间戳 | 500000 |
-| `color` (breathe) | dotstar_rgb_t | 任意颜色 | (100, 150, 200), (50, 100, 150) |
+| `color` (breathe) | dotstar_rgb_t | 任意颜色 | (100, 150, 200), (50, 100, 150), (11, 22, 33) |
 | `now_us` (breathe) | uint32 | 任意时间戳 | 250000, 0 |
-| `cycle_us` (breathe) | uint32 | 零 (全亮度), 非零 (三角波) | 0, 1000000 |
+| `cycle_us` (breathe) | uint32 | 零 (全亮度), 边界 (1), 非零 (三角波) | 0, 1, 1000000 |
+| `initialized` (deinit) | bool | true / false | false (通过 deinit 置 false) |
 
 ## 3. 输出因子
 
@@ -129,22 +140,45 @@ dotstar_apply_breathe(color, now_us, cycle_us)
 - 输出: `dotstar.brightness=31`, `dotstar.pixel0R=50, G=100, B=150`
 - 覆盖: `dotstar_apply_breathe()` `cycle_us==0` 分支 → `set_global_brightness(MAX) + fill(color)`
 
+### TC8 (B10d): 未初始化保护 — 所有函数 no-op
+- 步骤: `dotstar_deinit()` → `dotstar_show()` → `dotstar_fill(1, 2, 3)` → `dotstar_set_pixel(0, 10, 20, 30)` → `dotstar_apply_breathe({11, 22, 33}, 0, 0)`
+- 输出: `dotstar.initialized=false`
+- 覆盖: `dotstar_show()` L79-80、`dotstar_fill()` L132-133、`dotstar_set_pixel()` L123、`dotstar_apply_breathe()` L183-184（四个未初始化 `return` 守卫）
+
+### TC9 (B10e): dotstar_set_pixel 越界索引 no-op
+- 步骤: `dotstar_fill(0, 0, 0)` → `dotstar_set_pixel(10, 255, 128, 64)`
+- 输出: `dotstar.pixel0R=0, G=0, B=0`（像素值未变化）
+- 覆盖: `dotstar_set_pixel()` L124 `index >= 10` 越界守卫
+
+### TC10 (B12c): dotstar_apply_breathe cycle_us=1 边界
+- 步骤: `dotstar_apply_breathe({100, 150, 200}, 0, 1)`
+- 预期: `half_cycle = 1/2 = 0` → 触发 `half_cycle = 1` 兜底 → `scale = 0`
+- 输出: `dotstar.brightness=31`
+- 覆盖: `dotstar_apply_breathe()` L195-196 `half_cycle == 0` 边界守卫
+
 ## 5. 覆盖检查
 
-| 条件 | TC1 | TC2 | TC3 | TC4 | TC5 | TC6 | TC7 |
-|------|-----|-----|-----|-----|-----|-----|-----|
-| dotstar_init() GPIO + 状态清零 | ✅ | — | — | — | — | — | — |
-| dotstar_fill() 10 像素循环 | — | ✅ | ✅ | — | — | — | — |
-| dotstar_show() SPI 帧发送 | — | ✅ | — | — | ✅ | — | — |
-| dotstar_set_pixel() 单像素 + 边界检查 | — | — | ✅ | — | — | — | — |
-| dotstar_set_global_brightness() 钳位 | — | — | — | ✅ | — | — | — |
-| dotstar_run_rainbow() 彩虹动画 | — | — | — | — | ✅ | — | — |
-| dotstar_hue_to_rgb() 色相段 0 | — | — | — | — | ✅ | — | — |
-| dotstar_apply_breathe() 三角波 | — | — | — | — | — | ✅ | — |
-| dotstar_apply_breathe() cycle=0 分支 | — | — | — | — | — | — | ✅ |
-| 未初始化保护 (initialized=false) | ⚠️ | ⚠️ | ⚠️ | — | — | — | — |
+| 条件 | TC1 | TC2 | TC3 | TC4 | TC5 | TC6 | TC7 | TC8 | TC9 | TC10 |
+|------|-----|-----|-----|-----|-----|-----|-----|-----|-----|------|
+| dotstar_init() GPIO + 状态清零 | ✅ | — | — | — | — | — | — | — | — | — |
+| dotstar_fill() 10 像素循环 | — | ✅ | ✅ | — | — | — | — | — | — | — |
+| dotstar_show() SPI 帧发送 | — | ✅ | — | — | ✅ | — | — | — | — | — |
+| dotstar_set_pixel() 单像素 + 边界检查 | — | — | ✅ | — | — | — | — | — | — | — |
+| dotstar_set_global_brightness() 钳位 | — | — | — | ✅ | — | — | — | — | — | — |
+| dotstar_run_rainbow() 彩虹动画 | — | — | — | — | ✅ | — | — | — | — | — |
+| dotstar_hue_to_rgb() 色相段 0 | — | — | — | — | ✅ | — | — | — | — | — |
+| dotstar_apply_breathe() 三角波 | — | — | — | — | — | ✅ | — | — | — | — |
+| dotstar_apply_breathe() cycle=0 分支 | — | — | — | — | — | — | ✅ | — | — | — |
+| dotstar_show() 未初始化 no-op (L79-80) | — | — | — | — | — | — | — | ✅ | — | — |
+| dotstar_fill() 未初始化 no-op (L132-133) | — | — | — | — | — | — | — | ✅ | — | — |
+| dotstar_set_pixel() 未初始化 no-op (L123) | — | — | — | — | — | — | — | ✅ | — | — |
+| dotstar_set_pixel() 越界 index ≥ 10 (L124) | — | — | — | — | — | — | — | — | ✅ | — |
+| dotstar_apply_breathe() 未初始化 no-op (L183-184) | — | — | — | — | — | — | — | ✅ | — | — |
+| dotstar_apply_breathe() half_cycle=0 兜底 (L195-196) | — | — | — | — | — | — | — | — | — | ✅ |
 
-> ⚠️ `initialized=false` 分支：`dotstar_init()` 在 `jna_panda_init()` 中自动调用，每个场景启动即完成初始化。未初始化保护路径（`fill`/`set_pixel`/`show`/`apply_breathe` 的 `return`）在 e2e 环境中被 `initialized=true` 覆盖，这些 `return` 语句属于防御性代码，生产固件 `body_main()` 在 `dotstar_init()` 之后再无路径可将 `initialized` 设回 false。
+> 以下 4 行为可证明死代码，无法通过任何测试覆盖：
+> - L168-169: `dotstar_run_rainbow()` 中 `brightness==0` 守卫 — 三角波公式 `brightness_phase % 62` 产出的 `brightness` 永远 ≥1
+> - L201-202: `dotstar_apply_breathe()` 中 `scale>255` 钳位 — `scale = (amplitude * 255) / half_cycle` 且 `amplitude ≤ half_cycle`，数学上即使在 uint32 溢出场景下也永远 ≤255
 
 ## 6. 与生产固件的关系
 
@@ -177,4 +211,4 @@ e2e 环境：`jna_panda_init()` 模拟固件启动，按 `board_body_init()` →
 
 | 源文件 | 说明 |
 |--------|------|
-| `board/body/dotstar.h` | 90.97% (141/155) | ✅ B10+B11+B12: dotstar_init() + dotstar_fill() + dotstar_set_pixel() + dotstar_set_global_brightness() + dotstar_run_rainbow() + dotstar_apply_breathe() 高覆盖 |
+| `board/body/dotstar.h` | 91.1% (144/158) | ✅ B10-B12c: dotstar_init/deinit/fill/set_pixel/brightness/rainbow/breathe 全覆盖（含未初始化保护 + 越界守卫 + cycle_us=1 边界）。剩余 4 行为可证明死代码（brightness=0 守卫 + scale>255 钳位） |

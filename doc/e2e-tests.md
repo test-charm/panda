@@ -125,6 +125,7 @@ body 固件使用独立的 C 入口 `libpanda_body.c`（而非 `libpanda.c`）�
 | `jna_dotstar_set_global_brightness(b)` | 调用 `dotstar_set_global_brightness()` (设置全局亮度, B10c ✅) |
 | `jna_dotstar_run_rainbow(now_us)` | 调用 `dotstar_run_rainbow()` (彩虹动画, B11 ✅) |
 | `jna_dotstar_apply_breathe(r,g,b,now,cycle)` | 调用 `dotstar_apply_breathe()` (呼吸效果, B12 ✅) |
+| `jna_dotstar_deinit()` | 调用 `dotstar_state.initialized = false`，覆盖未初始化保护分支 (B10d ✅) |
 | `jna_dotstar_get_pixel_r/g/b(idx)` | 读取 `dotstar_state.pixels[idx]` (像素颜色验证, B10-B12) |
 | `jna_dotstar_get_brightness()` | 读取 `dotstar_state.global_brightness` (亮度验证, B10c/B11/B12b) |
 | `jna_dotstar_is_initialized()` | 读取 `dotstar_state.initialized` (初始化验证, B10) |
@@ -223,7 +224,7 @@ e2e-tests/
 | **Body BLDC** | `body_bldc.feature` | 2 | B8/B13: `jna_panda_init()` 启动路径自动调用 `body_can_init()` + `bldc_init()`，验证 CAN 初始化状态 + TIM8/TIM1 CEN；B9: `bldc_step()` → `BLDC_controller_step()` FOC 算法，验证 TIM8/TIM1 CCR1/2/3 PWM 输出 |
 | **Body BLDC Controller** | `body_bldc_controller.feature` | 24 | 覆盖校准、deadband、钳位、steady-state FOC speed loop (`PI_clamp_fixdt_l`)、`SPD/TRQ/OPEN/VLT` 模式切换（含 `PI_clamp_fixdt_b_Reset`）、`Clarke_PhasesAB/BC`、`SIN_Method`、Hall 换相检测、角度测量、`Vd_Calculation`（`PI_clamp_fixdt_Reset` + `PI_clamp_fixdt`）、电压保护（`I_backCalc_fixdt`）、巡航控制、诊断错误码、ADC 电流注入、磁场削弱 |
 | **Body CAN** | `body_can.feature` | 4 | B14-B17: 0x201/0x202/0x203 发送 helper、0x250 目标转速接收、100ms 超时归零、10ms 周期发送节流；通过 `rxQueue` 回显帧 + `bodyCan` 状态 + `rpmLeft/rpmRight` 验证 |
-| **Body DotStar** | `body_dotstar.feature` | 6 | B10: `dotstar_init()` 在 `jna_panda_init()` 启动路径中自动调用（前置会先执行 `body_can_init()`）+ dotstar_fill/show/set_pixel/brightness；B11: dotstar_run_rainbow() 彩虹动画；B12: dotstar_apply_breathe() 三角波呼吸效果 |
+| **Body DotStar** | `body_dotstar.feature` | 9 | B10: `dotstar_init()` 在 `jna_panda_init()` 启动路径中自动调用 + dotstar_fill/show/set_pixel/brightness；B10d: 未初始化保护 (fill/set_pixel/show/breathe no-op)；B10e: set_pixel 越界索引守卫；B11: dotstar_run_rainbow() 彩虹动画；B12: dotstar_apply_breathe() 三角波呼吸效果 + cycle_us=0 全亮度；B12c: cycle_us=1 边界守卫 |
 | **Body Main 中断路径** | `body_main.feature` | 3 | B18-B20: `tick_handler()` CAN reset + 红灯翻转、`exti15_10_handler()` 充电/点火防抖、`bldc_tim8_handler()` → `bldc_step()` IRQ 路径；通过 `tickCount` / `can0Ile` / `plugCharging` / `ignition*` / `tim8Sr` / PWM 状态验证 |
 
 ## C 代码覆盖率
@@ -240,7 +241,7 @@ e2e-tests/
 | `board/body/main.c` | **40.6%** (39/96) | 3/7 | ✅ B18-B20 已覆盖 `tick_handler()` / `exti15_10_handler()` / `bldc_tim8_handler()`；剩余为 `body_main()` 初始化/while 循环与早期硬件 helper |
 | `board/body/boards/board_body.h` | **100.0%** (27/27) | 1/1 | ✅ 已通过 `jna_panda_init()` 启动子路径与 `body_bldc.feature` 启动场景覆盖 `board_body_init()` |
 | `board/body/can.h` | **100%** (82/82) | 7/7 | ✅ B13-B17 完成：`body_can_init()`（经 `jna_panda_init()` 启动路径）、发送 helper、RX 目标解析、超时归零、10ms 周期发送 |
-| `board/body/dotstar.h` | **91.0%** (141/155) | 14/14 | ✅ B10-B12：dotstar_init/fill/set_pixel/brightness/rainbow/breathe 高覆盖；未命中的主要是未初始化防御分支 |
+| `board/body/dotstar.h` | **91.1%** (144/158) | 14/14 | ✅ B10-B12c：dotstar_init/deinit/fill/set_pixel/brightness/rainbow/breathe 全覆盖（含未初始化保护 + 越界守卫 + cycle_us=1 边界）。剩余 4 行为可证明死代码（brightness=0 守卫 + scale>255 钳位） |
 | `board/body/bldc/BLDC_controller.c` | **54.4%** (693/1274) | 19/26 | ✅ 已覆盖 `BLDC_controller_initialize()`、steady-state speed loop (含 `PI_clamp_fixdt_l`)、`SPD/TRQ/OPEN/VLT` 模式切换（含 `PI_clamp_fixdt_b_Reset`）、`Clarke_PhasesAB/BC`、`SIN_Method`、`Vd_Calculation`（含 `PI_clamp_fixdt`）、电压保护（含 `I_backCalc_fixdt`）、诊断错误码。`PI_clamp_fixdt_k` / `PI_clamp_fixdt_g_Reset`（68 行，<S62> iq PI 控制器）为模型死代码 — FOC case 语句缺失 TRQ_MODE（参见 §Phase M） |
 | `board/drivers/can_common.h` | **100%** (107/107) | 10/12 | CAN 通用操作 |
 | `board/drivers/gpio.h` | **100%** (72/72) | 6/7 | ✅ Phase J: J1 PUSH_PULL + J10 detect_with_pull 全覆盖 |

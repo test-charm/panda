@@ -160,7 +160,7 @@ board/body/bldc/rtwtypes.h            — Simulink 固定宽度类型 (typedef�
 | `board/body/main_comms.h` | 86.4% | ✅ B1-B7 完成：0xc1/0xd1/0xd3/0xd4/0xd6/0xd8/0xdd 共 8 个 case 覆盖；仅 0xde (SOM GPIO) 未实现 |
 | `board/body/main.c` | 40.62% (39/96) | ✅ B18-B20 已覆盖 `tick_handler()`、`exti15_10_handler()`、`bldc_tim8_handler()`；未覆盖仍集中在 `body_main()` 初始化/while 循环、`enable_fpu()`、`__initialize_hardware_early()`、`debug_ring_callback()` |
 | `board/body/can.h` | 100.0% | ✅ B13-B17 完成：7 个函数全部覆盖，0x222 body v2 ID 帧发送路径已覆盖 |
-| `board/body/dotstar.h` | 91.0% | ✅ B10-B12 完成：14 个函数已执行，剩余主要是未初始化防御分支 |
+| `board/body/dotstar.h` | 91.1% | ✅ B10-B12c 完成：14 个函数已执行，剩余 4 行为可证明死代码（brightness=0 + scale>255） |
 | `board/body/boards/board_body.h` | 100.0% (27/27) | ✅ `body_bldc.feature` 启动场景已验证 `board_body_init()` 的 GPIO/CAN/EXTI/电源初始化 |
 | `board/body/boards/board_declarations.h` | — | 仅 `#define` 宏，无可执行代码 |
 | **BLDC 电机控制** | | |
@@ -578,8 +578,12 @@ B8 后:    ~56%+  (body: bldc_init → BLDC_controller_initialize ×2, 待 re-ru
 | B8 | ✅ 完成 | `body/bldc/bldc.h` | `bldc_init()` (Simulink 模型初始化 + TIM PWM + hall GPIO) | `jna_panda_init()` 启动路径自动调用 | `bldc_init()` → `BLDC_controller_initialize()` ×2 → 验证 `LEFT_TIM->CR1` + `RIGHT_TIM->CR1` 有 `CEN` 位 |
 | B9 | ✅ 完成 | `body/bldc/bldc.h` + `BLDC_controller.c` | `bldc_step()` → `BLDC_controller_step()` (3306 行 FOC 算法) | `jna_bldc_step()` + `jna_body_skip_calibration()` + `jna_body_set_motor_speeds()` + `jna_body_set_enable_motors_val()` | 先 `bldc_skip_calibration()` 跳过 ADC 校准，设置 `rpm_left=100` / `rpm_right=200` / `enable_motors=true`，调用 `bldc_step()` → 验证 `LEFT_TIM->CCR1/2/3` 和 `RIGHT_TIM->CCR1/2/3` 有 PWM 输出 |
 | B10 | ✅ 完成 | `body/dotstar.h` | `dotstar_init()` + `dotstar_show()` + `dotstar_fill()` + `dotstar_set_pixel()` + `dotstar_set_global_brightness()` | `jna_panda_init()` → `board_body_init()` → `body_can_init()` → `dotstar_init()` (启动路径) + `jna_dotstar_fill()` + `jna_dotstar_show()` + `jna_dotstar_get_pixel()` | `dotstar_init()` 在 `jna_panda_init()` 启动时自动调用 → 验证 `dotstar.initialized=true`, `dotstar.brightness=31`。`dotstar_fill(r,g,b)` → 读取 `dotstar.pixels[0-9]` 验证颜色 |
+| B10d | ✅ 完成 | `body/dotstar.h` | 未初始化保护 (fill/set_pixel/show/breathe no-op) | `jna_dotstar_deinit()` + `jna_dotstar_fill()` / `jna_dotstar_show()` / `jna_dotstar_set_pixel()` / `jna_dotstar_apply_breathe()` | `dotstar_deinit()` 后所有操作 no-op，验证 `dotstar.initialized=false` |
+| B10e | ✅ 完成 | `body/dotstar.h` | `dotstar_set_pixel()` 越界索引守卫 (index ≥ 10) | `jna_dotstar_set_pixel(10, ...)` | 写入 index=10 被忽略，像素0 保持原值 |
 | B11 | ✅ 完成 | `body/dotstar.h` | `dotstar_run_rainbow()` (HSV 彩虹 + 呼吸亮度) | `jna_dotstar_run_rainbow()` + `jna_dotstar_get_pixel()` / `jna_dotstar_get_brightness()` | `dotstar_run_rainbow(500000)` → 验证 `dotstar.pixel0R=205, G=50, B=0` + `dotstar.brightness=13` |
-| B12 | ✅ 完成 | `body/dotstar.h` | `dotstar_apply_breathe()` (三角波呼吸效果) | `jna_dotstar_apply_breathe()` + `jna_dotstar_get_pixel()` | `dotstar_apply_breathe({100,150,200}, 250000, 1000000)` → 验证 `dotstar.pixel0R=49, G=74, B=99`；`cycle_us=0` → 全亮度路径 |
+| B12 | ✅ 完成 | `body/dotstar.h` | `dotstar_apply_breathe()` (三角波呼吸效果, cycle_us≥1) | `jna_dotstar_apply_breathe()` + `jna_dotstar_get_pixel()` | `dotstar_apply_breathe({100,150,200}, 250000, 1000000)` → 验证 `dotstar.pixel0R=49, G=74, B=99` |
+| B12b | ✅ 完成 | `body/dotstar.h` | `dotstar_apply_breathe()` cycle_us=0 全亮度路径 | `jna_dotstar_apply_breathe()` | cycle_us=0 → brightness=31 + fill(color) 直通路径 |
+| B12c | ✅ 完成 | `body/dotstar.h` | `dotstar_apply_breathe()` half_cycle=0 边界守卫 | `jna_dotstar_apply_breathe()` | cycle_us=1 → half_cycle=0 → 兜底为1，验证 `dotstar.brightness=31` |
 | B13 | ✅ 完成 | `body/can.h` | `body_can_init()` (safety hooks + CAN transceiver + can_init_all) | `jna_panda_init()` 启动路径 | 启动场景 B8/B13 中验证 `can_silent=false`, `can_loopback=false`, safety hooks 已设置 |
 | B14 | ✅ 完成 | `body/can.h` | `body_can_send_motor_speeds()` + `body_can_send_var_values()` + `body_can_send_body_data()` + 0x222 v2 ID | `jna_body_can_send_motor_speeds()` + `jna_body_can_send_var_values()` + `jna_body_can_send_body_data()` | 通过 `rxQueue` 读取 e2e 回灌帧，验证 0x201/0x202/0x203 数据；0x222 在 B17 中验证 |
 | B15 | ✅ 完成 | `body/can.h` | `body_can_rx()` → `body_can_process_target()` (CAN RX 电机目标解析) | `jna_body_can_receive_target()` | 构造 0x250 CAN 帧 `{left_hi, left_lo, right_hi, right_lo}` → 调用 `body_can_rx(&msg)` → 验证 `rpm_left`/`rpm_right` 正确解析 |
@@ -592,7 +596,7 @@ B8 后:    ~56%+  (body: bldc_init → BLDC_controller_initialize ×2, 待 re-ru
 
 > B8 已完成：`bldc_init()` 在 `jna_panda_init()` 中自动调用（与生产固件 `body_main()` 启动流程一致：先 `board_body_init()`，再 `body_can_init()`、`dotstar_init()`，最后 `bldc_init()`），覆盖 `BLDC_controller_initialize()` ×2 + `BLDC_controller_data.c` 常量的隐式引用。
 > B9 已完成：`e2e_bldc_skip_calibration()` 跳过 ADC 校准阶段并设置非零偏移值，`bldc_step()` 执行一次 FOC 算法 → `BLDC_controller_step()` ×2 (PI 调节器/Clark-Park/SVPWM/速度环) → 验证 TIM8/TIM1 CCR1/2/3 PWM 输出。
-> B10-B12 已完成：`dotstar_init()` 在 `jna_panda_init()` 启动路径中自动调用（与 `body_main()` line 116 一致），`dotstar_fill`/`dotstar_set_pixel`/`dotstar_set_global_brightness`/`dotstar_run_rainbow`/`dotstar_apply_breathe` 通过独立 JNA 入口调用 → 验证 `DotstarState` 内嵌对象属性。
+> B10-B12c 已完成：`dotstar_init()` 在 `jna_panda_init()` 启动路径中自动调用（与 `body_main()` line 116 一致），`dotstar_fill`/`dotstar_set_pixel`/`dotstar_set_global_brightness`/`dotstar_run_rainbow`/`dotstar_apply_breathe` 通过独立 JNA 入口调用 → 验证 `DotstarState` 内嵌对象属性。`jna_dotstar_deinit()` 用于覆盖未初始化保护分支，`index=10` 覆盖越界守卫，`cycle_us=1` 覆盖 half_cycle 边界兜底。
 > B13-B17 已完成：body CAN 全部 8 个函数均已覆盖。B13 合并进 `body_bldc.feature` 的启动场景，B14-B17 位于 `body_can.feature`。
 > B18-B21 已完成：`board_body_init()` 已并入 `jna_panda_init()` 启动路径，`body_main.feature` 保留 3 个中断场景；`BodyPandaClient` / `libpanda_body.c` 已补齐所需寄存器可观测性。
 
@@ -608,11 +612,12 @@ B8 后:    ~56%+  (body: bldc_init → BLDC_controller_initialize ×2, 待 re-ru
 | J6 | `jna_panda_init()` → `dotstar_init()` | `dotstar_init()` | `body/dotstar.h` | ✅ B10 完成：LED 初始化随 body 启动路径自动调用 |
 | J7 | `jna_dotstar_show()` | `dotstar_show()` | `body/dotstar.h` | ✅ B10 完成：发送 SPI 帧到 LED |
 | J8 | `jna_dotstar_get_pixel(idx)` | 读取 `dotstar_state.pixels[idx]` | `body/dotstar.h` | ✅ B10-B12 完成：验证颜色设置 |
-| J9 | `jna_dotstar_get_brightness()` | 读取 `dotstar_state.global_brightness` | `body/dotstar.h` | ✅ B10-B12 完成：验证呼吸效果 |
+| J9 | `jna_dotstar_get_brightness()` | 读取 `dotstar_state.global_brightness` | `body/dotstar.h` | ✅ B10-B12c 完成：验证呼吸效果 + 亮度钳位 |
+| J10 | `jna_dotstar_deinit()` | 重置 `dotstar_state.initialized = false` | `body/dotstar.h` | ✅ B10d 完成：覆盖未初始化保护路径 |
 | J10 | `jna_body_call_tick_handler()` + `jna_body_set_can0_transmit_error_cnt()` + `jna_body_set_can0_ile()` | `tick_handler()` | `body/main.c` | ✅ B18 完成：覆盖 CAN reset + LED 翻转 + `tick_count++` |
 | J11 | `jna_body_trigger_charging_exti()` + `jna_body_trigger_ignition_exti()` + `jna_body_set_charging_detect()` + `jna_body_set_ignition_pressed()` | `exti15_10_handler()` | `body/main.c` | ✅ B19 完成：覆盖 charging 输入与 ignition 200ms 防抖 |
 | J12 | `jna_body_trigger_tim8_irq()` | `bldc_tim8_handler()` | `body/main.c` | ✅ B20 完成：覆盖 TIM8 IRQ → `bldc_step()` |
-> J1-J2 是核心入口，均已覆盖 BLDC 控制器的 `BLDC_controller_initialize()` + `BLDC_controller_step()` 两条路径。J1 同时补上了 `board_body_init()`。J3-J5 已完成 body CAN 通信全覆盖。J6-J9 已覆盖 dotstar LED 驱动 (B10-B12 ✅)。J10-J12 补齐了 `board/body/main.c` 的三个可独立测试的中断处理函数。
+> J1-J2 是核心入口，均已覆盖 BLDC 控制器的 `BLDC_controller_initialize()` + `BLDC_controller_step()` 两条路径。J1 同时补上了 `board_body_init()`。J3-J5 已完成 body CAN 通信全覆盖。J6-J10 已覆盖 dotstar LED 驱动 (B10-B12c ✅)。J11-J13 补齐了 `board/body/main.c` 的三个可独立测试的中断处理函数。
 
 #### 6.4 不可补 / 暂不推荐补 ❌
 
@@ -631,9 +636,9 @@ B8 后:    ~56%+  (body: bldc_init → BLDC_controller_initialize ×2, 待 re-ru
 B1-B7 完成后 (USB): 3.3%  (main_comms.h → 86.4%, 其余 0%)
 B8 完成后 (BLDC 初始化): ~5% (+bldc_init → BLDC_controller_initialize + 数据常量)
 B9 完成后 (BLDC 步进):  ✅    (~3700 行 BLDC 控制器 FOC 算法, 实际已覆盖)
-B10-B12 完成后 (LED): ~52% (+dotstar.h) ✅ 已完成
+B10-B12c 完成后 (LED): ~52% (+dotstar.h) ✅ 已完成
 B13-B17 完成后 (CAN): ✅ `board/body/can.h` 100.0% (82/82)
-当前关键文件: `main_comms.h` 86.4%, `can.h` 100.0%, `dotstar.h` 91.0%, `BLDC_controller.c` 53.0% (merged) / 52.69% (body-only), `main.c` 40.62%, `board_body.h` 100.0%
+当前关键文件: `main_comms.h` 86.4%, `can.h` 100.0%, `dotstar.h` 91.1%, `BLDC_controller.c` 53.0% (merged) / 52.69% (body-only), `main.c` 40.62%, `board_body.h` 100.0%
 当前剩余焦点:          `body_main()` 初始化/while 主循环
 ```
 
@@ -661,7 +666,7 @@ Body 固件通过独立的 `libpanda_body.c` → `libpanda_body.dylib` 编译链
 - **BodyPandaClient**：`reloadLibrary()` 每场景重新加载 dylib（仿 PandaClient 模式）。现含 `RespBuffer`、`nvicResetCount`、`enterBootloaderMode`、`setAppCodeLen`、`setSignatureChunk`、`BodyCanState`、`tickCount`、`can0Ile`、`plugCharging`、`ignition*`、`tim8Sr` 等 DAL 访问器
 - **Step 定义**：`BodyCommandsStepDefs` 使用 jfactory + DAL 模式，现覆盖 body control write / CAN / BLDC / DotStar / main interrupt paths / verify
 - **覆盖命令**：0xb3（电机转速）、0xb4（电机启停）、0xc1（硬件类型）、0xd1（bootloader/softloader B6-B7）、0xd3/0xd4（固件签名 B4-B5）、0xd6（固件版本 B1）、0xd8（系统复位 B3）、0xdd（数据包版本 B2），以及 body 启动路径（B8/B13/B21）、body CAN 发送/RX/周期发送路径（B14-B17）与 body 主中断路径（B18-B20）
-- **Feature 文件**：`body_commands.feature`（5 场景）+ `body_shared_commands.feature`（8 场景，B1-B7）+ `body_bldc.feature`（2 场景，含 B8/B13/B21 启动覆盖）+ `body_bldc_controller.feature`（12 场景，BLDC 控制器深层分支）+ `body_can.feature`（4 场景，B14-B17）+ `body_dotstar.feature`（6 场景）+ `body_main.feature`（3 场景，B18-B20），共 7 个 body feature / 40 个场景，均带 `@body` 标签
+- **Feature 文件**：`body_commands.feature`（5 场景）+ `body_shared_commands.feature`（8 场景，B1-B7）+ `body_bldc.feature`（2 场景，含 B8/B13/B21 启动覆盖）+ `body_bldc_controller.feature`（12 场景，BLDC 控制器深层分支）+ `body_can.feature`（4 场景，B14-B17）+ `body_dotstar.feature`（9 场景，B10-B12c）+ `body_main.feature`（3 场景，B18-B20），共 7 个 body feature / 43 个场景，均带 `@body` 标签
 
 ---
 
@@ -835,7 +840,7 @@ J14 power_saving.h:    +1 line  (llcan_irq_enable(cans[0]) flipped harness disab
 | `run_all_coverage.sh` | `IGNORE_REGEX` 新增 `src/test/c/board/body/bldc/bldc\.h\|src/test/c/stm32h7xx` 排除 e2e 包装器（B1-B7 后修正：保证 BLDC 固件代码进入覆盖率同时排除 stub 污染） |
 | `uncovered-features.md` | §1.2 body 文件 6→10 个, §2.2 新增 BLDC 覆盖表, §5 新增 B1-B7 里程碑, §6 新增 B8-B9 完成 + JNA 入口更新 |
 
-**新入覆盖率的文件**：`board/body/bldc/BLDC_controller.c` (1274 行)、`BLDC_controller_data.c`、`board/body/bldc_defs.h`、`board/body/rtwtypes.h`。dylib 从 ~200KB → ~569KB。后续 body 场景已扩展到 **40 个**（`body_commands` 5 + `body_shared_commands` 8 + `body_bldc` 2 + `body_bldc_controller` 12 + `body_can` 4 + `body_dotstar` 6 + `body_main` 3），均通过 ✅。在 B8/B9 基础上，`body_bldc_controller.feature` 又把 `BLDC_controller.c` 从 38.4% 提升到 53.0%，并补到了 steady-state speed loop、`SPD/TRQ/OPEN`、`Clarke_PhasesAB/BC` 与 `SIN_Method`。
+**新入覆盖率的文件**：`board/body/bldc/BLDC_controller.c` (1274 行)、`BLDC_controller_data.c`、`board/body/bldc_defs.h`、`board/body/rtwtypes.h`。dylib 从 ~200KB → ~569KB。后续 body 场景已扩展到 **43 个**（`body_commands` 5 + `body_shared_commands` 8 + `body_bldc` 2 + `body_bldc_controller` 12 + `body_can` 4 + `body_dotstar` 9 + `body_main` 3），均通过 ✅。在 B8/B9 基础上，`body_bldc_controller.feature` 又把 `BLDC_controller.c` 从 38.4% 提升到 53.0%，并补到了 steady-state speed loop、`SPD/TRQ/OPEN`、`Clarke_PhasesAB/BC` 与 `SIN_Method`。
 
 ### 10.9 Phase M: FOC PI 深度覆盖与 schedulerReady 根因修复 (2026-08-02)
 
