@@ -552,3 +552,271 @@ Feature: BLDC controller runtime behavior
         rightPwmActive: true
       }
       """
+
+  # ---- CW direction (hall sequence 010→011, position 0→1, diff=+1) ----
+
+  Scenario: clockwise hall transition triggers forward direction and covers CW electrical angle paths
+    Given exists data:
+      """
+      BodyControlSetup: {
+        seedControlMode: 1
+        hallLeftA: 0
+        hallLeftB: 1
+        hallLeftC: 0
+        hallRightA: 0
+        hallRightB: 1
+        hallRightC: 0
+      }
+      """
+    When bldc skip calibration
+    And set motor speeds: left = 100 rpm, right = 100 rpm, enable = true
+    And bldc step
+    # CW transition: 010 → 011 (position 0→1, diff=+1 → Switch2_e=1)
+    Given exists data:
+      """
+      BodyControlSetup: {
+        hallLeftA: 0
+        hallLeftB: 1
+        hallLeftC: 1
+        hallRightA: 0
+        hallRightB: 1
+        hallRightC: 1
+      }
+      """
+    And bldc step
+    And bldc step
+    And bldc step
+    Then body control data should be:
+      """
+      : {
+        leftCtrlMode: 2
+        rightCtrlMode: 2
+        leftPwmActive: true
+        rightPwmActive: true
+      }
+      """
+
+  # ---- Control mode state machine transitions ----
+
+  Scenario: speed mode exits to voltage mode when speed request is cleared and torque not requested
+    Given exists data:
+      """
+      BodyControlSetup: {
+        seedControlMode: 2
+        ctrlModeReq: 1
+      }
+      """
+    When bldc skip calibration
+    And set motor speeds: left = 80 rpm, right = 80 rpm, enable = true
+    And bldc step
+    Then body control data should be:
+      """
+      : {
+        leftCtrlMode: 1
+        rightCtrlMode: 1
+      }
+      """
+
+  Scenario: torque mode exits to voltage mode when torque request is cleared and speed not requested
+    Given exists data:
+      """
+      BodyControlSetup: {
+        seedControlMode: 3
+        ctrlModeReq: 1
+      }
+      """
+    When bldc skip calibration
+    And set motor speeds: left = 80 rpm, right = 80 rpm, enable = true
+    And bldc step
+    Then body control data should be:
+      """
+      : {
+        leftCtrlMode: 1
+        rightCtrlMode: 1
+      }
+      """
+
+  Scenario: voltage mode transitions to torque mode with torque request and no cruise
+    Given exists data:
+      """
+      BodyControlSetup: {
+        seedControlMode: 1
+        ctrlModeReq: 3
+      }
+      """
+    When bldc skip calibration
+    And set motor speeds: left = 80 rpm, right = 80 rpm, enable = true
+    And bldc step
+    Then body control data should be:
+      """
+      : {
+        leftCtrlMode: 3
+        rightCtrlMode: 3
+      }
+      """
+
+  Scenario: open mode transitions to active voltage mode with mode request 1
+    Given exists data:
+      """
+      BodyControlSetup: {
+        seedControlMode: 0
+        ctrlModeReq: 1
+      }
+      """
+    When bldc skip calibration
+    And set motor speeds: left = 80 rpm, right = 80 rpm, enable = true
+    And bldc step
+    Then body control data should be:
+      """
+      : {
+        leftCtrlMode: 1
+        rightCtrlMode: 1
+      }
+      """
+
+  Scenario: open mode transitions to active torque mode with mode request 3
+    Given exists data:
+      """
+      BodyControlSetup: {
+        seedControlMode: 0
+        ctrlModeReq: 3
+      }
+      """
+    When bldc skip calibration
+    And set motor speeds: left = 80 rpm, right = 80 rpm, enable = true
+    And bldc step
+    Then body control data should be:
+      """
+      : {
+        leftCtrlMode: 3
+        rightCtrlMode: 3
+      }
+      """
+
+  # ---- VLT mode through FOC pipeline ----
+
+  Scenario: voltage mode stays in VLT through FOC pipeline with mode request 1
+    Given exists data:
+      """
+      BodyControlSetup: {
+        seedControlMode: 1
+        ctrlModeReq: 1
+      }
+      """
+    When bldc skip calibration
+    And set motor speeds: left = 80 rpm, right = 80 rpm, enable = true
+    And bldc step
+    And bldc step
+    And bldc step
+    And bldc step
+    And bldc step
+    And bldc step
+    Then body control data should be:
+      """
+      : {
+        leftCtrlMode: 1
+        rightCtrlMode: 1
+      }
+      """
+
+  # ---- SIN control with field weakening and hall transitions ----
+
+  Scenario: SIN control type with field weakening covers phase advance and sine lookup paths
+    Given exists data:
+      """
+      BodyControlSetup: {
+        ctrlTypeSel: 1
+        fieldWeakEnabled: 1
+        seedControlMode: 1
+        hallLeftA: 0
+        hallLeftB: 1
+        hallLeftC: 0
+        hallRightA: 0
+        hallRightB: 1
+        hallRightC: 0
+      }
+      """
+    When bldc skip calibration
+    And set motor speeds: left = 200 rpm, right = 200 rpm, enable = true
+    And bldc step
+    Given exists data:
+      """
+      BodyControlSetup: {
+        hallLeftA: 0
+        hallLeftB: 1
+        hallLeftC: 1
+        hallRightA: 0
+        hallRightB: 1
+        hallRightC: 1
+      }
+      """
+    And bldc step
+    And bldc step
+    Then body control data should be:
+      """
+      : {
+        leftCtrlType: 1
+        rightCtrlType: 1
+        leftPwmActive: true
+        rightPwmActive: true
+      }
+      """
+
+  # ---- Remaining state machine transitions ----
+
+  Scenario: torque mode transitions to speed mode with speed request
+    Given exists data:
+      """
+      BodyControlSetup: {
+        seedControlMode: 3
+        ctrlModeReq: 2
+      }
+      """
+    When bldc skip calibration
+    And set motor speeds: left = 80 rpm, right = 80 rpm, enable = true
+    And bldc step
+    Then body control data should be:
+      """
+      : {
+        leftCtrlMode: 2
+        rightCtrlMode: 2
+      }
+      """
+
+  Scenario: voltage mode stays in VLT default path and transitions to torque mode
+    Given exists data:
+      """
+      BodyControlSetup: {
+        seedControlMode: 1
+        ctrlModeReq: 3
+      }
+      """
+    When bldc skip calibration
+    And set motor speeds: left = 80 rpm, right = 80 rpm, enable = true
+    And bldc step
+    Then body control data should be:
+      """
+      : {
+        leftCtrlMode: 3
+        rightCtrlMode: 3
+      }
+      """
+
+  Scenario: open mode transitions to speed mode with default speed request
+    Given exists data:
+      """
+      BodyControlSetup: {
+        seedControlMode: 0
+        ctrlModeReq: 2
+      }
+      """
+    When bldc skip calibration
+    And set motor speeds: left = 80 rpm, right = 80 rpm, enable = true
+    And bldc step
+    Then body control data should be:
+      """
+      : {
+        leftCtrlMode: 2
+        rightCtrlMode: 2
+      }
+      """
