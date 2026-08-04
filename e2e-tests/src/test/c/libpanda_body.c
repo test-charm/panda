@@ -470,6 +470,27 @@ void jna_body_set_mech_angle(int left_angle, int right_angle) { rtU_Left.a_mechA
 void jna_body_set_diag_ena(int enabled) { rtP_Left.b_diagEna = enabled != 0; rtP_Right.b_diagEna = enabled != 0; }
 void jna_body_set_err_qual(int qual, int dequal) { rtP_Left.t_errQual = (uint16_T)qual; rtP_Right.t_errQual = (uint16_T)qual; rtP_Left.t_errDequal = (uint16_T)dequal; rtP_Right.t_errDequal = (uint16_T)dequal; }
 
+// ---- JNA: Internal state injection for coverage ----
+void jna_body_inject_divide3(int value) {
+  rtDW_Left.Divide3 = (int16_T)value;
+  rtDW_Right.Divide3 = (int16_T)value;
+  // Force scheduler state: skip UnitDelay2 so Motor_Limitations runs
+  rtDW_Left.UnitDelay5_DSTATE_m = true;
+  rtDW_Left.UnitDelay2_DSTATE_c = false;
+  rtDW_Right.UnitDelay5_DSTATE_m = true;
+  rtDW_Right.UnitDelay2_DSTATE_c = false;
+}
+
+void jna_body_inject_filter_output(int ch0_val, int ch1_val) {
+  rtDW_Left.Low_Pass_Filter_m.UnitDelay1_DSTATE[0] = (int32_T)ch0_val << 16;
+  rtDW_Left.Low_Pass_Filter_m.UnitDelay1_DSTATE[1] = (int32_T)ch1_val << 16;
+  rtDW_Right.Low_Pass_Filter_m.UnitDelay1_DSTATE[0] = (int32_T)ch0_val << 16;
+  rtDW_Right.Low_Pass_Filter_m.UnitDelay1_DSTATE[1] = (int32_T)ch1_val << 16;
+}
+
+int jna_body_get_divide3(void) { return (int)rtDW_Left.Divide3; }
+int jna_body_get_filter_ch0(void) { return (int)(rtDW_Left.Low_Pass_Filter_m.UnitDelay1_DSTATE[0] >> 16); }
+
 // ---- JNA: DotStar LED driver (B10-B12) ----
 void jna_dotstar_init(void) { dotstar_init(); }
 void jna_dotstar_deinit(void) { dotstar_state.initialized = false; }

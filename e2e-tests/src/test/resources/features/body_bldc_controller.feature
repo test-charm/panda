@@ -820,3 +820,117 @@ Feature: BLDC controller runtime behavior
         rightCtrlMode: 2
       }
       """
+
+  # ---- Coverage: plook_u8s16_evencka clip-to-maxIndex (line 157) ----
+
+  Scenario: reverse hall transition at position 5 forces electrical angle lookup clipping
+    Given exists data:
+      """
+      BodyControlSetup: {
+        seedControlMode: 1
+        hallLeftA: 0
+        hallLeftB: 1
+        hallLeftC: 0
+        hallRightA: 0
+        hallRightB: 1
+        hallRightC: 0
+      }
+      """
+    When bldc skip calibration
+    And set motor speeds: left = 100 rpm, right = 100 rpm, enable = true
+    And bldc step
+    # Hall 010→110: position 0→5, diff=+5 → Switch2_e=-1 (reverse)
+    # rtb_Sum2_h = pos+1 = 6 → rtb_Merge_m = 24576 → scaled to 23040
+    # plook(23040, 0, 128, 180): fbpIndex=180 >= maxIndex=180 → clip branch (line 157)
+    Given exists data:
+      """
+      BodyControlSetup: {
+        hallLeftA: 1
+        hallLeftB: 1
+        hallLeftC: 0
+        hallRightA: 1
+        hallRightB: 1
+        hallRightC: 0
+      }
+      """
+    And bldc step
+    Then body control data should be:
+      """
+      : {
+        leftCtrlMode: 2
+        rightCtrlMode: 2
+      }
+      """
+
+  # ---- Coverage: plook_u8u16_evencka clip-to-maxIndex (line 184) ----
+
+  Scenario: injected max divide3 forces iq_maxSca lookup clipping
+    Given exists data:
+      """
+      BodyControlSetup: {
+        seedControlMode: 1
+        fieldWeakEnabled: 0
+      }
+      """
+    When bldc skip calibration
+    And set motor speeds: left = 200 rpm, right = 200 rpm, enable = true
+    # Inject Divide3 = 30000 + force scheduler state to enter Motor_Limitations
+    When bldc inject divide3: 30000
+    And bldc step
+    Then body control data should be:
+      """
+      : {
+        leftCtrlMode: 2
+      }
+      """
+
+  # ---- Coverage: Low_Pass_Filter upper saturation (lines 258, 283) ----
+
+  Scenario: injected negative filter state triggers low-pass filter upper saturation
+    Given exists data:
+      """
+      BodyControlSetup: {
+        seedControlMode: 1
+      }
+      """
+    When bldc skip calibration
+    And set motor speeds: left = 200 rpm, right = 200 rpm, enable = true
+    And bldc step
+    # Inject filter output to -32768: error = id - (-32768) > 32767 → upper sat
+    When bldc inject filter: ch0 = -32768, ch1 = -32768
+    And bldc step
+    Then body control data should be:
+      """
+      : {
+        leftCtrlMode: 2
+      }
+      """
+
+  # ---- Coverage: Low_Pass_Filter lower saturation (lines 261, 286) ----
+
+  Scenario: injected positive filter state with negative ADC triggers low-pass filter lower saturation
+    Given exists data:
+      """
+      BodyControlSetup: {
+        seedControlMode: 1
+        adcLeftPhaA: 65535
+        adcLeftPhaC: 65535
+        adcRightPhaA: 65535
+        adcRightPhaC: 65535
+      }
+      """
+    When bldc skip calibration
+    And set motor speeds: left = 200 rpm, right = 200 rpm, enable = true
+    And bldc step
+    # Inject filter output to +32767, feed max-negative ADC: error < -32768 → lower sat
+    When bldc inject filter: ch0 = 32767, ch1 = 32767
+    And bldc step
+    Then body control data should be:
+      """
+      : {
+        leftCtrlMode: 2
+      }
+      """
+
+  # ---- Verification: state injection works ----
+

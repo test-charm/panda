@@ -148,6 +148,12 @@ public class BodyPandaClient {
 
         void jna_body_set_err_qual(int qual, int dequal);
 
+        // ---- Internal state injection for coverage ----
+        void jna_body_inject_divide3(int value);
+        void jna_body_inject_filter_output(int ch0_val, int ch1_val);
+        int jna_body_get_divide3();
+        int jna_body_get_filter_ch0();
+
         void jna_panda_init();
 
         // ---- DotStar LED driver (B10-B12) ----
@@ -401,6 +407,12 @@ public class BodyPandaClient {
     public void setMechAngle(int leftAngle, int rightAngle) { lib.jna_body_set_mech_angle(leftAngle, rightAngle); }
     public void setDiagEna(boolean enabled) { lib.jna_body_set_diag_ena(enabled ? 1 : 0); }
     public void setErrQual(int qual, int dequal) { lib.jna_body_set_err_qual(qual, dequal); }
+
+    // ---- Internal state injection for coverage ----
+    public void bldcInjectDivide3(int value) { lib.jna_body_inject_divide3(value); }
+    public void bldcInjectFilterOutput(int ch0, int ch1) { lib.jna_body_inject_filter_output(ch0, ch1); }
+    public int getLeftDivide3() { return lib.jna_body_get_divide3(); }
+    public int getLeftFilterCh0() { return lib.jna_body_get_filter_ch0(); }
 
     /**
      * B9: True if any TIM8 CCR register has a non-zero PWM value.

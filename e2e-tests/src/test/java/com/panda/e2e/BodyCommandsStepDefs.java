@@ -42,6 +42,16 @@ public class BodyCommandsStepDefs {
         bodyClient.setMotorSpeeds(leftRpm, rightRpm, "true".equals(enable));
     }
 
+    @When("bldc inject divide3: {int}")
+    public void bldcInjectDivide3(int value) {
+        bodyClient.bldcInjectDivide3(value);
+    }
+
+    @When("bldc inject filter: ch0 = {int}, ch1 = {int}")
+    public void bldcInjectFilter(int ch0, int ch1) {
+        bodyClient.bldcInjectFilterOutput(ch0, ch1);
+    }
+
     @When("dotstar deinit")
     public void dotstarDeinit() { bodyClient.dotstarDeinit(); }
 
