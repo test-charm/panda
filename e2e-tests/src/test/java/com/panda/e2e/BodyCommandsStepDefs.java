@@ -52,6 +52,23 @@ public class BodyCommandsStepDefs {
         bodyClient.bldcInjectFilterOutput(ch0, ch1);
     }
 
+    @When("bldc inject ibackcalc state: instance = {int}, delay = {int}, delay_m = {int}")
+    public void bldcInjectIbackcalc(int instance, int unitDelay, int unitDelayM) {
+        bodyClient.bldcInjectIbackcalcState(instance, unitDelay, unitDelayM);
+    }
+
+    @When("bldc inject all ibackcalc: delay = {int}, delay_m = {int}")
+    public void bldcInjectAllIbackcalc(int unitDelay, int unitDelayM) {
+        for (int i = 0; i < 3; i++) {
+            bodyClient.bldcInjectIbackcalcState(i, unitDelay, unitDelayM);
+        }
+    }
+
+    @When("bldc inject piclamp speed: ic = {int}, delay = {int}, ud1 = {int}, div1 = {int}")
+    public void bldcInjectPiclampSpeed(int icLoad, int resettableDelay, int unitDelay1, int divide1Val) {
+        bodyClient.bldcInjectPiclampSpeed(icLoad, resettableDelay, unitDelay1, divide1Val);
+    }
+
     @When("dotstar deinit")
     public void dotstarDeinit() { bodyClient.dotstarDeinit(); }
 

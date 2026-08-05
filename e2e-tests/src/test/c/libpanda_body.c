@@ -491,6 +491,53 @@ void jna_body_inject_filter_output(int ch0_val, int ch1_val) {
 int jna_body_get_divide3(void) { return (int)rtDW_Left.Divide3; }
 int jna_body_get_filter_ch0(void) { return (int)(rtDW_Left.Low_Pass_Filter_m.UnitDelay1_DSTATE[0] >> 16); }
 
+void jna_body_inject_ibackcalc_state(int instance, int unit_delay, int unit_delay_m) {
+  DW_I_backCalc_fixdt *targets[] = {
+    &rtDW_Left.I_backCalc_fixdt_i,
+    &rtDW_Left.I_backCalc_fixdt1,
+    &rtDW_Left.I_backCalc_fixdt_j
+  };
+  if (instance >= 0 && instance < 3) {
+    targets[instance]->UnitDelay_DSTATE = unit_delay;
+    targets[instance]->UnitDelay_DSTATE_m = unit_delay_m;
+    DW_I_backCalc_fixdt *right_targets[] = {
+      &rtDW_Right.I_backCalc_fixdt_i,
+      &rtDW_Right.I_backCalc_fixdt1,
+      &rtDW_Right.I_backCalc_fixdt_j
+    };
+    right_targets[instance]->UnitDelay_DSTATE = unit_delay;
+    right_targets[instance]->UnitDelay_DSTATE_m = unit_delay_m;
+  }
+  // Prevent I_backCalc_fixdt_Reset by forcing SwitchCase_ActiveSubsystem_d
+  // to match the active case (0 for VLT mode) so the reset check fails.
+  rtDW_Left.SwitchCase_ActiveSubsystem_d = 0;
+  rtDW_Right.SwitchCase_ActiveSubsystem_d = 0;
+  // Force scheduler state so Motor_Limitations runs on next step
+  rtDW_Left.UnitDelay5_DSTATE_m = true;
+  rtDW_Left.UnitDelay2_DSTATE_c = false;
+  rtDW_Right.UnitDelay5_DSTATE_m = true;
+  rtDW_Right.UnitDelay2_DSTATE_c = false;
+}
+
+void jna_body_inject_piclamp_speed(int ic_load, int resettable_delay, int unit_delay1,
+                                    int divide1_val) {
+  rtDW_Left.PI_clamp_fixdt_l4.icLoad = (uint8_T)ic_load;
+  rtDW_Left.PI_clamp_fixdt_l4.ResettableDelay_DSTATE = (int16_T)resettable_delay;
+  rtDW_Left.PI_clamp_fixdt_l4.UnitDelay1_DSTATE = (boolean_T)unit_delay1;
+  rtDW_Left.Divide1 = (int16_T)divide1_val;
+  rtDW_Right.PI_clamp_fixdt_l4.icLoad = (uint8_T)ic_load;
+  rtDW_Right.PI_clamp_fixdt_l4.ResettableDelay_DSTATE = (int16_T)resettable_delay;
+  rtDW_Right.PI_clamp_fixdt_l4.UnitDelay1_DSTATE = (boolean_T)unit_delay1;
+  rtDW_Right.Divide1 = (int16_T)divide1_val;
+  // Force scheduler: UnitDelay5=true for F04 entry, UnitDelay6=true for FOC_Enabled
+  rtDW_Left.UnitDelay5_DSTATE_m = true;
+  rtDW_Left.UnitDelay2_DSTATE_c = false;
+  rtDW_Left.UnitDelay6_DSTATE = true;
+  rtDW_Right.UnitDelay5_DSTATE_m = true;
+  rtDW_Right.UnitDelay2_DSTATE_c = false;
+  rtDW_Right.UnitDelay6_DSTATE = true;
+}
+
 // ---- JNA: DotStar LED driver (B10-B12) ----
 void jna_dotstar_init(void) { dotstar_init(); }
 void jna_dotstar_deinit(void) { dotstar_state.initialized = false; }

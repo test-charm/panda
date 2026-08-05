@@ -153,6 +153,8 @@ public class BodyPandaClient {
         void jna_body_inject_filter_output(int ch0_val, int ch1_val);
         int jna_body_get_divide3();
         int jna_body_get_filter_ch0();
+        void jna_body_inject_ibackcalc_state(int instance, int unit_delay, int unit_delay_m);
+        void jna_body_inject_piclamp_speed(int ic_load, int resettable_delay, int unit_delay1, int divide1_val);
 
         void jna_panda_init();
 
@@ -411,6 +413,8 @@ public class BodyPandaClient {
     // ---- Internal state injection for coverage ----
     public void bldcInjectDivide3(int value) { lib.jna_body_inject_divide3(value); }
     public void bldcInjectFilterOutput(int ch0, int ch1) { lib.jna_body_inject_filter_output(ch0, ch1); }
+    public void bldcInjectIbackcalcState(int instance, int unitDelay, int unitDelayM) { lib.jna_body_inject_ibackcalc_state(instance, unitDelay, unitDelayM); }
+    public void bldcInjectPiclampSpeed(int icLoad, int resettableDelay, int unitDelay1, int divide1Val) { lib.jna_body_inject_piclamp_speed(icLoad, resettableDelay, unitDelay1, divide1Val); }
     public int getLeftDivide3() { return lib.jna_body_get_divide3(); }
     public int getLeftFilterCh0() { return lib.jna_body_get_filter_ch0(); }
 
