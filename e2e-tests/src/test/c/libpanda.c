@@ -1844,3 +1844,21 @@ uint16_t jna_uart_get_rx_r_ptr(void) {
 uint16_t jna_uart_get_tx_r_ptr(void) {
     return jna_test_ring.r_ptr_tx;
 }
+
+// ---- B22-PANDA: panda main.c init coverage helpers ----
+
+uint32_t jna_get_reg_SCB_CPACR(void) {
+    return e2e_SCB.CPACR;
+}
+
+void jna_set_power_save_enabled(int val) {
+    power_save_enabled = (val != 0);
+}
+
+void jna_panda_main(void) {
+    panda_main();
+}
+
+void jna_set_stop_mode_requested(int val) {
+    stop_mode_requested = (val != 0);
+}

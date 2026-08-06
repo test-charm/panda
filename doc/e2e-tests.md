@@ -98,6 +98,10 @@ body 固件使用独立的 C 入口 `libpanda_body.c`（而非 `libpanda.c`）�
 | `jna_pwm_init_channel_3()` | 调用 `pwm_init(TIM3, 3)` (llfan stub 路径) ✅ J12b |
 | `jna_enter_stop_mode_ignition_on()` | 模拟 ignition ON → `enter_stop_mode()` → `NVIC_SystemReset` ✅ J12c |
 | `jna_spi_init()` | 调用 `spi_init()` (覆盖 DMA 初始化) ✅ J13 |
+| `jna_panda_main()` | 执行真实 `panda_main()` — 完整 init + do-while(false) 循环体一次 (B22-PANDA ✅) |
+| `jna_set_stop_mode_requested(int)` | 设置 `stop_mode_requested` 标志，使循环体进入 `enter_stop_mode()` 路径 (B22-PANDA-STOP ✅) |
+| `jna_set_power_save_enabled(int)` | 直接设置 `power_save_enabled`，控制循环体进入 fade / WFI / deep sleep 分支 (B22-PANDA ✅) |
+| `jna_get_reg_SCB_CPACR()` | 读取 SCB CPACR 寄存器，验证 `enable_fpu()` 使能 FPU (B22-PANDA-INIT ✅) |
 | `jna_panda_init()` (body) | 模拟 body 固件启动序列：调用 `body_main()` 执行完整初始化（含 `disable_interrupts` → `init_interrupts` → `board_body_init` → `led_init` → `tick_timer_init` → `interrupt_timer_init` → `body_can_init` → `dotstar_init` → `bldc_init`），最后执行一次 while 循环体。e2e 中 while(true) 替换为 `do {} while(false)` |
 | `jna_body_bldc_init()` | 调用 `bldc_init()` (BLDC 模型初始化 + TIM PWM, B8 ✅) |
 | `jna_body_get_tim8_cr1()` / `jna_body_get_tim1_cr1()` | 读取 TIM8/TIM1 CR1 寄存器 (PWM 状态验证) |
@@ -231,6 +235,7 @@ e2e-tests/
 | **Body BLDC Controller** | `body_bldc_controller.feature` | 24 | 覆盖校准、deadband、钳位、steady-state FOC speed loop (`PI_clamp_fixdt_l`)、`SPD/TRQ/OPEN/VLT` 模式切换（含 `PI_clamp_fixdt_b_Reset`）、`Clarke_PhasesAB/BC`、`SIN_Method`、Hall 换相检测、角度测量、`Vd_Calculation`（`PI_clamp_fixdt_Reset` + `PI_clamp_fixdt`）、电压保护（`I_backCalc_fixdt`）、巡航控制、诊断错误码、ADC 电流注入、磁场削弱 |
 | **Body CAN** | `body_can.feature` | 4 | B14-B17: 0x201/0x202/0x203 发送 helper、0x250 目标转速接收、100ms 超时归零、10ms 周期发送节流；通过 `rxQueue` 回显帧 + `bodyCan` 状态 + `rpmLeft/rpmRight` 验证 |
 | **Body DotStar** | `body_dotstar.feature` | 9 | B10: `dotstar_init()` 在 `jna_panda_init()` 启动路径中自动调用 + dotstar_fill/show/set_pixel/brightness；B10d: 未初始化保护 (fill/set_pixel/show/breathe no-op)；B10e: set_pixel 越界索引守卫；B11: dotstar_run_rainbow() 彩虹动画；B12: dotstar_apply_breathe() 三角波呼吸效果 + cycle_us=0 全亮度；B12c: cycle_us=1 边界守卫 |
+| **Panda Main Init** | `panda_main.feature` | 5 | B22-PANDA: `panda_main()` 完整 init + do-while(false) 循环体，5 场景覆盖 `faultStatus`/`fpuEnabled`/`harnessStatus` (INIT)、LED fade loop (FADE)、`__WFI` 路径 (WFI)、`enter_stop_mode()` via `stop_mode_requested` (STOP)、deep sleep path (DEEPSLEEP)。`assert_fatal(false)` 在 e2e 构建中通过 `#ifndef E2E_TEST` 守卫排除（真实硬件不可达） |
 | **Body Main 中断路径** | `body_main.feature` | 3 | B18-B20: `tick_handler()` CAN reset + 红灯翻转、`exti15_10_handler()` 充电/点火防抖、`bldc_tim8_handler()` → `bldc_step()` IRQ 路径；通过 `tickCount` / `can0Ile` / `plugCharging` / `ignition*` / `tim8Sr` / PWM 状态验证 |
 | **Body Main 循环体** | `body_main_loop.feature` | 5 | B22: 循环体 4 分支覆盖（绿/橙呼吸 + 彩虹 + 电机使能）+ DotStar 像素值验证；`init_registers()` + 真实 `disable/enable_interrupts` (critical.h) + 真实 `tick_timer_init`/`interrupt_timer_init` (timers.h)；TIM DIER/CR1/SR 寄存器验证 + `led_init()` GPIO 模式验证 |
 
@@ -243,7 +248,7 @@ e2e-tests/
 | 源文件 | 行覆盖 | 函数覆盖 | 说明 |
 |--------|--------|---------|------|
 | `board/main_comms.h` | **97.0%** (261/269) | 3/3 | USB 命令处理 (Phase J: 新增 0xc3 MCU UID + 修复 0xde) |
-| `board/main.c` | **64.2%** (145/226) | 4/7 | 主循环 + 初始化 |
+| `board/main.c` | **70.22%** (158/225) | 5/7 | ✅ B22-PANDA: `panda_main()` init + 循环体全覆盖。`debug_ring_callback` 不可覆盖（UART 回环） |
 | `board/body/main_comms.h` | **86.4%** (57/66) | 1/2 | ✅ body 共享命令 B1-B7 完成 (8/9 case 覆盖；0xde 仍未实现) |
 | `board/body/main.c` | **83.3%** (80/96) | 4/7 | ✅ B22: `body_main()` 初始化序列完整覆盖 + `do-while(false)` 循环体执行一次（默认分支）；`tick_handler`/`exti15_10`/`bldc_tim8` 已覆盖；仅 `enable_fpu`/`__initialize_hardware_early`/`debug_ring_callback` 不可覆盖 (GCC 构造函数/硬件) |
 | `board/body/boards/board_body.h` | **100.0%** (27/27) | 1/1 | ✅ 已通过 `jna_panda_init()` 启动子路径与 `body_bldc.feature` 启动场景覆盖 `board_body_init()` |

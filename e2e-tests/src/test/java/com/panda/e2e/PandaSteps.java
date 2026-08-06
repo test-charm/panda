@@ -80,6 +80,26 @@ public class PandaSteps {
         expect(client).should(expression);
     }
 
+    @When("panda main is executed")
+    public void pandaMain() {
+        client.pandaMain();
+    }
+
+    @When("set power save enabled to {word}")
+    public void setPowerSaveEnabled(String val) {
+        client.setPowerSaveEnabled("true".equals(val));
+    }
+
+    @When("set SOM GPIO to {word}")
+    public void setSomGpio(String val) {
+        client.setSomGpio("true".equals(val) ? 1 : 0);
+    }
+
+    @When("set stop mode requested to {word}")
+    public void setStopModeRequested(String val) {
+        client.setStopModeRequested("true".equals(val));
+    }
+
     @When("tick handler")
     public void callTickHandler() {
         client.callTickHandler();

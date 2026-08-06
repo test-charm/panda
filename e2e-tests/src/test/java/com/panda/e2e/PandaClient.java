@@ -171,6 +171,7 @@ public class PandaClient {
 
         // Power save state inspection
         int jna_get_power_save_enabled();
+        void jna_set_power_save_enabled(int val);
 
         // Alternative experience inspection
         int jna_get_alternative_experience();
@@ -571,6 +572,7 @@ public class PandaClient {
         long jna_get_reg_PWR_CPUCR();
 
         long jna_get_reg_SCB_SCR();
+        long jna_get_reg_SCB_CPACR();
 
         long jna_get_reg_NVIC_ICER0();
 
@@ -634,6 +636,8 @@ public class PandaClient {
 
         // Full firmware init — sets hardware to post-hardware-reset defaults
         void jna_panda_init();
+        void jna_panda_main();
+        void jna_set_stop_mode_requested(int val);
 
         // Build config constants
         int jna_get_can_init_timeout_ms();
@@ -1032,6 +1036,22 @@ public class PandaClient {
 
     public boolean isPowerSaveEnabled() {
         return lib.jna_get_power_save_enabled() != 0;
+    }
+
+    public void setPowerSaveEnabled(boolean val) {
+        lib.jna_set_power_save_enabled(val ? 1 : 0);
+    }
+
+    public long getFpuEnabled() {
+        return lib.jna_get_reg_SCB_CPACR();
+    }
+
+    public void pandaMain() {
+        lib.jna_panda_main();
+    }
+
+    public void setStopModeRequested(boolean val) {
+        lib.jna_set_stop_mode_requested(val ? 1 : 0);
     }
 
     public int getAlternativeExperience() {

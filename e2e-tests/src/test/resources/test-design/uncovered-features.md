@@ -1,7 +1,7 @@
 # 端到端测试覆盖分析
 
-> 最后更新: 2026-08-06 (B22: body_main 循环体分支覆盖 + 真实 stub 替换 + 定时器寄存器验证)
-> Feature 文件: 46 个, 场景总数: 351 (cuatro/tres/red/body 合并，新增 body_main_loop.feature 5 场景)
+> 最后更新: 2026-08-06 (B22: body_main 循环体 + body stub 替换 + panda_main 全覆盖: init + 循环体 5 分支)
+> Feature 文件: 48 个, 场景总数: 356 (新增 body_main_loop.feature 5 + panda_main.feature 5)
 > 综合行覆盖率: **81.0%** (3451/4260), 49 files
 > 非 body 覆盖率: **92.7%** (2340/2525 lines), 40 files
 > Body 关键覆盖: `board/body/main.c` **81.6%**（B22: `body_main()` 初始化序列 + `do-while(false)` 循环体默认分支），`board/body/boards/board_body.h` **100.0%**，`board/body/bldc/BLDC_controller.c` **54.4%** (693/1274)
@@ -112,7 +112,7 @@ board/body/bldc/rtwtypes.h            — Simulink 固定宽度类型 (typedef�
 | 源文件 | 行覆盖 | 说明 |
 |--------|--------|------|
 | `board/main_comms.h` | 94.1% (253/269) | default handler + ALLOW_DEBUG + MCU UID + 0xde can_init 路径 |
-| `board/main.c` | 64.2% (145/226) | main()/LED fade/debug_ring_callback 硬件依赖，不可提升 |
+| `board/main.c` | 70.22% (158/225) | main() 全覆盖（init + 循环体 5 分支）。`debug_ring_callback` 不可覆盖 |
 | `board/can_comms.h` | 100% (76/76) | ✅ |
 | `board/config.h` | 100% (4/4) | ✅ |
 | `board/crc.h` | 100% (17/17) | ✅ |
@@ -359,6 +359,16 @@ libpanda_body.c (B1-B7, 2026-08-01):
 
 > Body 主循环 (B22): 在 e2e 中 `while(true)` → `do { ... } while(false)`，生产代码不变。循环体默认分支（绿色呼吸）在 setUp 中执行一次；其余 3 个分支通过 `jna_body_main_loop_once(now_us)` + `jna_body_set_ignition_val/plug_charging_val` 覆盖。`disable_interrupts`/`enable_interrupts` 通过 `#include "board/sys/critical.h"` 使用真实代码；`tick_timer_init`/`interrupt_timer_init` 使用 `board/drivers/timers.h` 复制体。
 
+**`board/main.c` (3 处, B22-PANDA)**
+
+| 行 | 守卫 | 用途 |
+|----|------|------|
+| 343 | `#ifdef` | 将 `while(true)` 替换为 `do {` — 循环体在 e2e 中执行一次 |
+| 384 | `#ifndef` | 排除 `assert_fatal(false)` — 真实硬件不可达（`enter_stop_mode` 触发 MCU 复位），e2e 中会挂死 |
+| 390 | `#ifdef` | 将 `}` 替换为 `} while(false);` — 对应 `do` 的结束 |
+
+> Panda 主循环 (B22-PANDA): 循环体执行一次，通过 `jna_set_power_save_enabled` / `jna_set_stop_mode_requested` / `jna_set_som_gpio` 控制分支选择，5 个场景覆盖全部 5 条循环体分支（fade / WFI / stop_mode / deep sleep / default）。`enter_stop_mode()` 已由现有测试覆盖。
+
 ---
 
 ## 四、USB 命令覆盖状态
@@ -534,7 +544,7 @@ do {
 
 ### 第七阶段: BLDC 电机控制 (B8)
 - B8: `bldc_init()` 随 `jna_panda_init()` 自动调用, 覆盖 `BLDC_controller_initialize()` ×2 + TIM PWM 寄存器验证
-- B22: `body_main()` 初始化序列 + 循环体 4 分支 + stub 替换 + 定时器寄存器验证 (while(true) → do-while(false) + `jna_body_main_loop_once()`) → `board/body/main.c` 40.62% → 81.63%, `board/sys/critical.h` 进入覆盖, `board/drivers/timers.h` tick/interrupt init 路径进入覆盖
+- B22: panda + body main() 初始化 + while → do-while(false) + 循环体分支全覆盖 → `board/main.c` 64.2% → 70.22% / `board/body/main.c` 40.62% → 81.63%, `board/sys/critical.h` + `board/drivers/timers.h` 进入覆盖
 
 ### 第八阶段: Body CAN 覆盖 (B13-B17)
 - B13-B17: body CAN 初始化/发送/RX/超时/周期发送全覆盖；`board/body/can.h` → 100.0% (82/82)
@@ -542,6 +552,13 @@ do {
 ### 第九阶段: Body 主中断路径覆盖 (B18-B20)
 - B18-B20: `body_main.feature` 新增 3 个场景，覆盖 `tick_handler()` / `exti15_10_handler()` / `bldc_tim8_handler()`
 - `board/body/main.c`: 0% → 40.62% (39/96) → 81.63% (80/98, B22: body_main init + loop body + stub replacement)
+- `board/main.c`: 64.2% (145/226) → 67.70% (153/226, B22-PANDA: init + fade + WFI) → 70.22% (158/225, B22-PANDA: stop mode + deep sleep)
+
+### 第十阶段: Panda 主循环全覆盖 (B22-PANDA)
+- B22-PANDA: `board/main.c` while(true) → do-while(false) + 5 场景覆盖循环体全部分支 (fade / WFI / stop_mode / deep sleep / default)
+- 新增 `jna_panda_main()` / `jna_set_power_save_enabled()` / `jna_set_stop_mode_requested()` / `jna_get_reg_SCB_CPACR()`
+- `#ifndef E2E_TEST` 守卫排除 `assert_fatal(false)` (真实硬件不可达)
+- `board/main.c`: 64.2% → 70.22% (158/225), 函数覆盖 4/7 → 5/7, `board/sys/critical.h` 进入覆盖
 
 ### 第三阶段: 轻量去桩化 (C1-C3)
 - C1: `crc.h` 去桩化 (0% → 100%, 纯 C 算法)
@@ -676,7 +693,7 @@ B8 完成后 (BLDC 初始化): ~5% (+bldc_init → BLDC_controller_initialize + 
 B9 完成后 (BLDC 步进):  ✅    (~3700 行 BLDC 控制器 FOC 算法, 实际已覆盖)
 B10-B12c 完成后 (LED): ~52% (+dotstar.h) ✅ 已完成
 B13-B17 完成后 (CAN): ✅ `board/body/can.h` 100.0% (82/82)
-当前关键文件: `main_comms.h` 86.4%, `can.h` 100.0%, `dotstar.h` 91.1%, `BLDC_controller.c` 53.0% (merged) / 52.69% (body-only), `main.c` 83.33%, `board_body.h` 100.0%
+当前关键文件: `main_comms.h` 86.4%, `can.h` 100.0%, `dotstar.h` 91.1%, `BLDC_controller.c` 53.0% (merged) / 52.69% (body-only), `body/main.c` 81.63%, `panda/main.c` 70.22%, `board_body.h` 100.0%
 当前剩余焦点:          `enable_fpu()` / `__initialize_hardware_early()` (GCC 构造函数，不可覆盖) + `debug_ring_callback()` (非核心)
 ```
 

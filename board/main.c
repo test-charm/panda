@@ -340,7 +340,11 @@ int main(void) {
   enable_interrupts();
 
   // LED should keep on blinking all the time
+#ifdef E2E_TEST
+  do {
+#else
   while (true) {
+#endif
     #ifdef ALLOW_DEBUG
     if (stop_mode_requested) {
       enter_stop_mode();
@@ -377,13 +381,19 @@ int main(void) {
       if ((hw_type == HW_TYPE_CUATRO) && !current_board->read_som_gpio()) {
         assert_fatal(current_safety_mode == SAFETY_SILENT, "Error: Entering low power mode while not in SAFETY_SILENT. Hanging\n");
         enter_stop_mode(); // deep sleep, wakes on CAN or SBU activity
+#ifndef E2E_TEST
         assert_fatal(false, "Error: enter_stop_mode returned after system reset. Hanging\n");
+#endif
       }
       // cppcheck-suppress misra-c2012-17.3 ; CMSIS __WFI macro expands to inline asm
       __WFI();
       SCB->SCR &= ~SCB_SCR_SLEEPDEEP_Msk;
     }
+#ifdef E2E_TEST
+  } while (false);
+#else
   }
+#endif
 
   return 0;
 }
