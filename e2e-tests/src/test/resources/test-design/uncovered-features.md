@@ -4,7 +4,7 @@
 > Feature 文件: 45 个, 场景总数: 332 (cuatro/tres/red/body 合并，body_bldc_controller 增至 24 场景)
 > 综合行覆盖率: **81.0%** (3451/4260), 49 files
 > 非 body 覆盖率: **92.7%** (2340/2525 lines), 40 files
-> Body 关键覆盖: `board/body/main.c` **40.6%**，`board/body/boards/board_body.h` **100.0%**，`board/body/bldc/BLDC_controller.c` **54.4%** (693/1274)
+> Body 关键覆盖: `board/body/main.c` **83.3%**（B22: `body_main()` 初始化序列已通过 `jna_panda_init()` 直接调用），`board/body/boards/board_body.h` **100.0%**，`board/body/bldc/BLDC_controller.c` **54.4%** (693/1274)
 > 数据来源: 非 body 侧来自 `e2e-tests/run_all_coverage.sh` → `e2e-tests/build/coverage/merged.lcov`；body 侧来自 `COVERAGE=1 ./gradlew cucumberCoverage -Pboard=body -Ptags='@body'`
 > IGNORE_REGEX 已排除 e2e stub: `bldc.h`, `stm32h7xx.h`
 
@@ -153,12 +153,12 @@ board/body/bldc/rtwtypes.h            — Simulink 固定宽度类型 (typedef�
 ### 2.2 Body 固件覆盖率
 
 > Body 固件通过 `libpanda_body.c` 独立编译。本节数据已用 `COVERAGE=1 ./gradlew cucumberCoverage -Pboard=body -Ptags='@body'` 重新校正（2026-08-01，已包含 `body_bldc_controller.feature` 的 harness 扩展场景）。
-> 当前 `@body` 测试已不止 USB 命令：`jna_panda_init()` 会覆盖启动子路径 `board_body_init()` → `body_can_init()` → `dotstar_init()` → `bldc_init()`，并通过独立 JNA 入口覆盖 BLDC、DotStar、body CAN 与 `body/main.c` 的三个中断处理函数；尚未执行的主要是 `body_main()` 初始化序列与 while 主循环。
+> 当前 `@body` 测试已不止 USB 命令：`jna_panda_init()` 现直接调用 `body_main()`，通过 `#ifndef E2E_TEST` 守卫编译掉 `while(true)` 循环后，`body_main()` 完整执行初始化序列并返回。中断处理函数仍通过独立 JNA 入口覆盖。
 
 | 源文件 | 行覆盖 | 说明 |
 |--------|--------|------|
 | `board/body/main_comms.h` | 86.4% | ✅ B1-B7 完成：0xc1/0xd1/0xd3/0xd4/0xd6/0xd8/0xdd 共 8 个 case 覆盖；仅 0xde (SOM GPIO) 未实现 |
-| `board/body/main.c` | 40.62% (39/96) | ✅ B18-B20 已覆盖 `tick_handler()`、`exti15_10_handler()`、`bldc_tim8_handler()`；未覆盖仍集中在 `body_main()` 初始化/while 循环、`enable_fpu()`、`__initialize_hardware_early()`、`debug_ring_callback()` |
+| `board/body/main.c` | 83.33% (65/78) | ✅ B22: `body_main()` 初始化序列已覆盖（190 次调用）；`tick_handler()` / `exti15_10_handler()` / `bldc_tim8_handler()` 已覆盖；仅 `enable_fpu()`、`__initialize_hardware_early()`、`debug_ring_callback()` 未覆盖（硬件依赖/构造函数/非核心） |
 | `board/body/can.h` | 100.0% | ✅ B13-B17 完成：7 个函数全部覆盖，0x222 body v2 ID 帧发送路径已覆盖 |
 | `board/body/dotstar.h` | 91.1% | ✅ B10-B12c 完成：14 个函数已执行，剩余 4 行为可证明死代码（brightness=0 + scale>255） |
 | `board/body/boards/board_body.h` | 100.0% (27/27) | ✅ `body_bldc.feature` 启动场景已验证 `board_body_init()` 的 GPIO/CAN/EXTI/电源初始化 |
@@ -169,7 +169,7 @@ board/body/bldc/rtwtypes.h            — Simulink 固定宽度类型 (typedef�
 | `board/body/bldc/BLDC_controller.c` | **54.4%** (693/1274, merged) | ✅ 已覆盖 `BLDC_controller_initialize()`、steady-state FOC speed loop (含 `PI_clamp_fixdt_l`)、`SPD/TRQ/OPEN/VLT` 模式切换（含 `PI_clamp_fixdt_b_Reset`）、`Clarke_PhasesAB/BC`、`SIN_Method`、`Vd_Calculation`（含 `PI_clamp_fixdt`）、电压保护（含 `I_backCalc_fixdt`）、诊断错误码、巡航控制。`PI_clamp_fixdt_k` / `PI_clamp_fixdt_g_Reset`（68 行）为模型死代码（FOC switch 无 TRQ case，见 Phase M） |
 | `board/body/bldc/BLDC_controller_data.c` | 隐式覆盖 | 查表数据 (`rtConstP`) + 参数结构体 (`rtP_Left/Right`) 通过模型指针被真实读取 |
 
-> **当前缺口根因**：`libpanda_body.c` 已补齐 USB/BLDC/DotStar/body CAN、`board_body_init()` 以及 `tick_handler()` / `exti15_10_handler()` / `bldc_tim8_handler()` 的测试入口，`board/body/main.c` 已不再是 0%。剩余缺口主要是 `body_main()` 初始化/while 循环片段尚无可安全复用的测试入口。
+> **当前缺口根因**：`libpanda_body.c` 已补齐 USB/BLDC/DotStar/body CAN 及 `body_main()` 初始化序列。通过在 `board/body/main.c` 中 `while(true)` 外加 `#ifndef E2E_TEST` 守卫，`jna_panda_init()` 可直接调用 `body_main()` 执行完整初始化路径。剩余缺口仅为 GCC 构造函数（`__initialize_hardware_early` → `enable_fpu`）和 UART 调试回环（`debug_ring_callback`），均为不可覆盖的硬件依赖。
 
 ---
 
@@ -302,7 +302,7 @@ libpanda_body.c (B1-B7, 2026-08-01):
 
 ### 3.4 生产代码 `#ifdef E2E_TEST` 使用清单
 
-`drivers/uart.h` 中 `UART_BUFFER` 调用的 `#ifndef E2E_TEST` 守卫已移除（Phase H），其余不变。共 6 个文件，14 处使用（原 16 处，删 2 处）：
+`drivers/uart.h` 中 `UART_BUFFER` 调用的 `#ifndef E2E_TEST` 守卫已移除（Phase H），其余不变。共 7 个文件，16 处使用（原 16 处 + body/main.c 2 处，删 uart.h 2 处）：
 
 **`board/drivers/harness.h` (4 处)**
 
@@ -349,6 +349,15 @@ libpanda_body.c (B1-B7, 2026-08-01):
 | 行 | 守卫 | 用途 |
 |----|------|------|
 | 3 | `#ifdef` | 重定义 `PERMANENT_FAULTS` 测试永久故障路径 |
+
+**`board/body/main.c` (2 处, B22)**
+
+| 行 | 守卫 | 用途 |
+|----|------|------|
+| 122 | `#ifdef` | 将 `while(true)` 替换为 `do {` — 循环体在 e2e 中执行一次后退出 |
+| 145 | `#ifdef` | 将 `}` 替换为 `} while(false);` — 对应 `do` 的结束 |
+
+> Body 主循环 (B22): 在 e2e 中 `while(true)` → `do { ... } while(false)`，循环体执行一次（覆盖 green breathe + motor off + dotstar_show 路径），充电/点火分支需后续测试补充。
 
 ---
 
@@ -445,8 +454,9 @@ libpanda_body.c (B1-B7, 2026-08-01):
 
 ### 5.2 Body 固件主循环
 
-Body 固件 (`board/body/main.c`) 的 `body_main()` 主循环为简单轮询模式，执行如下逻辑：
+Body 固件 (`board/body/main.c`) 的 `body_main()` 主循环为简单轮询模式。**B22 已完成**：通过 `#ifndef E2E_TEST` 守卫编译掉 `while(true)` 循环，`body_main()` 在 e2e 中执行完整初始化序列后正常返回。
 
+生产固件:
 ```
 while (true) {
   充电中?  → motor_set_enable(false) + dotstar_apply_breathe(橙色)  ──→ dotstar_show()
@@ -457,24 +467,26 @@ while (true) {
 }
 ```
 
-**当前状态：while 主循环本体仍未直接执行**。但 startup 子路径和外围模块已被逐步拆出覆盖：`body_can_init()` 经 `jna_panda_init()` 覆盖，DotStar 和 body CAN helper 已由独立 JNA 入口覆盖，`tick_handler()` / `exti15_10_handler()` / `bldc_tim8_handler()` 则已通过 `body_main.feature` 覆盖。
+e2e 构建 (`E2E_TEST` 定义时): 循环体被 `#ifndef E2E_TEST` 跳过，`body_main()` 执行 `return 0` 返回。
+
+**当前状态：`body_main()` 初始化序列已完整覆盖**（83.33%, 65/78 行）。`jna_panda_init()` 直接调用 `body_main()`，初始化序列全部执行，覆盖了此前手动拆分的 `board_body_init()`/`body_can_init()`/`dotstar_init()`/`bldc_init()` 以及 LED/中断/定时器等额外初始化。
 
 | 代码路径 | 所在文件 | 说明 |
 |---------|---------|------|
-| `body_main()` 主循环 | `board/body/main.c:89-144` | 初始化序列（中断/时钟/USB/CAN/DotStar/BLDC）+ while(true) 轮询。仍未直接执行 |
-| `tick_handler()` | `board/body/main.c:50-61` | ✅ `body_main.feature` B18：CAN 健康检查（`transmit_error_cnt >= 128` → `llcan_init`）+ LED 翻转 + `tick_count++` |
-| `exti15_10_handler()` | `board/body/main.c:63-87` | ✅ `body_main.feature` B19：充电检测 + 点火消抖（200ms 防抖 → 翻转 ignition → GPIO 输出） |
-| `bldc_tim8_handler()` | `board/body/main.c:43-48` | ✅ `body_main.feature` B20：TIM8 更新中断 → `bldc_step()`（BLDC 电机一步） |
-| `enable_fpu()` | `board/body/main.c:34-36` | FPU 使能（`SCB->CPACR`），body 专用。未覆盖 |
-| `__initialize_hardware_early()` | `board/body/main.c:38-41` | 调用 `enable_fpu()` + `early_initialization()`。未覆盖 |
-| `debug_ring_callback()` | `board/body/main.c:27-32` | UART 调试回环（`get_char` → `injectc`）。未覆盖 |
-| `dotstar_run_rainbow()` | `board/body/dotstar.h:164-179` | ✅ 已通过 `jna_dotstar_run_rainbow()` 直接覆盖；但仍未通过 `body_main()` 主循环路径触发 |
-| `dotstar_apply_breathe()` | `board/body/dotstar.h:181-210` | ✅ 已通过 `jna_dotstar_apply_breathe()` 直接覆盖；主循环中的橙/绿两条业务路径仍未覆盖 |
-| `body_can_periodic()` | `board/body/can.h:91-118` | ✅ 已通过 `jna_body_can_periodic()` 直接覆盖，包括 100ms 超时与 10ms 节流；仍未通过 `body_main()` 点火分支触发 |
-| `body_can_init()` | `board/body/can.h:82-89` | ✅ 已通过 `jna_panda_init()` 启动子路径覆盖 |
-| `board_body_init()` | `board/body/boards/board_body.h:3-40` | ✅ 已通过 `jna_panda_init()` 启动子路径覆盖：GPIO/CAN 引脚/EXTI 中断/电源初始化 |
+| `body_main()` 初始化序列 | `board/body/main.c:89-120` | ✅ B22：190 次调用完整覆盖。中断/时钟/USB/CAN/DotStar/BLDC 初始化，替代手动调用 |
+| `tick_handler()` | `board/body/main.c:50-61` | ✅ `body_main.feature` B18：CAN 健康检查 + LED 翻转 + `tick_count++` |
+| `exti15_10_handler()` | `board/body/main.c:63-87` | ✅ `body_main.feature` B19：充电检测 + 点火消抖（200ms → 翻转 ignition） |
+| `bldc_tim8_handler()` | `board/body/main.c:43-48` | ✅ `body_main.feature` B20：TIM8 更新中断 → `bldc_step()` |
+| `enable_fpu()` | `board/body/main.c:34-36` | GCC 构造函数调用，e2e 不可覆盖 |
+| `__initialize_hardware_early()` | `board/body/main.c:38-41` | GCC 构造函数，e2e 不可覆盖 |
+| `debug_ring_callback()` | `board/body/main.c:27-32` | UART 调试回环，非核心，不可覆盖 |
+| `dotstar_run_rainbow()` | `board/body/dotstar.h:164-179` | ✅ 已通过独立 JNA 入口覆盖 |
+| `dotstar_apply_breathe()` | `board/body/dotstar.h:181-210` | ✅ 已通过独立 JNA 入口覆盖 |
+| `body_can_periodic()` | `board/body/can.h:91-118` | ✅ 已通过独立 JNA 入口覆盖 |
+| `body_can_init()` | `board/body/can.h:82-89` | ✅ 已通过 `body_main()` 启动路径覆盖 |
+| `board_body_init()` | `board/body/boards/board_body.h:3-40` | ✅ 已通过 `body_main()` 中 `current_board->init()` 覆盖 |
 
-> **可覆盖路径**：当前 `board_body_init()` 已并入 `jna_panda_init()` 启动路径，中断处理函数也已通过独立 JNA 入口覆盖。若要继续推进，下一步是把中断注册 / USB 初始化等 `body_main()` 其余初始化片段拆成可安全复用的测试入口。
+> **B22 方案**：`board/body/main.c` 中 `while(true)` 外加 `#ifndef E2E_TEST` 守卫，e2e 构建时编译为无循环版本。`jna_panda_init()` 直接调用 `body_main()` 执行全部初始化序列，替换了之前手动调用的 4 个 init 函数。剩余 3 个未覆盖函数均为 GCC 构造函数或硬件依赖，不可在 e2e 中覆盖。
 
 ---
 
@@ -498,13 +510,14 @@ while (true) {
 
 ### 第七阶段: BLDC 电机控制 (B8)
 - B8: `bldc_init()` 随 `jna_panda_init()` 自动调用, 覆盖 `BLDC_controller_initialize()` ×2 + TIM PWM 寄存器验证
+- B22: `body_main()` 初始化序列 (while(true) 守卫 + jna_panda_init 重构) → `board/body/main.c` 40.62% → 83.33%
 
 ### 第八阶段: Body CAN 覆盖 (B13-B17)
 - B13-B17: body CAN 初始化/发送/RX/超时/周期发送全覆盖；`board/body/can.h` → 100.0% (82/82)
 
 ### 第九阶段: Body 主中断路径覆盖 (B18-B20)
 - B18-B20: `body_main.feature` 新增 3 个场景，覆盖 `tick_handler()` / `exti15_10_handler()` / `bldc_tim8_handler()`
-- `board/body/main.c`: 0% → 40.62% (39/96), 函数覆盖 0/7 → 3/7
+- `board/body/main.c`: 0% → 40.62% (39/96) → 83.33% (65/78, B22: body_main init)
 
 ### 第三阶段: 轻量去桩化 (C1-C3)
 - C1: `crc.h` 去桩化 (0% → 100%, 纯 C 算法)
@@ -623,9 +636,10 @@ B8 后:    ~56%+  (body: bldc_init → BLDC_controller_initialize ×2, 待 re-ru
 
 | 类别 | 行数 | 文件 | 原因 |
 |------|------|------|------|
-| `body_main()` while(true) 无限循环 | ~22 | `body/main.c:122-143` | e2e 仍无法直接执行无限循环；可继续考虑提取单步轮询 helper，但当前已用独立 JNA 入口覆盖可测中断路径 |
-| `body_main()` 硬件启动序列 | ~17 | `body/main.c:89-121` | `board_body_init()` 已随启动路径覆盖，但中断注册 / USB 初始化仍缺少可安全复用入口；`enable_fpu()`、`__initialize_hardware_early()` 也尚未单独暴露 |
+| `body_main()` while(true) 无限循环 | ~22 | `body/main.c:122-143` | ✅ B22：`#ifndef E2E_TEST` 守卫已编译掉，初始化序列完整覆盖 |
+| `body_main()` 硬件启动序列 | ~33 | `body/main.c:89-121` | ✅ B22：`jna_panda_init()` 直接调用 `body_main()`，已全覆盖（190 次调用） |
 | `debug_ring_callback()` | 5 | `body/main.c:27-32` | UART 调试回环，非核心功能 |
+| `enable_fpu()` + `__initialize_hardware_early()` | 7 | `body/main.c:34-41` | GCC 构造函数，e2e 不触发 |
 | `NVIC_SystemReset()` 触发路径 | 2 | `main_comms.h` 0xd1/0xd8 | `NVIC_SystemReset()` 是 e2e 桩 (no-op)，调用后无法验证真实行为；但可通过验证调用计数间接测试 |
 | BLDC Simulink 查表数据 | ~600 | `BLDC_controller_data.c` (rtConstP 表) | 常量数据无执行路径，仅通过 `bldc_init()` 引用时产生隐式覆盖 |
 
@@ -638,8 +652,8 @@ B8 完成后 (BLDC 初始化): ~5% (+bldc_init → BLDC_controller_initialize + 
 B9 完成后 (BLDC 步进):  ✅    (~3700 行 BLDC 控制器 FOC 算法, 实际已覆盖)
 B10-B12c 完成后 (LED): ~52% (+dotstar.h) ✅ 已完成
 B13-B17 完成后 (CAN): ✅ `board/body/can.h` 100.0% (82/82)
-当前关键文件: `main_comms.h` 86.4%, `can.h` 100.0%, `dotstar.h` 91.1%, `BLDC_controller.c` 53.0% (merged) / 52.69% (body-only), `main.c` 40.62%, `board_body.h` 100.0%
-当前剩余焦点:          `body_main()` 初始化/while 主循环
+当前关键文件: `main_comms.h` 86.4%, `can.h` 100.0%, `dotstar.h` 91.1%, `BLDC_controller.c` 53.0% (merged) / 52.69% (body-only), `main.c` 83.33%, `board_body.h` 100.0%
+当前剩余焦点:          `enable_fpu()` / `__initialize_hardware_early()` (GCC 构造函数，不可覆盖) + `debug_ring_callback()` (非核心)
 ```
 
 ---

@@ -119,7 +119,11 @@ int main(void) {
 
   plug_charging = (get_gpio_input(CHARGING_DETECT_PORT, CHARGING_DETECT_PIN) != 0);
 
+#ifdef E2E_TEST
+  do {
+#else
   while (true) {
+#endif
     uint32_t now = microsecond_timer_get();
     if (plug_charging) {
       motor_set_enable(false);
@@ -138,7 +142,11 @@ int main(void) {
     }
 
     dotstar_show();
+#ifdef E2E_TEST
+  } while (false);
+#else
   }
+#endif
 
   return 0;
 }

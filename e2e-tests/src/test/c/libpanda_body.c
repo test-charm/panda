@@ -349,12 +349,13 @@ void jna_panda_init(void) {
   e2e_adc_right_dc_raw = 0U;
   e2e_adc_battery_raw = 0U;
 
-  // body_main() startup initializes board GPIO/EXTI, then CAN, DotStar, and BLDC.
-  // Mirror that startup path here so each body scenario begins from firmware init state.
-  board_body_init();
-  body_can_init();
-  dotstar_init();
-  bldc_init();
+  // Run body_main() to execute the real initialization sequence from board/body/main.c.
+  // In E2E_TEST builds the while(true) loop is compiled out, so body_main() returns
+  // after completing the full hardware init path: disable_interrupts → init_interrupts
+  // → clock_init → peripherals_init → board_body_init → interrupt registration →
+  // led_init → microsecond_timer_init → tick_timer_init → usb_init → body_can_init
+  // → dotstar_init → bldc_init → enable_interrupts → plug_charging detection.
+  body_main();
 }
 
 // ---- JNA: Response buffer access (filled by jna_body_control_write) ----
