@@ -98,7 +98,7 @@ body 固件使用独立的 C 入口 `libpanda_body.c`（而非 `libpanda.c`）�
 | `jna_pwm_init_channel_3()` | 调用 `pwm_init(TIM3, 3)` (llfan stub 路径) ✅ J12b |
 | `jna_enter_stop_mode_ignition_on()` | 模拟 ignition ON → `enter_stop_mode()` → `NVIC_SystemReset` ✅ J12c |
 | `jna_spi_init()` | 调用 `spi_init()` (覆盖 DMA 初始化) ✅ J13 |
-| `jna_panda_init()` (body) | 模拟 body 固件启动序列：`body_can_init()` → `dotstar_init()` → `bldc_init()` (B8/B13 ✅) |
+| `jna_panda_init()` (body) | 模拟 body 固件启动序列：调用 `body_main()` 执行完整初始化（含 `disable_interrupts` → `init_interrupts` → `board_body_init` → `led_init` → `tick_timer_init` → `interrupt_timer_init` → `body_can_init` → `dotstar_init` → `bldc_init`），最后执行一次 while 循环体。e2e 中 while(true) 替换为 `do {} while(false)` |
 | `jna_body_bldc_init()` | 调用 `bldc_init()` (BLDC 模型初始化 + TIM PWM, B8 ✅) |
 | `jna_body_get_tim8_cr1()` / `jna_body_get_tim1_cr1()` | 读取 TIM8/TIM1 CR1 寄存器 (PWM 状态验证) |
 | `jna_body_get_tim8_arr()` / `jna_body_get_tim1_arr()` | 读取 TIM8/TIM1 ARR 寄存器 (PWM 频率验证) |
@@ -135,6 +135,12 @@ body 固件使用独立的 C 入口 `libpanda_body.c`（而非 `libpanda.c`）�
 | `jna_body_set_ignition_pressed()` / `jna_body_trigger_ignition_exti()` | 模拟点火按键低电平与 EXTI 触发，覆盖 200ms 防抖逻辑 (B19 ✅) |
 | `jna_body_get_plug_charging()` / `jna_body_get_ignition()` / `jna_body_get_ignition_press_timestamp_us()` / `jna_body_get_ignition_output()` | 观察 charging/ignition 中断后的状态变化 (B19 ✅) |
 | `jna_body_trigger_tim8_irq()` / `jna_body_get_tim8_sr()` | 触发 TIM8 update IRQ，覆盖 `bldc_tim8_handler()` 与 UIF 清除路径 (B20 ✅) |
+| `jna_body_set_ignition_val()` / `jna_body_set_plug_charging_val()` | 直接设置 `ignition`/`plug_charging` 静态变量，测试循环体分支 (B22 ✅) |
+| `jna_body_main_loop_once(now_us)` | 执行一次 while 循环体迭代（复制自 `board/body/main.c`），覆盖充电/点火分支 (B22 ✅) |
+| `jna_body_get_tick_psc/dier/cr1/sr()` | 读取 TICK_TIMER 寄存器，验证 `tick_timer_init()` 真实代码 (B22 ✅) |
+| `jna_body_get_int_timer_psc/dier/cr1/sr()` | 读取 INTERRUPT_TIMER 寄存器，验证 `interrupt_timer_init()` 真实代码 (B22 ✅) |
+| `jna_body_get_red_led_mode()` | 读取 GPIOA MODER pin 10，验证 `led_init()` 输出模式 (B22 ✅) |
+| `jna_body_get_microsecond_timer_cnt()` | 读取 `MICROSECOND_TIMER->CNT`，验证 `microsecond_timer_init()` 初始值 (B22 ✅) |
 
 ## 目录结构
 
@@ -226,6 +232,7 @@ e2e-tests/
 | **Body CAN** | `body_can.feature` | 4 | B14-B17: 0x201/0x202/0x203 发送 helper、0x250 目标转速接收、100ms 超时归零、10ms 周期发送节流；通过 `rxQueue` 回显帧 + `bodyCan` 状态 + `rpmLeft/rpmRight` 验证 |
 | **Body DotStar** | `body_dotstar.feature` | 9 | B10: `dotstar_init()` 在 `jna_panda_init()` 启动路径中自动调用 + dotstar_fill/show/set_pixel/brightness；B10d: 未初始化保护 (fill/set_pixel/show/breathe no-op)；B10e: set_pixel 越界索引守卫；B11: dotstar_run_rainbow() 彩虹动画；B12: dotstar_apply_breathe() 三角波呼吸效果 + cycle_us=0 全亮度；B12c: cycle_us=1 边界守卫 |
 | **Body Main 中断路径** | `body_main.feature` | 3 | B18-B20: `tick_handler()` CAN reset + 红灯翻转、`exti15_10_handler()` 充电/点火防抖、`bldc_tim8_handler()` → `bldc_step()` IRQ 路径；通过 `tickCount` / `can0Ile` / `plugCharging` / `ignition*` / `tim8Sr` / PWM 状态验证 |
+| **Body Main 循环体** | `body_main_loop.feature` | 5 | B22: 循环体 4 分支覆盖（绿/橙呼吸 + 彩虹 + 电机使能）+ DotStar 像素值验证；`init_registers()` + 真实 `disable/enable_interrupts` (critical.h) + 真实 `tick_timer_init`/`interrupt_timer_init` (timers.h)；TIM DIER/CR1/SR 寄存器验证 + `led_init()` GPIO 模式验证 |
 
 ## C 代码覆盖率
 
@@ -238,7 +245,7 @@ e2e-tests/
 | `board/main_comms.h` | **97.0%** (261/269) | 3/3 | USB 命令处理 (Phase J: 新增 0xc3 MCU UID + 修复 0xde) |
 | `board/main.c` | **64.2%** (145/226) | 4/7 | 主循环 + 初始化 |
 | `board/body/main_comms.h` | **86.4%** (57/66) | 1/2 | ✅ body 共享命令 B1-B7 完成 (8/9 case 覆盖；0xde 仍未实现) |
-| `board/body/main.c` | **40.6%** (39/96) | 3/7 | ✅ B18-B20 已覆盖 `tick_handler()` / `exti15_10_handler()` / `bldc_tim8_handler()`；剩余为 `body_main()` 初始化/while 循环与早期硬件 helper |
+| `board/body/main.c` | **83.3%** (80/96) | 4/7 | ✅ B22: `body_main()` 初始化序列完整覆盖 + `do-while(false)` 循环体执行一次（默认分支）；`tick_handler`/`exti15_10`/`bldc_tim8` 已覆盖；仅 `enable_fpu`/`__initialize_hardware_early`/`debug_ring_callback` 不可覆盖 (GCC 构造函数/硬件) |
 | `board/body/boards/board_body.h` | **100.0%** (27/27) | 1/1 | ✅ 已通过 `jna_panda_init()` 启动子路径与 `body_bldc.feature` 启动场景覆盖 `board_body_init()` |
 | `board/body/can.h` | **100%** (82/82) | 7/7 | ✅ B13-B17 完成：`body_can_init()`（经 `jna_panda_init()` 启动路径）、发送 helper、RX 目标解析、超时归零、10ms 周期发送 |
 | `board/body/dotstar.h` | **91.1%** (144/158) | 14/14 | ✅ B10-B12c：dotstar_init/deinit/fill/set_pixel/brightness/rainbow/breathe 全覆盖（含未初始化保护 + 越界守卫 + cycle_us=1 边界）。剩余 4 行为可证明死代码（brightness=0 守卫 + scale>255 钳位） |

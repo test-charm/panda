@@ -167,6 +167,28 @@ public class BodyCommandsStepDefs {
         bodyClient.triggerTim8UpdateInterrupt();
     }
 
+    // ---- Main loop branch coverage (B22) ----
+
+    @When("body set ignition state to {word}")
+    public void bodySetIgnitionState(String val) {
+        bodyClient.setIgnitionVal("true".equals(val));
+    }
+
+    @When("body set plug charging state to {word}")
+    public void bodySetPlugChargingState(String val) {
+        bodyClient.setPlugChargingVal("true".equals(val));
+    }
+
+    @When("body main loop once at {int} us")
+    public void bodyMainLoopOnce(int nowUs) {
+        bodyClient.mainLoopOnce(nowUs);
+    }
+
+    @When("body set microsecond timer CNT to {int}")
+    public void bodySetMicrosecondTimerCnt(int val) {
+        bodyClient.setMicrosecondTimerCnt(val);
+    }
+
     @Then("body control data should be:")
     public void bodyControlDataShould(String expression) {
         expect(bodyClient).should(expression);

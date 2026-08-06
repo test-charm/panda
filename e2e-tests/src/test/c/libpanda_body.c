@@ -111,19 +111,58 @@ void __DSB(void) {}
 void __ISB(void) {}
 void __WFI(void) {}
 
+// Real interrupt enable/disable from board/sys/critical.h
+// (__disable_irq/__enable_irq are stubbed above — the real critical.h code tracks
+// interrupts_enabled flag and calls the no-op stubs, safe on macOS)
+#include "board/sys/critical.h"
+
+// ---- Interrupt table (must precede init functions that use REGISTER_INTERRUPT) ----
+#define NUM_INTERRUPTS 128
+interrupt interrupts[128];
+
+// Forward decl for interrupt_timer_handler (defined in board/drivers/drivers.h,
+// but included later via can_common.h → body/main.c)
+void interrupt_timer_handler(void);
+
 // ---- Utility stubs ----
+// Custom e2e microsecond timer for test control (avoids conflict with board/drivers/timers.h)
 static uint32_t e2e_microsecond_timer = 0U;
 uint32_t microsecond_timer_get(void) { return e2e_microsecond_timer; }
 void microsecond_timer_init(void) { e2e_microsecond_timer = 0U; }
-void tick_timer_init(void) {}
+
+// Real tick_timer_init from board/drivers/timers.h
+// timer_init is copied here to avoid including full timers.h (which conflicts
+// with our e2e microsecond_timer_get/init implementations)
+static void timer_init(TIM_TypeDef *TIM, int psc) {
+  register_set(&(TIM->PSC), (psc-1), 0xFFFFU);
+  register_set(&(TIM->DIER), TIM_DIER_UIE, 0x5F5FU);
+  register_set(&(TIM->CR1), TIM_CR1_CEN, 0x3FU);
+  TIM->SR = 0;
+}
+
+void tick_timer_init(void) {
+  timer_init(TICK_TIMER, (uint16_t)((15.25*APB2_TIMER_FREQ)/8U));
+  NVIC_EnableIRQ(TICK_TIMER_IRQ);
+}
+
 void peripherals_init(void) {}
 void clock_init(void) {}
 void usb_init(void) {}
 void early_initialization(void) {}
-void interrupt_timer_init(void) {}
+
+// Real interrupt_timer_init from board/drivers/timers.h
+void interrupt_timer_init(void) {
+  enable_interrupt_timer();
+  REGISTER_INTERRUPT(INTERRUPT_TIMER_IRQ, interrupt_timer_handler, 2U, FAULT_INTERRUPT_RATE_INTERRUPTS)
+  register_set(&(INTERRUPT_TIMER->PSC), ((uint16_t)(15.25*APB1_TIMER_FREQ)-1U), 0xFFFFU);
+  register_set(&(INTERRUPT_TIMER->DIER), TIM_DIER_UIE, 0x5F5FU);
+  register_set(&(INTERRUPT_TIMER->CR1), TIM_CR1_CEN, 0x3FU);
+  INTERRUPT_TIMER->SR = 0;
+  NVIC_EnableIRQ(INTERRUPT_TIMER_IRQ);
+}
+
 void fault_occurred(uint32_t fault) { (void)fault; }
-void disable_interrupts(void) {}
-void enable_interrupts(void) {}
+// disable_interrupts / enable_interrupts now come from board/sys/critical.h
 static int nvic_reset_call_count = 0;
 void NVIC_SystemReset(void) { nvic_reset_call_count++; }
 
@@ -132,9 +171,6 @@ int _app_start[0xc000] = {0};
 
 // CAN comms extern
 void can_tx_comms_resume_usb(void) {}
-
-// ---- Interrupt table ----
-interrupt interrupts[128];
 
 // ---- Globals needed by body main.c ----
 uint32_t enter_bootloader_mode;
@@ -156,9 +192,6 @@ int e2e_ctrl_mode_req_override = -1;
 
 // body_can_rx forward decl (fdcan.h calls this under #ifdef PANDA_BODY)
 void body_can_rx(CANPacket_t *msg);
-
-// NUM_INTERRUPTS (used by interrupts.h)
-#define NUM_INTERRUPTS 128
 
 // Provision address stub
 #define PROVISION_CHUNK_ADDRESS  ((uint32_t)0x1FFF0000UL)
@@ -348,6 +381,10 @@ void jna_panda_init(void) {
   e2e_adc_right_pha_c_raw = 0U;
   e2e_adc_right_dc_raw = 0U;
   e2e_adc_battery_raw = 0U;
+
+  // Initialize register shadow table before body_main()'s init functions
+  // call register_set() (tick_timer_init, interrupt_timer_init)
+  init_registers();
 
   // Run body_main() to execute the real initialization sequence from board/body/main.c.
   // In E2E_TEST builds the while(true) loop is compiled out, so body_main() returns
@@ -593,6 +630,14 @@ void jna_body_set_microsecond_timer(unsigned int now_us) {
   e2e_microsecond_timer = now_us;
 }
 
+// Set/read MICROSECOND_TIMER->CNT directly (microsecond_timer_get() reads this)
+void jna_body_set_microsecond_timer_cnt(unsigned int val) {
+  MICROSECOND_TIMER->CNT = val;
+}
+unsigned int jna_body_get_microsecond_timer_cnt(void) {
+  return MICROSECOND_TIMER->CNT;
+}
+
 void jna_body_can_receive_target(int left_rpm, int right_rpm) {
   CANPacket_t pkt = {0};
   const int16_t left_target_deci_rpm = (int16_t)(left_rpm * 10);
@@ -695,6 +740,18 @@ void jna_body_call_tick_handler(void) {
   tick_handler();
 }
 
+// TICK_TIMER register readers (verify tick_timer_init real code)
+unsigned int jna_body_get_tick_psc(void)  { return TICK_TIMER->PSC; }
+unsigned int jna_body_get_tick_dier(void) { return TICK_TIMER->DIER; }
+unsigned int jna_body_get_tick_cr1(void)  { return TICK_TIMER->CR1; }
+unsigned int jna_body_get_tick_sr(void)   { return TICK_TIMER->SR; }
+
+// INTERRUPT_TIMER register readers (verify interrupt_timer_init real code)
+unsigned int jna_body_get_int_timer_psc(void)  { return INTERRUPT_TIMER->PSC; }
+unsigned int jna_body_get_int_timer_dier(void) { return INTERRUPT_TIMER->DIER; }
+unsigned int jna_body_get_int_timer_cr1(void)  { return INTERRUPT_TIMER->CR1; }
+unsigned int jna_body_get_int_timer_sr(void)   { return INTERRUPT_TIMER->SR; }
+
 void jna_body_set_can0_transmit_error_cnt(int count) {
   can_health[0].transmit_error_cnt = (uint8_t)count;
 }
@@ -713,6 +770,10 @@ unsigned int jna_body_get_tick_count(void) {
 
 unsigned int jna_body_get_red_led_output(void) {
   return (GPIOA->ODR >> 10U) & 0x1U;
+}
+
+unsigned int jna_body_get_red_led_mode(void) {
+  return (GPIOA->MODER >> (10U * 2U)) & 0x3U;
 }
 
 void jna_body_set_charging_detect(int present) {
@@ -804,4 +865,34 @@ bool jna_body_can_pop_rx(uint32_t *out_addr, uint8_t *out_bus, uint8_t *out_reje
     return true;
   }
   return false;
+}
+
+// ---- JNA: Main loop branch coverage (B22) ----
+
+// Direct setters for static variables in body/main.c (needed to test loop body branches)
+void jna_body_set_ignition_val(int val) { ignition = val != 0; }
+void jna_body_set_plug_charging_val(int val) { plug_charging = val != 0; }
+
+// Run one iteration of the body_main() while-loop body with explicit timer value.
+// Receives now_us from Java so tests can control timing without relying on
+// MICROSECOND_TIMER->CNT (which may be reset by init code paths).
+void jna_body_main_loop_once(unsigned int now_us) {
+  uint32_t now = (uint32_t)now_us;
+  if (plug_charging) {
+    motor_set_enable(false);
+    dotstar_apply_breathe((dotstar_rgb_t){255U, 40U, 0U}, now, 2000000U);
+  } else if (ignition) {
+    dotstar_run_rainbow(now);
+  } else {
+    dotstar_apply_breathe((dotstar_rgb_t){0U, 255U, 10U}, now, 1500000U);
+  }
+
+  if (ignition) {
+    motor_set_enable(true);
+    body_can_periodic(now, ignition, plug_charging);
+  } else {
+    motor_set_enable(false);
+  }
+
+  dotstar_show();
 }

@@ -219,6 +219,24 @@ public class BodyPandaClient {
         int jna_body_get_left_dc_pha_a();
         boolean jna_body_can_pop_tx(int[] outAddr, byte[] outReturned, byte[] outData, byte[] outLen, byte[] outExtended, byte[] outFd);
         boolean jna_body_can_pop_rx(int[] outAddr, byte[] outBus, byte[] outRejected, byte[] outReturned, byte[] outData, byte[] outLen, byte[] outExtended, byte[] outFd);
+
+        // ---- Main loop branch coverage (B22) ----
+        void jna_body_set_ignition_val(int val);
+        void jna_body_set_plug_charging_val(int val);
+        void jna_body_main_loop_once(int now_us);
+        void jna_body_set_microsecond_timer_cnt(int val);
+        int jna_body_get_microsecond_timer_cnt();
+        int jna_body_get_red_led_mode();
+
+        // ---- Timer register readers (verify init) ----
+        int jna_body_get_tick_psc();
+        int jna_body_get_tick_dier();
+        int jna_body_get_tick_cr1();
+        int jna_body_get_tick_sr();
+        int jna_body_get_int_timer_psc();
+        int jna_body_get_int_timer_dier();
+        int jna_body_get_int_timer_cr1();
+        int jna_body_get_int_timer_sr();
     }
 
     // ---- Inner data classes (used by jfactory specs) ----
@@ -465,6 +483,26 @@ public class BodyPandaClient {
     private final DotstarState dotstar = new DotstarState();
 
     public DotstarState getDotstar() { return dotstar; }
+
+    // ---- Main loop branch coverage (B22) ----
+
+    public void setIgnitionVal(boolean val) { lib.jna_body_set_ignition_val(val ? 1 : 0); }
+    public void setPlugChargingVal(boolean val) { lib.jna_body_set_plug_charging_val(val ? 1 : 0); }
+    public void mainLoopOnce(int nowUs) { invalidateCanSnapshots(); lib.jna_body_main_loop_once(nowUs); }
+
+    public void setMicrosecondTimerCnt(int val) { lib.jna_body_set_microsecond_timer_cnt(val); }
+    public int getMicrosecondTimer() { return lib.jna_body_get_microsecond_timer_cnt(); }
+    public int getRedLedMode() { return lib.jna_body_get_red_led_mode(); }
+
+    // ---- Timer register accessors (verify init) ----
+    public int getTickPsc()  { return lib.jna_body_get_tick_psc(); }
+    public int getTickDier() { return lib.jna_body_get_tick_dier(); }
+    public int getTickCr1()  { return lib.jna_body_get_tick_cr1(); }
+    public int getTickSr()   { return lib.jna_body_get_tick_sr(); }
+    public int getIntTimerPsc()  { return lib.jna_body_get_int_timer_psc(); }
+    public int getIntTimerDier() { return lib.jna_body_get_int_timer_dier(); }
+    public int getIntTimerCr1()  { return lib.jna_body_get_int_timer_cr1(); }
+    public int getIntTimerSr()   { return lib.jna_body_get_int_timer_sr(); }
 
     // ---- Public API ----
 

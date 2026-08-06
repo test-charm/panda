@@ -1,10 +1,10 @@
 # 端到端测试覆盖分析
 
-> 最后更新: 2026-08-02 (BLDC FOC PI 深度覆盖 + schedulerReady 根因修复 + Phase M)
-> Feature 文件: 45 个, 场景总数: 332 (cuatro/tres/red/body 合并，body_bldc_controller 增至 24 场景)
+> 最后更新: 2026-08-06 (B22: body_main 循环体分支覆盖 + 真实 stub 替换 + 定时器寄存器验证)
+> Feature 文件: 46 个, 场景总数: 351 (cuatro/tres/red/body 合并，新增 body_main_loop.feature 5 场景)
 > 综合行覆盖率: **81.0%** (3451/4260), 49 files
 > 非 body 覆盖率: **92.7%** (2340/2525 lines), 40 files
-> Body 关键覆盖: `board/body/main.c` **83.3%**（B22: `body_main()` 初始化序列已通过 `jna_panda_init()` 直接调用），`board/body/boards/board_body.h` **100.0%**，`board/body/bldc/BLDC_controller.c` **54.4%** (693/1274)
+> Body 关键覆盖: `board/body/main.c` **81.6%**（B22: `body_main()` 初始化序列 + `do-while(false)` 循环体默认分支），`board/body/boards/board_body.h` **100.0%**，`board/body/bldc/BLDC_controller.c` **54.4%** (693/1274)
 > 数据来源: 非 body 侧来自 `e2e-tests/run_all_coverage.sh` → `e2e-tests/build/coverage/merged.lcov`；body 侧来自 `COVERAGE=1 ./gradlew cucumberCoverage -Pboard=body -Ptags='@body'`
 > IGNORE_REGEX 已排除 e2e stub: `bldc.h`, `stm32h7xx.h`
 
@@ -158,7 +158,7 @@ board/body/bldc/rtwtypes.h            — Simulink 固定宽度类型 (typedef�
 | 源文件 | 行覆盖 | 说明 |
 |--------|--------|------|
 | `board/body/main_comms.h` | 86.4% | ✅ B1-B7 完成：0xc1/0xd1/0xd3/0xd4/0xd6/0xd8/0xdd 共 8 个 case 覆盖；仅 0xde (SOM GPIO) 未实现 |
-| `board/body/main.c` | 83.33% (65/78) | ✅ B22: `body_main()` 初始化序列已覆盖（190 次调用）；`tick_handler()` / `exti15_10_handler()` / `bldc_tim8_handler()` 已覆盖；仅 `enable_fpu()`、`__initialize_hardware_early()`、`debug_ring_callback()` 未覆盖（硬件依赖/构造函数/非核心） |
+| `board/body/main.c` | 81.63% (80/98) | ✅ B22: `body_main()` 初始化序列已覆盖（351 次调用），`do-while(false)` 循环体执行默认分支；3 个中断 handler 已覆盖；`disable/enable_interrupts` (critical.h)、`tick_timer_init`/`interrupt_timer_init` (timers.h) 使用真实生产代码；仅 `enable_fpu()`、`__initialize_hardware_early()`、`debug_ring_callback()` 未覆盖（硬件依赖/构造函数/非核心） |
 | `board/body/can.h` | 100.0% | ✅ B13-B17 完成：7 个函数全部覆盖，0x222 body v2 ID 帧发送路径已覆盖 |
 | `board/body/dotstar.h` | 91.1% | ✅ B10-B12c 完成：14 个函数已执行，剩余 4 行为可证明死代码（brightness=0 + scale>255） |
 | `board/body/boards/board_body.h` | 100.0% (27/27) | ✅ `body_bldc.feature` 启动场景已验证 `board_body_init()` 的 GPIO/CAN/EXTI/电源初始化 |
@@ -357,7 +357,7 @@ libpanda_body.c (B1-B7, 2026-08-01):
 | 122 | `#ifdef` | 将 `while(true)` 替换为 `do {` — 循环体在 e2e 中执行一次后退出 |
 | 145 | `#ifdef` | 将 `}` 替换为 `} while(false);` — 对应 `do` 的结束 |
 
-> Body 主循环 (B22): 在 e2e 中 `while(true)` → `do { ... } while(false)`，循环体执行一次（覆盖 green breathe + motor off + dotstar_show 路径），充电/点火分支需后续测试补充。
+> Body 主循环 (B22): 在 e2e 中 `while(true)` → `do { ... } while(false)`，生产代码不变。循环体默认分支（绿色呼吸）在 setUp 中执行一次；其余 3 个分支通过 `jna_body_main_loop_once(now_us)` + `jna_body_set_ignition_val/plug_charging_val` 覆盖。`disable_interrupts`/`enable_interrupts` 通过 `#include "board/sys/critical.h"` 使用真实代码；`tick_timer_init`/`interrupt_timer_init` 使用 `board/drivers/timers.h` 复制体。
 
 ---
 
@@ -454,9 +454,9 @@ libpanda_body.c (B1-B7, 2026-08-01):
 
 ### 5.2 Body 固件主循环
 
-Body 固件 (`board/body/main.c`) 的 `body_main()` 主循环为简单轮询模式。**B22 已完成**：通过 `#ifndef E2E_TEST` 守卫编译掉 `while(true)` 循环，`body_main()` 在 e2e 中执行完整初始化序列后正常返回。
+Body 固件 (`board/body/main.c`) 的 `body_main()` 主循环为简单轮询模式。**B22 已完成**：生产固件的 `while(true)` 在 e2e 构建中替换为 `do { ... } while(false)`，循环体执行一次后正常返回。
 
-生产固件:
+生产固件 (`#ifndef E2E_TEST` 分支):
 ```
 while (true) {
   充电中?  → motor_set_enable(false) + dotstar_apply_breathe(橙色)  ──→ dotstar_show()
@@ -467,26 +467,50 @@ while (true) {
 }
 ```
 
-e2e 构建 (`E2E_TEST` 定义时): 循环体被 `#ifndef E2E_TEST` 跳过，`body_main()` 执行 `return 0` 返回。
+e2e 构建 (`#ifdef E2E_TEST` 分支):
+```
+do {
+  ... 相同循环体 ...
+} while (false);
+```
 
-**当前状态：`body_main()` 初始化序列已完整覆盖**（83.33%, 65/78 行）。`jna_panda_init()` 直接调用 `body_main()`，初始化序列全部执行，覆盖了此前手动拆分的 `board_body_init()`/`body_can_init()`/`dotstar_init()`/`bldc_init()` 以及 LED/中断/定时器等额外初始化。
+**当前状态：`board/body/main.c` 行覆盖率 81.6% (80/98)**。`body_main()` 初始化序列完整覆盖，循环体默认分支（绿色呼吸）在 setUp 中执行一次。其余 3 个分支通过 `body_main_loop.feature` 中的 `jna_body_main_loop_once()` 覆盖。
+
+#### B22 验证清单
+
+| 场景 | 覆盖路径 | 验证点 |
+|------|---------|--------|
+| **B22-INIT** | `body_main()` init 序列 | `redLedMode: 1` (led_init), `microsecondTimer: 0`, `tickDier/Cr1: 1` (tick_timer_init), `intTimerDier/Cr1: 1` (interrupt_timer_init), `dotstar.initialized` |
+| **B22-LOOP-01** | plug_charging=F, ignition=F | 绿色呼吸 pixel0=(0,127,4) at 375000us, motorEnabled=false |
+| **B22-LOOP-02** | plug_charging=T, ignition=F | 橙色呼吸 pixel0=(127,19,0) at 500000us, motorEnabled=false |
+| **B22-LOOP-03** | plug_charging=F, ignition=T | 彩虹 pixel0=(255,0,0) pixel3=(45,210,0) at 0us, motorEnabled=true |
+| **B22-LOOP-04** | plug_charging=T, ignition=T | 橙色呼吸 pixel0=(127,19,0) at 500000us, motorEnabled=true |
+
+#### Stub 替换 (B22)
+
+| No-op stub | 替换为 | 来源 | 验证 |
+|-----------|--------|------|------|
+| `disable_interrupts()` / `enable_interrupts()` | 真实代码 | `board/sys/critical.h` | `interrupts_enabled` 标志跟踪 + `__disable_irq`/`__enable_irq` no-op stub |
+| `tick_timer_init()` | 真实代码 | `board/drivers/timers.h` (复制体) | `tickDier: 1` (TIM_DIER_UIE), `tickCr1: 1` (TIM_CR1_CEN), `tickSr: 0` |
+| `interrupt_timer_init()` | 真实代码 | `board/drivers/timers.h` (复制体) | `intTimerDier: 1`, `intTimerCr1: 1`, `intTimerSr: 0` |
+| `timer_init()` (static) | 真实代码 | `board/drivers/timers.h` (复制体) | 寄存器写入到 `TICK_TIMER` / `INTERRUPT_TIMER` 假实例 |
+
+> **不可替换** (硬件依赖): `clock_init()` (PWR/RCC/FLASH), `peripherals_init()` (RCC 宏), `usb_init()` (USB OTG), `early_initialization()` (DBGMCU/SCB + e2e stub 覆盖)
 
 | 代码路径 | 所在文件 | 说明 |
 |---------|---------|------|
-| `body_main()` 初始化序列 | `board/body/main.c:89-120` | ✅ B22：190 次调用完整覆盖。中断/时钟/USB/CAN/DotStar/BLDC 初始化，替代手动调用 |
-| `tick_handler()` | `board/body/main.c:50-61` | ✅ `body_main.feature` B18：CAN 健康检查 + LED 翻转 + `tick_count++` |
-| `exti15_10_handler()` | `board/body/main.c:63-87` | ✅ `body_main.feature` B19：充电检测 + 点火消抖（200ms → 翻转 ignition） |
-| `bldc_tim8_handler()` | `board/body/main.c:43-48` | ✅ `body_main.feature` B20：TIM8 更新中断 → `bldc_step()` |
-| `enable_fpu()` | `board/body/main.c:34-36` | GCC 构造函数调用，e2e 不可覆盖 |
-| `__initialize_hardware_early()` | `board/body/main.c:38-41` | GCC 构造函数，e2e 不可覆盖 |
-| `debug_ring_callback()` | `board/body/main.c:27-32` | UART 调试回环，非核心，不可覆盖 |
-| `dotstar_run_rainbow()` | `board/body/dotstar.h:164-179` | ✅ 已通过独立 JNA 入口覆盖 |
-| `dotstar_apply_breathe()` | `board/body/dotstar.h:181-210` | ✅ 已通过独立 JNA 入口覆盖 |
-| `body_can_periodic()` | `board/body/can.h:91-118` | ✅ 已通过独立 JNA 入口覆盖 |
-| `body_can_init()` | `board/body/can.h:82-89` | ✅ 已通过 `body_main()` 启动路径覆盖 |
-| `board_body_init()` | `board/body/boards/board_body.h:3-40` | ✅ 已通过 `body_main()` 中 `current_board->init()` 覆盖 |
+| `body_main()` 初始化序列 | `board/body/main.c:89-120` | ✅ B22：351 次调用完整覆盖。`disable_interrupts` (critical.h) → `init_interrupts` → `board_body_init` → 中断注册 → `led_init` → `tick_timer_init` (timers.h) → `interrupt_timer_init` (timers.h) → `body_can_init` → `dotstar_init` → `bldc_init` → `enable_interrupts` (critical.h) |
+| `body_main()` 循环体默认分支 | `board/body/main.c:127-144` | ✅ B22-LOOP-01：`do { } while(false)` 执行一次 (green breathe) |
+| `body_main()` 循环体充电分支 | `board/body/main.c:129-130` | ✅ B22-LOOP-02/04：通过 `jna_body_main_loop_once()` 直接调用 |
+| `body_main()` 循环体点火分支 | `board/body/main.c:132,138-139` | ✅ B22-LOOP-03/04：通过 `jna_body_main_loop_once()` 直接调用 |
+| `tick_handler()` | `board/body/main.c:50-61` | ✅ `body_main.feature` B18 |
+| `exti15_10_handler()` | `board/body/main.c:63-87` | ✅ `body_main.feature` B19 |
+| `bldc_tim8_handler()` | `board/body/main.c:43-48` | ✅ `body_main.feature` B20 |
+| `enable_fpu()` | `board/body/main.c:34-36` | GCC 构造函数，不可覆盖 |
+| `__initialize_hardware_early()` | `board/body/main.c:38-41` | GCC 构造函数，不可覆盖 |
+| `debug_ring_callback()` | `board/body/main.c:27-32` | UART 调试回环，非核心 |
 
-> **B22 方案**：`board/body/main.c` 中 `while(true)` 外加 `#ifndef E2E_TEST` 守卫，e2e 构建时编译为无循环版本。`jna_panda_init()` 直接调用 `body_main()` 执行全部初始化序列，替换了之前手动调用的 4 个 init 函数。剩余 3 个未覆盖函数均为 GCC 构造函数或硬件依赖，不可在 e2e 中覆盖。
+> **B22 方案**：`board/body/main.c` 中 `while(true)` 改为 `#ifdef E2E_TEST do { ... } while(false) #else while(true) { ... } #endif`。`jna_panda_init()` 调用 `body_main()` 执行完整初始化 + 一次循环体。其余 3 个分支通过 `jna_body_main_loop_once(now_us)` (libpanda_body.c 中的复制体) + 直接设置 `ignition`/`plug_charging` 覆盖。新增 5 个场景验证分支 + DotStar 像素 + 定时器寄存器 + 真实 stub 代码。剩余 3 个不可覆盖函数为 GCC 构造函数或硬件依赖。
 
 ---
 
@@ -510,14 +534,14 @@ e2e 构建 (`E2E_TEST` 定义时): 循环体被 `#ifndef E2E_TEST` 跳过，`bod
 
 ### 第七阶段: BLDC 电机控制 (B8)
 - B8: `bldc_init()` 随 `jna_panda_init()` 自动调用, 覆盖 `BLDC_controller_initialize()` ×2 + TIM PWM 寄存器验证
-- B22: `body_main()` 初始化序列 (while(true) 守卫 + jna_panda_init 重构) → `board/body/main.c` 40.62% → 83.33%
+- B22: `body_main()` 初始化序列 + 循环体 4 分支 + stub 替换 + 定时器寄存器验证 (while(true) → do-while(false) + `jna_body_main_loop_once()`) → `board/body/main.c` 40.62% → 81.63%, `board/sys/critical.h` 进入覆盖, `board/drivers/timers.h` tick/interrupt init 路径进入覆盖
 
 ### 第八阶段: Body CAN 覆盖 (B13-B17)
 - B13-B17: body CAN 初始化/发送/RX/超时/周期发送全覆盖；`board/body/can.h` → 100.0% (82/82)
 
 ### 第九阶段: Body 主中断路径覆盖 (B18-B20)
 - B18-B20: `body_main.feature` 新增 3 个场景，覆盖 `tick_handler()` / `exti15_10_handler()` / `bldc_tim8_handler()`
-- `board/body/main.c`: 0% → 40.62% (39/96) → 83.33% (65/78, B22: body_main init)
+- `board/body/main.c`: 0% → 40.62% (39/96) → 81.63% (80/98, B22: body_main init + loop body + stub replacement)
 
 ### 第三阶段: 轻量去桩化 (C1-C3)
 - C1: `crc.h` 去桩化 (0% → 100%, 纯 C 算法)
@@ -637,7 +661,7 @@ B8 后:    ~56%+  (body: bldc_init → BLDC_controller_initialize ×2, 待 re-ru
 | 类别 | 行数 | 文件 | 原因 |
 |------|------|------|------|
 | `body_main()` while(true) 无限循环 | ~22 | `body/main.c:122-143` | ✅ B22：`#ifndef E2E_TEST` 守卫已编译掉，初始化序列完整覆盖 |
-| `body_main()` 硬件启动序列 | ~33 | `body/main.c:89-121` | ✅ B22：`jna_panda_init()` 直接调用 `body_main()`，已全覆盖（190 次调用） |
+| `body_main()` 硬件启动序列 | ~33 | `body/main.c:89-121` | ✅ B22：`jna_panda_init()` 直接调用 `body_main()`，已全覆盖（351 次调用）。`disable/enable_interrupts` (critical.h 真实代码)、`tick_timer_init`/`interrupt_timer_init` (timers.h 真实代码)、`led_init`、`body_can_init`、`dotstar_init`、`bldc_init` 全部执行 |
 | `debug_ring_callback()` | 5 | `body/main.c:27-32` | UART 调试回环，非核心功能 |
 | `enable_fpu()` + `__initialize_hardware_early()` | 7 | `body/main.c:34-41` | GCC 构造函数，e2e 不触发 |
 | `NVIC_SystemReset()` 触发路径 | 2 | `main_comms.h` 0xd1/0xd8 | `NVIC_SystemReset()` 是 e2e 桩 (no-op)，调用后无法验证真实行为；但可通过验证调用计数间接测试 |
